@@ -24,7 +24,11 @@ func main() {
 	fmt.Println(" El que maneja el total de la PC")
 	fmt.Println("=================================")
 
-	hands := core.NewHands()
+	hands := core.NewHands(core.HandsOpciones{
+		Apps:     cfg.Apps,
+		ClimaKey: cfg.OpenWeatherKey,
+		NewsKey:  cfg.NewsAPIKey,
+	})
 	conectorIA := ia.NuevoConector(cfg.Timeout)
 	coderAgent := agents.NewCoderAgent(conectorIA)
 

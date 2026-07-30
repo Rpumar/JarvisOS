@@ -2,9 +2,11 @@ package core
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math/rand"
+	"sort"
 	"net"
 	"net/http"
 	"net/url"
@@ -39,6 +41,9 @@ const (
 type Hands struct {
 	muCache sync.Mutex
 	cache   map[string]cacheEntry
+	Apps    map[string]string
+	ClimaKey string
+	NewsKey  string
 }
 
 type cacheEntry struct {
@@ -46,8 +51,20 @@ type cacheEntry struct {
 	expiracion time.Time
 }
 
-func NewHands() *Hands {
-	return &Hands{cache: make(map[string]cacheEntry)}
+type HandsOpciones struct {
+	Apps      map[string]string
+	ClimaKey string
+	NewsKey  string
+}
+
+func NewHands(opciones ...HandsOpciones) *Hands {
+	h := &Hands{cache: make(map[string]cacheEntry)}
+	if len(opciones) > 0 {
+		h.Apps = opciones[0].Apps
+		h.ClimaKey = opciones[0].ClimaKey
+		h.NewsKey = opciones[0].NewsKey
+	}
+	return h
 }
 
 func (h *Hands) obtenerOCache(clave string, ttl time.Duration, fn func() string) string {
@@ -70,26 +87,9 @@ func (h *Hands) obtenerOCache(clave string, ttl time.Duration, fn func() string)
 func (h *Hands) RunCommand(cmd string) string {
 	cmd = strings.ToLower(strings.TrimSpace(cmd))
 
-	// APPS
-	switch {
-	case strings.Contains(cmd, "abrir code"):
-		return h.abrirApp("code")
-	case strings.Contains(cmd, "abrir calculadora"):
-		return h.abrirApp("calc")
-	case strings.Contains(cmd, "abrir bloc"):
-		return h.abrirApp("notepad")
-	case strings.Contains(cmd, "abrir chrome"):
-		return h.abrirApp("chrome")
-	case strings.Contains(cmd, "abrir spotify"):
-		return h.abrirApp("spotify:")
-	case strings.Contains(cmd, "abrir word"):
-		return h.abrirApp("winword")
-	case strings.Contains(cmd, "abrir excel"):
-		return h.abrirApp("excel")
-	case strings.Contains(cmd, "abrir powerpoint"):
-		return h.abrirApp("powerpnt")
-	case strings.Contains(cmd, "abrir opera"):
-		return h.abrirApp("opera")
+	// APPS (dinámico desde config)
+	if nombreApp := h.buscarAppEnComando(cmd); nombreApp != "" {
+		return h.abrirApp(nombreApp)
 	}
 
 	// VOLUMEN (mecanismo corregido esta ronda: ver enviarTeclaVirtual)
@@ -229,58 +229,6 @@ func (h *Hands) RunCommand(cmd string) string {
 		return mensaje
 	}
 
-	// === 25 NUEVAS APPS ===
-	switch {
-	case strings.Contains(cmd, "abrir firefox"):
-		return h.abrirApp("firefox")
-	case strings.Contains(cmd, "abrir edge"):
-		return h.abrirApp("msedge")
-	case strings.Contains(cmd, "abrir discord"):
-		return h.abrirApp("discord")
-	case strings.Contains(cmd, "abrir whatsapp"):
-		return h.abrirApp("whatsapp")
-	case strings.Contains(cmd, "abrir telegram"):
-		return h.abrirApp("telegram")
-	case strings.Contains(cmd, "abrir outlook"):
-		return h.abrirApp("outlook")
-	case strings.Contains(cmd, "abrir terminal"):
-		return h.abrirApp("windows-terminal")
-	case strings.Contains(cmd, "abrir cmd"):
-		return h.abrirApp("cmd")
-	case strings.Contains(cmd, "abrir powershell"):
-		return h.abrirApp("powershell")
-	case strings.Contains(cmd, "abrir paint"):
-		return h.abrirApp("mspaint")
-	case strings.Contains(cmd, "abrir steam"):
-		return h.abrirApp("steam")
-	case strings.Contains(cmd, "abrir zoom"):
-		return h.abrirApp("zoom")
-	case strings.Contains(cmd, "abrir teams"):
-		return h.abrirApp("teams")
-	case strings.Contains(cmd, "abrir vscode"):
-		return h.abrirApp("code")
-	case strings.Contains(cmd, "abrir calendario"):
-		return h.abrirApp("outlookcal:")
-	case strings.Contains(cmd, "abrir cámara") || strings.Contains(cmd, "abrir camara"):
-		return h.abrirApp("windows+camera:")
-	case strings.Contains(cmd, "abrir fotos"):
-		return h.abrirApp("ms-photos:")
-	case strings.Contains(cmd, "abrir música") || strings.Contains(cmd, "abrir musica"):
-		return h.abrirApp("ms-music:")
-	case strings.Contains(cmd, "abrir videos") || strings.Contains(cmd, "abrir videos"):
-		return h.abrirApp("ms-video:")
-	case strings.Contains(cmd, "abrir mapas"):
-		return h.abrirApp("bingmaps:")
-	case strings.Contains(cmd, "abrir noticias"):
-		return h.abrirApp("ms-news:")
-	case strings.Contains(cmd, "abrir clima"):
-		return h.abrirApp("ms-weather:")
-	case strings.Contains(cmd, "abrir bloc de notas") || strings.Contains(cmd, "abrir bloc"):
-		return h.abrirApp("notepad")
-	case strings.Contains(cmd, "abrir calculadora"):
-		return h.abrirApp("calc")
-	}
-
 	// === 15 SISTEMA / INFORMACIÓN ===
 	switch {
 	case strings.Contains(cmd, "procesador") || strings.Contains(cmd, "cpu"):
@@ -359,6 +307,8 @@ func (h *Hands) RunCommand(cmd string) string {
 		return h.brilloPorcentaje(cmd)
 	case strings.Contains(cmd, "modo avión") || strings.Contains(cmd, "modo avion") || strings.Contains(cmd, "airplane"):
 		return h.modoAvion()
+	case strings.Contains(cmd, "apagar la pc") || strings.Contains(cmd, "apagar pc") || strings.Contains(cmd, "apagar el equipo") || strings.Contains(cmd, "apagar computadora"):
+		return h.apagarPC()
 	}
 
 	// === 7 NUEVAS VENTANAS ===
@@ -540,6 +490,29 @@ func esProcesoProtegido(proceso string) bool {
 		}
 	}
 	return false
+}
+
+func (h *Hands) buscarAppEnComando(cmd string) string {
+	nombres := make([]string, 0, len(h.Apps))
+	for n := range h.Apps {
+		nombres = append(nombres, n)
+	}
+	sort.Slice(nombres, func(i, j int) bool {
+		return len(nombres[i]) > len(nombres[j])
+	})
+	for _, nombre := range nombres {
+		if strings.Contains(cmd, nombre) {
+			return h.Apps[nombre]
+		}
+	}
+	return ""
+}
+
+func (h *Hands) apagarPC() string {
+	if err := exec.Command("shutdown", "/s", "/t", "5").Run(); err != nil {
+		return "No pude iniciar el apagado, señor."
+	}
+	return "Apagando el equipo en 5 segundos, señor."
 }
 
 func (h *Hands) cerrarApp(app string) string {
@@ -1484,6 +1457,28 @@ func (h *Hands) buscarArchivos(cmd string) string {
 }
 
 func (h *Hands) consultarClima() string {
+	if h.ClimaKey != "" {
+		url := fmt.Sprintf("https://api.openweathermap.org/data/2.5/weather?q=Buenos+Ayres,ar&appid=%s&units=metric&lang=es", h.ClimaKey)
+		resp, err := http.Get(url)
+		if err == nil {
+			defer resp.Body.Close()
+			body, _ := io.ReadAll(resp.Body)
+			var resultado map[string]any
+			if json.Unmarshal(body, &resultado) == nil {
+				if main, ok := resultado["main"].(map[string]any); ok {
+					if temp, ok := main["temp"].(float64); ok {
+						desc := ""
+						if weather, ok := resultado["weather"].([]any); ok && len(weather) > 0 {
+							if w, ok := weather[0].(map[string]any); ok {
+								desc, _ = w["description"].(string)
+							}
+						}
+						return fmt.Sprintf("Clima actual: %.0f°C, %s, señor.", temp, desc)
+					}
+				}
+			}
+		}
+	}
 	resp, err := http.Get("https://wttr.in?format=%C+%t&lang=es")
 	if err != nil {
 		return "No pude consultar el clima, señor. ¿Tiene conexión a internet?"
@@ -1498,17 +1493,38 @@ func (h *Hands) consultarClima() string {
 }
 
 func (h *Hands) consultarNoticias() string {
-	resp, err := http.Get("https://newsapi.org/v2/top-headlines?country=ar&apiKey=demo")
-	if err != nil {
-		return h.noticiasFallback()
+	if h.NewsKey != "" && h.NewsKey != "demo" {
+		url := fmt.Sprintf("https://newsapi.org/v2/top-headlines?country=ar&apiKey=%s", h.NewsKey)
+		resp, err := http.Get(url)
+		if err == nil {
+			defer resp.Body.Close()
+			body, _ := io.ReadAll(resp.Body)
+			var resultado map[string]any
+			if json.Unmarshal(body, &resultado) == nil {
+				if articulos, ok := resultado["articles"].([]any); ok && len(articulos) > 0 {
+					titulares := make([]string, 0, min(5, len(articulos)))
+					for i, a := range articulos {
+						if i >= 5 {
+							break
+						}
+						if art, ok := a.(map[string]any); ok {
+							if titulo, ok := art["title"].(string); ok {
+								titulares = append(titulares, titulo)
+							}
+						}
+					}
+					if len(titulares) > 0 {
+						fmt.Println("Últimas noticias:")
+						for i, t := range titulares {
+							fmt.Printf(" %d. %s\n", i+1, t)
+						}
+						return fmt.Sprintf("Últimas %d noticias, señor. Mire la consola.", len(titulares))
+					}
+				}
+			}
+		}
 	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
-	texto := string(body)
-	if strings.Contains(texto, "demo") || strings.Contains(texto, "error") {
-		return h.noticiasFallback()
-	}
-	return fmt.Sprintf("Noticias obtenidas, señor. Mire la consola para los titulares.")
+	return h.noticiasFallback()
 }
 
 func (h *Hands) noticiasFallback() string {

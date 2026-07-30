@@ -23,10 +23,11 @@ type Config struct {
 	TTSRate             int      `json:"tts_rate"`
 	MaxHistorialIA      int      `json:"max_historial_ia"`
 
-	OpenWeatherKey string `json:"open_weather_key"`
-	NewsAPIKey     string `json:"news_api_key"`
-	GoogleCalendar bool   `json:"google_calendar_enabled"`
-	SpotifyEnabled bool   `json:"spotify_enabled"`
+	OpenWeatherKey string            `json:"open_weather_key"`
+	NewsAPIKey     string            `json:"news_api_key"`
+	Apps           map[string]string `json:"apps"`
+	GoogleCalendar bool              `json:"google_calendar_enabled"`
+	SpotifyEnabled bool              `json:"spotify_enabled"`
 
 	BrilloPaso int `json:"brillo_paso"`
 }
@@ -46,6 +47,42 @@ func defaultConfig() *Config {
 		MaxHistorialIA:      20,
 		OpenWeatherKey:      "",
 		NewsAPIKey:          "",
+		Apps: map[string]string{
+			"code":          "code",
+			"calculadora":   "calc",
+			"bloc":          "notepad",
+			"chrome":        "chrome",
+			"spotify":       "spotify:",
+			"word":          "winword",
+			"excel":         "excel",
+			"powerpoint":    "powerpnt",
+			"opera":         "opera",
+			"firefox":       "firefox",
+			"edge":          "msedge",
+			"discord":       "discord",
+			"whatsapp":      "whatsapp",
+			"telegram":      "telegram",
+			"outlook":       "outlook",
+			"terminal":      "windows-terminal",
+			"cmd":           "cmd",
+			"powershell":    "powershell",
+			"paint":         "mspaint",
+			"steam":         "steam",
+			"zoom":          "zoom",
+			"teams":         "teams",
+			"vscode":        "code",
+			"calendario":    "outlookcal:",
+			"cámara":        "windows+camera:",
+			"camara":        "windows+camera:",
+			"fotos":         "ms-photos:",
+			"música":        "ms-music:",
+			"musica":        "ms-music:",
+			"videos":        "ms-video:",
+			"mapas":         "bingmaps:",
+			"noticias app":  "ms-news:",
+			"clima app":     "ms-weather:",
+			"bloc de notas": "notepad",
+		},
 		GoogleCalendar:      false,
 		SpotifyEnabled:      false,
 		BrilloPaso:          20,
@@ -78,11 +115,12 @@ func Load() *Config {
 		TTSVoice            string  `json:"tts_voice"`
 		TTSRate             int     `json:"tts_rate"`
 		MaxHistorialIA      int     `json:"max_historial_ia"`
-		OpenWeatherKey      string  `json:"open_weather_key"`
-		NewsAPIKey          string  `json:"news_api_key"`
-		GoogleCalendar      bool    `json:"google_calendar_enabled"`
-		SpotifyEnabled      bool    `json:"spotify_enabled"`
-		BrilloPaso          int     `json:"brillo_paso"`
+		OpenWeatherKey      string            `json:"open_weather_key"`
+		NewsAPIKey          string            `json:"news_api_key"`
+		Apps                map[string]string `json:"apps"`
+		GoogleCalendar      bool              `json:"google_calendar_enabled"`
+		SpotifyEnabled      bool              `json:"spotify_enabled"`
+		BrilloPaso          int               `json:"brillo_paso"`
 	}
 
 	var alias configAlias
@@ -104,6 +142,7 @@ func Load() *Config {
 	if alias.MaxHistorialIA > 0 { cfg.MaxHistorialIA = alias.MaxHistorialIA }
 	if alias.OpenWeatherKey != "" { cfg.OpenWeatherKey = alias.OpenWeatherKey }
 	if alias.NewsAPIKey != "" { cfg.NewsAPIKey = alias.NewsAPIKey }
+	if alias.Apps != nil { cfg.Apps = alias.Apps }
 	cfg.GoogleCalendar = alias.GoogleCalendar
 	cfg.SpotifyEnabled = alias.SpotifyEnabled
 	if alias.BrilloPaso > 0 { cfg.BrilloPaso = alias.BrilloPaso }
@@ -126,6 +165,7 @@ func (c *Config) Save() error {
 		"max_historial_ia":       c.MaxHistorialIA,
 		"open_weather_key":       c.OpenWeatherKey,
 		"news_api_key":           c.NewsAPIKey,
+		"apps":                   c.Apps,
 		"google_calendar_enabled": c.GoogleCalendar,
 		"spotify_enabled":        c.SpotifyEnabled,
 		"brillo_paso":            c.BrilloPaso,
