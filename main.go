@@ -91,12 +91,31 @@ loop:
 		}
 
 		if escuchaActiva {
-			fmt.Println("\n[OIDOS] Hable o escriba su comando:")
-		} else {
-			fmt.Println("\n[OIDOS] Diga 'Jarvis' o escriba para hablarme...")
+			fmt.Print("\n[VOZ] Diga su comando... ")
+			comando, err := oidos.Escuchar()
+			if err != nil {
+				fmt.Printf("[ADVERTENCIA] %v\n", err)
+			}
+			escuchaActiva = false
+			if comando == "" {
+				continue
+			}
+			comandoLower := strings.ToLower(comando)
+			if esPalabraDeActivacion(comandoLower, cfg.WakeWords) {
+				hands.Hablar(brain.Saludar())
+				escuchaActiva = true
+				continue
+			}
+			respuesta := brain.Process(comando)
+			if respuesta != "" {
+				fmt.Printf("[JARVIS] %s\n", respuesta)
+				hands.Hablar(respuesta)
+			}
+			continue
 		}
 
-		comando, err := oidos.Escuchar()
+		fmt.Print("\n> ")
+		comando, err := oidos.EscucharTexto()
 		if err != nil {
 			fmt.Printf("[ADVERTENCIA] %v\n", err)
 			continue
@@ -108,23 +127,21 @@ loop:
 
 		comandoLower := strings.ToLower(comando)
 
-		if strings.Contains(comandoLower, "apagar") && !esPalabraDeActivacion(comandoLower, cfg.WakeWords) {
-			hands.Hablar(brain.Despedirse())
-			break loop
-		}
-
 		if esPalabraDeActivacion(comandoLower, cfg.WakeWords) {
 			escuchaActiva = true
 			hands.Hablar(brain.Saludar())
 			continue
 		}
 
-		if escuchaActiva {
-			respuesta := brain.Process(comando)
-			if respuesta != "" {
-				fmt.Printf("[JARVIS] %s\n", respuesta)
-				hands.Hablar(respuesta)
-			}
+		if strings.Contains(comandoLower, "apagar") || strings.Contains(comandoLower, "adiós") {
+			hands.Hablar(brain.Despedirse())
+			break loop
+		}
+
+		respuesta := brain.Process(comando)
+		if respuesta != "" {
+			fmt.Printf("[JARVIS] %s\n", respuesta)
+			hands.Hablar(respuesta)
 		}
 	}
 

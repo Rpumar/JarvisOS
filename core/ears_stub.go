@@ -19,6 +19,15 @@ func NewEars(rutaModelo string) (*Ears, error) {
 	return &Ears{lector: bufio.NewReader(os.Stdin)}, nil
 }
 
+func (e *Ears) EscucharTexto() (string, error) {
+	fmt.Print("> ")
+	texto, err := e.lector.ReadString('\n')
+	if err != nil {
+		return "", fmt.Errorf("error al leer entrada: %w", err)
+	}
+	return strings.TrimSpace(texto), nil
+}
+
 func (e *Ears) Escuchar() (string, error) {
 	fmt.Print("> ")
 	texto, err := e.lector.ReadString('\n')

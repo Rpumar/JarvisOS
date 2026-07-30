@@ -98,17 +98,17 @@ func (e *Ears) leerStdin() {
 	}
 }
 
+func (e *Ears) EscucharTexto() (string, error) {
+	texto, ok := <-e.lineaStd
+	if !ok {
+		return "", fmt.Errorf("stdin cerrado")
+	}
+	return texto, nil
+}
+
 func (e *Ears) Escuchar() (string, error) {
 	ultimoPoll := time.Now()
 	for {
-		select {
-		case texto, ok := <-e.lineaStd:
-			if ok {
-				return texto, nil
-			}
-		default:
-		}
-
 		if err := e.stream.Read(); err != nil {
 			return "", fmt.Errorf("error al leer audio del micrófono: %w", err)
 		}
@@ -121,7 +121,7 @@ func (e *Ears) Escuchar() (string, error) {
 				continue
 			}
 			if resultado.Text != "" {
-				fmt.Println() // newline after mic input
+				fmt.Println()
 				return resultado.Text, nil
 			}
 		}

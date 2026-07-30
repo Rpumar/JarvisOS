@@ -18,6 +18,17 @@ func NewEars(rutaModelo string) (*Ears, error) {
 	return &Ears{}, nil
 }
 
+func (e *Ears) EscucharTexto() (string, error) {
+	fmt.Print("> ")
+	var entrada string
+	fmt.Scanln(&entrada)
+	entrada = strings.TrimSpace(entrada)
+	if entrada != "" {
+		return entrada, nil
+	}
+	return "", fmt.Errorf("entrada vacía")
+}
+
 func (e *Ears) Escuchar() (string, error) {
 	ps := `Add-Type -AssemblyName System.Speech; ` +
 		`$ci=[System.Globalization.CultureInfo]::GetCultureInfo('es-ES'); ` +
