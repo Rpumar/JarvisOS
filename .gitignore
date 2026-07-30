@@ -1,0 +1,13 @@
+# Binarios
+*.exe
+*.dll
+*.a
+*.def
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
