@@ -3,41 +3,35 @@
 package core
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
+	"time"
 
 	vosk "github.com/alphacep/vosk-api/go"
 	"github.com/gordonklaus/portaudio"
 )
 
 const (
-	tasaMuestreo      = 16000 // Hz — la tasa que espera el modelo de Vosk
-	muestrasPorBloque = 4096  // tamaño del bloque de audio leído en cada iteración
+	tasaMuestreo      = 16000
+	muestrasPorBloque = 4096
+	pollStdinInterval = 200 * time.Millisecond
 )
 
-// Ears encapsula la captura de audio real del micrófono (PortAudio) y el
-// reconocimiento de voz offline (Vosk).
-//
-// NOTA DE ARQUITECTURA (reemplaza la versión anterior basada en PowerShell):
-// System.Speech.Recognition.SpeechRecognitionEngine de Windows, sin una
-// gramática (Grammar/DictationGrammar) cargada, no reconoce de forma fiable —
-// por eso "faltaba micrófono real". PortAudio por sí solo tampoco resuelve esto:
-// solo entrega audio en crudo, no hace STT. La combinación PortAudio (captura)
-// + Vosk (reconocimiento offline real) sí resuelve el requisito por completo.
 type Ears struct {
 	stream      *portaudio.Stream
 	modelo      *vosk.VoskModel
 	reconocedor *vosk.VoskRecognizer
 	buffer      []int16
+	lineaStd    chan string
 }
 
 type resultadoVosk struct {
 	Text string `json:"text"`
 }
 
-// NewEars inicializa PortAudio, carga el modelo de Vosk desde rutaModelo
-// (si viene vacío, usa "./modelo-voz-es") y abre el micrófono predeterminado
-// del sistema. Devuelve error si algo falla, en vez de fallar en silencio.
 func NewEars(rutaModelo string) (*Ears, error) {
 	if rutaModelo == "" {
 		rutaModelo = "./modelo-voz-es"
@@ -78,13 +72,43 @@ func NewEars(rutaModelo string) (*Ears, error) {
 		return nil, fmt.Errorf("no se pudo iniciar la captura de audio: %w", err)
 	}
 
-	return &Ears{stream: stream, modelo: modelo, reconocedor: reconocedor, buffer: buffer}, nil
+	e := &Ears{
+		stream:      stream,
+		modelo:      modelo,
+		reconocedor: reconocedor,
+		buffer:      buffer,
+		lineaStd:    make(chan string, 1),
+	}
+	go e.leerStdin()
+	return e, nil
 }
 
-// Escuchar bloquea hasta que Vosk detecta el final de una frase (silencio tras
-// voz) y devuelve el texto reconocido. Los bloques sin voz se ignoran solos.
-func (e *Ears) Escuchar() (string, error) {
+func (e *Ears) leerStdin() {
+	lector := bufio.NewReader(os.Stdin)
 	for {
+		texto, err := lector.ReadString('\n')
+		if err != nil {
+			close(e.lineaStd)
+			return
+		}
+		texto = strings.TrimSpace(texto)
+		if texto != "" {
+			e.lineaStd <- texto
+		}
+	}
+}
+
+func (e *Ears) Escuchar() (string, error) {
+	ultimoPoll := time.Now()
+	for {
+		select {
+		case texto, ok := <-e.lineaStd:
+			if ok {
+				return texto, nil
+			}
+		default:
+		}
+
 		if err := e.stream.Read(); err != nil {
 			return "", fmt.Errorf("error al leer audio del micrófono: %w", err)
 		}
@@ -94,10 +118,22 @@ func (e *Ears) Escuchar() (string, error) {
 		if e.reconocedor.AcceptWaveform(datos) != 0 {
 			var resultado resultadoVosk
 			if err := json.Unmarshal([]byte(e.reconocedor.Result()), &resultado); err != nil {
-				continue // resultado no parseable, se descarta y se sigue escuchando
+				continue
 			}
 			if resultado.Text != "" {
+				fmt.Println() // newline after mic input
 				return resultado.Text, nil
+			}
+		}
+
+		if time.Since(ultimoPoll) >= pollStdinInterval {
+			ultimoPoll = time.Now()
+			select {
+			case texto, ok := <-e.lineaStd:
+				if ok {
+					return texto, nil
+				}
+			default:
 			}
 		}
 	}

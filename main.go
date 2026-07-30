@@ -91,9 +91,9 @@ loop:
 		}
 
 		if escuchaActiva {
-			fmt.Println("\n[OIDOS] Le escucho...")
+			fmt.Println("\n[OIDOS] Hable o escriba su comando:")
 		} else {
-			fmt.Println("\n[OIDOS] Diga 'Jarvis' para hablarme...")
+			fmt.Println("\n[OIDOS] Diga 'Jarvis' o escriba para hablarme...")
 		}
 
 		comando, err := oidos.Escuchar()

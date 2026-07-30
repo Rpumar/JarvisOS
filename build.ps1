@@ -23,13 +23,12 @@ if (-not (Get-Command gcc -ErrorAction SilentlyContinue)) {
     }
 }
 
-$modFlag = "-mod=vendor"
 if ($Config -eq "release") {
     Write-Host "[BUILD] Release - $Output"
-    & go build $modFlag -tags cgo -ldflags="-s -w" -o "$ProjectRoot\$Output" "$ProjectRoot"
+    & go build -tags cgo -ldflags="-s -w" -o "$ProjectRoot\$Output" "$ProjectRoot"
 } else {
     Write-Host "[BUILD] Debug - $Output"
-    & go build $modFlag -tags cgo -o "$ProjectRoot\$Output" "$ProjectRoot"
+    & go build -tags cgo -o "$ProjectRoot\$Output" "$ProjectRoot"
 }
 
 if ($LASTEXITCODE -eq 0) {
