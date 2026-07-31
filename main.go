@@ -65,10 +65,10 @@ func main() {
 		ClimaKey: cfg.OpenWeatherKey,
 		NewsKey:  cfg.NewsAPIKey,
 	})
-	conectorIA := ia.NuevoConector(cfg.Timeout)
+	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout)
 	coderAgent := agents.NewCoderAgent(conectorIA)
-	claude := ia.NuevoClienteClaude(cfg.ClaudeAPIKey, cfg.Timeout*2)
-	ingAgente := agents.NuevoAgenteProyecto(claude, cfg.WorkspaceRoot)
+	gestorPlan := agents.NuevoGestorPlan(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "planes"))
+	ingAgente := agents.NuevoAgenteProyecto(conectorIA, cfg.WorkspaceRoot, gestorPlan)
 
 	almacen, err := memoria.NuevoAlmacen(cfg.RutaMemoria)
 	if err != nil {
@@ -84,6 +84,11 @@ func main() {
 		IngAgente:      ingAgente,
 		MaxHistorialIA: cfg.MaxHistorialIA,
 	})
+
+	if plan := gestorPlan.PlanPendiente(); plan != nil {
+		fmt.Printf("[PLAN] Tiene un plan pendiente: %s\n", plan.Objetivo)
+		fmt.Println("[PLAN] Diga 'continuar plan' para retomarlo o 'cancelar plan' para descartarlo.")
+	}
 
 	if conectorIA.Disponible() {
 		fmt.Println("[IA] Ollama activo (Llama 3.2 3B).")
@@ -212,8 +217,10 @@ func ejecutarModoServicio() {
 		ClimaKey: cfg.OpenWeatherKey,
 		NewsKey:  cfg.NewsAPIKey,
 	})
-	conectorIA := ia.NuevoConector(cfg.Timeout)
+	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout)
 	coderAgent := agents.NewCoderAgent(conectorIA)
+	gestorPlan := agents.NuevoGestorPlan(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "planes"))
+	ingAgente := agents.NuevoAgenteProyecto(conectorIA, cfg.WorkspaceRoot, gestorPlan)
 	almacen, err := memoria.NuevoAlmacen(cfg.RutaMemoria)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[SERVICE] Error fatal: %v\n", err)
@@ -221,7 +228,7 @@ func ejecutarModoServicio() {
 	}
 	defer almacen.Cerrar()
 	brain := core.NewBrain(hands, core.BrainOpciones{
-		IA: conectorIA, Coder: coderAgent, Memoria: almacen,
+		IA: conectorIA, Coder: coderAgent, Memoria: almacen, IngAgente: ingAgente,
 		MaxHistorialIA: cfg.MaxHistorialIA,
 	})
 	oidos, err := core.NewEars(cfg.ModeloVoz)

@@ -13,19 +13,23 @@ import (
 )
 
 const endpointOllama = "http://localhost:11434/api/chat"
-const modeloOllama = "llama3.2:3b"
 
 type Conector struct {
 	httpClient *http.Client
+	modelo     string
 	ollama     bool
 }
 
-func NuevoConector(timeout time.Duration) *Conector {
+func NuevoConector(modelo string, timeout time.Duration) *Conector {
+	if modelo == "" {
+		modelo = "qwen2.5-coder:7b"
+	}
 	if timeout <= 0 {
-		timeout = 30 * time.Second
+		timeout = 120 * time.Second
 	}
 	c := &Conector{
 		httpClient: &http.Client{Timeout: timeout},
+		modelo:     modelo,
 	}
 	pollOllama(c)
 	return c
@@ -46,15 +50,19 @@ func (c *Conector) Disponible() bool {
 	return c.ollama
 }
 
+func (c *Conector) Modelo() string {
+	return c.modelo
+}
+
 type mensajeChat struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
 }
 
 type peticionOllamaChat struct {
-Model    string         `json:"model"`
-	Messages []mensajeChat `json:"messages"`
-	Stream   bool          `json:"stream"`
+	Model    string         `json:"model"`
+	Messages []mensajeChat  `json:"messages"`
+	Stream   bool           `json:"stream"`
 }
 
 type respuestaOllamaChat struct {
@@ -64,16 +72,55 @@ type respuestaOllamaChat struct {
 
 func (c *Conector) Consultar(prompt string, historial []core.TurnoConversacion) (string, error) {
 	if !c.ollama {
-		return "", fmt.Errorf("no hay IA disponible (Ollama no est� corriendo)")
+		return "", fmt.Errorf("no hay IA disponible (Ollama no esta corriendo)")
 	}
 	return c.consultarOllama(prompt, historial)
+}
+
+func (c *Conector) Chat(system, user string) (string, error) {
+	if !c.ollama {
+		return "", fmt.Errorf("Ollama no disponible")
+	}
+
+	mensajes := []mensajeChat{
+		{Role: "system", Content: system},
+		{Role: "user", Content: user},
+	}
+
+	cuerpo := peticionOllamaChat{
+		Model:    c.modelo,
+		Messages: mensajes,
+		Stream:   false,
+	}
+
+	datosJSON, _ := json.Marshal(cuerpo)
+	req, _ := http.NewRequest(http.MethodPost, endpointOllama, bytes.NewReader(datosJSON))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("error al contactar Ollama: %w", err)
+	}
+	defer resp.Body.Close()
+
+	cuerpoResp, _ := io.ReadAll(resp.Body)
+	var r respuestaOllamaChat
+	if err := json.Unmarshal(cuerpoResp, &r); err != nil {
+		return "", fmt.Errorf("error al interpretar respuesta: %w", err)
+	}
+
+	if r.Message.Content == "" {
+		return "", fmt.Errorf("Ollama no devolvió contenido")
+	}
+
+	return r.Message.Content, nil
 }
 
 func (c *Conector) consultarOllama(prompt string, historial []core.TurnoConversacion) (string, error) {
 	mensajes := buildMensajes(prompt, historial)
 
 	cuerpo := peticionOllamaChat{
-		Model:    modeloOllama,
+		Model:    c.modelo,
 		Messages: mensajes,
 		Stream:   false,
 	}
@@ -148,7 +195,7 @@ func (c *Conector) ConsultarCodigo(peticion string) (codigo string, explicacion 
 	}
 
 	cuerpo := peticionOllamaChat{
-		Model:    modeloOllama,
+		Model: c.modelo,
 		Messages: []mensajeChat{
 			{Role: "system", Content: promptSistemaCodigo},
 			{Role: "user", Content: peticion},

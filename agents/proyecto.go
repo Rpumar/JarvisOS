@@ -6,78 +6,161 @@ import (
 	"time"
 
 	"JarvisOS/core"
-	"JarvisOS/ia"
 )
 
-type AgenteProyecto struct {
-	claude    *ia.ClienteClaude
-	herramientas *core.EjecutorHerramientas
-	workspace string
-	historial []ia.TurnoClaude
+type ChatIA interface {
+	Disponible() bool
+	Chat(system, user string) (string, error)
 }
 
-func NuevoAgenteProyecto(claude *ia.ClienteClaude, workspaceRoot string) *AgenteProyecto {
+type AgenteProyecto struct {
+	ia           ChatIA
+	herramientas *core.EjecutorHerramientas
+	gestorPlan   *GestorPlan
+	workspace    string
+	historial    []core.TurnoConversacion
+}
+
+func NuevoAgenteProyecto(ia ChatIA, workspaceRoot string, gestor *GestorPlan) *AgenteProyecto {
 	return &AgenteProyecto{
-		claude:       claude,
+		ia:           ia,
 		herramientas: core.NuevoEjecutorHerramientas(workspaceRoot),
+		gestorPlan:   gestor,
 		workspace:    workspaceRoot,
 	}
 }
 
 func (a *AgenteProyecto) Disponible() bool {
-	return a.claude.Disponible()
+	return a.ia != nil && a.ia.Disponible()
 }
 
 func (a *AgenteProyecto) Procesar(peticion string) string {
 	if !a.Disponible() {
-		return "El agente de proyecto no está disponible, señor. Configure Claude API en config.json."
+		return "La IA no está disponible, señor. Verifique que Ollama esté corriendo."
 	}
 
-	a.historial = append(a.historial, ia.TurnoClaude{Role: "user", Content: peticion})
-	systemPrompt := ia.ClaudeSystemPrompt(a.workspace)
+	if a.gestorPlan.PlanPendiente() != nil {
+		a.historial = nil
+		if strings.Contains(strings.ToLower(peticion), "continuar") {
+			return a.ejecutarPlan(a.gestorPlan.PlanPendiente(), nil)
+		}
+		if strings.Contains(strings.ToLower(peticion), "cancelar") {
+			a.gestorPlan.Completar(a.gestorPlan.PlanPendiente())
+			return "Plan cancelado, señor."
+		}
+	}
 
-	maxIntentos := 10
-	for intento := 0; intento < maxIntentos; intento++ {
-		respuesta, err := a.claude.Charla(systemPrompt, a.historial)
+	plan, err := GenerarPlanConIA(a.ia, peticion)
+	if err != nil {
+		return fmt.Sprintf("No pude generar un plan: %v", err)
+	}
+
+	a.gestorPlan.Guardar(plan)
+	fmt.Printf("[PLAN] Objetivo: %s\n", plan.Objetivo)
+	fmt.Printf("[PLAN] %d pasos planificados.\n", len(plan.Pasos))
+	return a.ejecutarPlan(plan, nil)
+}
+
+func (a *AgenteProyecto) ejecutarPlan(plan *PlanTrabajo, pasoInicial *int) string {
+	systemPrompt := a.systemPrompt()
+	_ = pasoInicial
+	iteraciones := 0
+	maxIter := 30
+	pasosSinResumen := 0
+
+	for {
+		idx, paso := a.gestorPlan.SiguientePaso(plan)
+		if idx < 0 {
+			a.gestorPlan.Completar(plan)
+			return fmt.Sprintf("Plan completado, señor. %d pasos ejecutados. Archivos modificados: %s",
+				len(plan.Pasos), strings.Join(plan.ArchivosTocados, ", "))
+		}
+
+		if iteraciones >= maxIter {
+			return "Se alcanzó el máximo de iteraciones. El plan está pausado, señor. Diga 'continuar plan' para retomarlo."
+		}
+
+		a.gestorPlan.MarcarPaso(plan, idx, PasoEjecutando, "", "")
+		mensaje := fmt.Sprintf("Paso actual: %s\n\nEjecutá las herramientas necesarias para completar este paso. Cuando termines, explicá el resultado.", paso.Descripcion)
+
+		respuesta, err := a.ia.Chat(systemPrompt+"\n\nContexto del plan:\n"+plan.Contexto, mensaje)
 		if err != nil {
-			return fmt.Sprintf("Error al consultar a Claude: %v", err)
+			a.gestorPlan.MarcarPaso(plan, idx, PasoFallido, "", err.Error())
+			return fmt.Sprintf("Error ejecutando paso '%s': %v", paso.Descripcion, err)
 		}
 
-		a.historial = append(a.historial, ia.TurnoClaude{Role: "assistant", Content: respuesta})
-
-		if !strings.Contains(respuesta, "HERRAMIENTA|") {
-			if len(a.historial) > 20 {
-				a.historial = a.historial[len(a.historial)-10:]
+		if strings.Contains(respuesta, "HERRAMIENTA|") {
+			herramientas := core.ParsearHerramientas(respuesta)
+			var resultados []string
+			for _, h := range herramientas {
+				resultado := a.herramientas.Ejecutar(h)
+				if resultado.Exito {
+					plan.Contexto += fmt.Sprintf("\nEjecuté %s: OK", h.Nombre)
+					if h.Nombre == "write_file" || h.Nombre == "edit_file" {
+						a.gestorPlan.RegistrarArchivo(plan, h.Argumentos["path"])
+					}
+				}
+				resultados = append(resultados, fmt.Sprintf("Resultado de %s: %s", h.Nombre, resultado.Salida))
 			}
-			return respuesta
-		}
+			a.historial = append(a.historial, core.TurnoConversacion{
+				Usuario:   mensaje,
+				Asistente: respuesta,
+			})
+			a.historial = append(a.historial, core.TurnoConversacion{
+				Usuario:   strings.Join(resultados, "\n"),
+				Asistente: "Continuo.",
+			})
 
-		herramientas := core.ParsearHerramientas(respuesta)
-		if len(herramientas) == 0 {
-			return respuesta
-		}
-
-		var resultados []string
-		for _, h := range herramientas {
-			resultado := a.herramientas.Ejecutar(h)
-
-			if h.Nombre == "leer_entrada" {
-				return fmt.Sprintf("Necesito preguntarle algo, señor: %s", h.Argumentos["pregunta"])
+			pasosSinResumen++
+			if pasosSinResumen >= 5 {
+				resumen, _ := a.ia.Chat(
+					"Resumí el estado actual del proyecto y lo que falta hacer en 3-4 líneas.",
+					"Estado actual: "+plan.Contexto+"\nPlan: "+plan.Objetivo,
+				)
+				if resumen != "" {
+					plan.Contexto = resumen
+					a.historial = nil
+				}
+				pasosSinResumen = 0
 			}
-
-			linea := fmt.Sprintf("Resultado de %s: %s", h.Nombre, resultado.Salida)
-			resultados = append(resultados, linea)
+		} else {
+			a.gestorPlan.MarcarPaso(plan, idx, PasoCompletado, respuesta, "")
+			plan.Contexto += fmt.Sprintf("\nPaso '%s': %s", paso.Descripcion, respuesta)
 		}
 
-		mensajeResultado := strings.Join(resultados, "\n\n")
-		a.historial = append(a.historial, ia.TurnoClaude{Role: "user", Content: mensajeResultado})
+		plan.ActualizadoEl = time.Now().Format(time.RFC3339)
+		a.gestorPlan.Guardar(plan)
+		iteraciones++
 	}
+}
 
-	return "Se alcanzó el máximo de iteraciones. La tarea podría estar incompleta, señor."
+func (a *AgenteProyecto) systemPrompt() string {
+	return fmt.Sprintf(`Sos un ingeniero de software senior integrado en JARVIS, un asistente que controla Windows.
+
+Cuando necesites ejecutar una herramienta, usá este formato EXACTO:
+
+HERRAMIENTA|nombre
+ARGUMENTOS|{"arg1": "valor1"}
+---
+
+Herramientas:
+- read_file: {"path": "..."}
+- write_file: {"path": "...", "content": "..."}
+- edit_file: {"path": "...", "old": "...", "new": "..."}
+- glob: {"pattern": "**/*.go"}
+- grep: {"pattern": "...", "include": "*.go"}
+- run: {"command": "go build ./..."}
+- read_dir: {"path": "."}
+- run_test: {"command": "go test ./..."}
+
+Respondé SIEMPRE en español argentino, tratando al usuario de "señor".
+Si no necesitás herramientas, respondé normal sin formato especial.
+
+Directorio del proyecto: %s`, a.workspace)
 }
 
 func (a *AgenteProyecto) SetRespuestaUsuario(respuesta string) {
-	a.historial = append(a.historial, ia.TurnoClaude{Role: "user", Content: respuesta})
+	a.historial = append(a.historial, core.TurnoConversacion{Usuario: respuesta, Asistente: ""})
 }
 
 func (a *AgenteProyecto) Reset() {
@@ -85,30 +168,30 @@ func (a *AgenteProyecto) Reset() {
 }
 
 func (a *AgenteProyecto) TieneTareaPendiente() bool {
-	if len(a.historial) == 0 {
-		return false
+	return a.gestorPlan.PlanPendiente() != nil
+}
+
+func (a *AgenteProyecto) PlanPendienteDescripcion() string {
+	plan := a.gestorPlan.PlanPendiente()
+	if plan == nil {
+		return ""
 	}
-	ultimo := a.historial[len(a.historial)-1]
-	return ultimo.Role == "assistant" && strings.Contains(ultimo.Content, "leer_entrada")
+	return plan.Objetivo
 }
 
-type IngAgente interface {
-	Disponible() bool
-	Procesar(peticion string) string
-	SetRespuestaUsuario(respuesta string)
-	Reset()
-	TieneTareaPendiente() bool
+func (a *AgenteProyecto) ContinuarPlan() string {
+	plan := a.gestorPlan.PlanPendiente()
+	if plan == nil {
+		return "No hay ningún plan pendiente, señor."
+	}
+	return a.ejecutarPlan(plan, nil)
 }
 
-var _ IngAgente = (*AgenteProyecto)(nil)
-
-// MonitorTarea ejecuta una tarea con timeout en una goroutine separada.
-func (a *AgenteProyecto) MonitorTarea(peticion string, timeout time.Duration) <-chan string {
-	ch := make(chan string, 1)
-	go func() {
-		defer close(ch)
-		resultado := a.Procesar(peticion)
-		ch <- resultado
-	}()
-	return ch
+func (a *AgenteProyecto) CancelarPlan() string {
+	plan := a.gestorPlan.PlanPendiente()
+	if plan == nil {
+		return "No hay ningún plan pendiente, señor."
+	}
+	a.gestorPlan.Completar(plan)
+	return "Plan cancelado, señor."
 }

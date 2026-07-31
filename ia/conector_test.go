@@ -24,16 +24,19 @@ func TestDisponible(t *testing.T) {
 }
 
 func TestNuevoConector_TimeoutPorDefecto(t *testing.T) {
-	c := NuevoConector(0)
-	if c.httpClient.Timeout != 30*time.Second {
-		t.Errorf("timeout por defecto = %v, esperaba 30s", c.httpClient.Timeout)
+	c := NuevoConector("", 0)
+	if c.httpClient.Timeout != 120*time.Second {
+		t.Errorf("timeout por defecto = %v, esperaba 120s", c.httpClient.Timeout)
 	}
 }
 
 func TestNuevoConector_RespetaTimeoutProvisto(t *testing.T) {
-	c := NuevoConector(7 * time.Second)
+	c := NuevoConector("test-model", 7*time.Second)
 	if c.httpClient.Timeout != 7*time.Second {
 		t.Errorf("timeout = %v, esperaba 7s", c.httpClient.Timeout)
+	}
+	if c.modelo != "test-model" {
+		t.Errorf("modelo = %v, esperaba test-model", c.modelo)
 	}
 }
 

@@ -68,6 +68,16 @@ func (b *Brain) procesarInterno(input string) string {
 		return ""
 	}
 
+	if b.ing != nil && b.ing.TieneTareaPendiente() {
+		if strings.Contains(entrada, "continuar") || strings.Contains(entrada, "seguir") || strings.Contains(entrada, "retomar") {
+			return b.ing.ContinuarPlan()
+		}
+		if strings.Contains(entrada, "cancelar") && strings.Contains(entrada, "plan") {
+			b.ing.Reset()
+			return "Plan cancelado, señor."
+		}
+	}
+
 	if b.coder != nil && b.coder.TienePropuestaPendiente() {
 		switch {
 		case strings.Contains(entrada, "confirmar"), strings.Contains(entrada, "confirmo"),

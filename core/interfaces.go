@@ -56,4 +56,6 @@ type IngAgente interface {
 	SetRespuestaUsuario(respuesta string)
 	Reset()
 	TieneTareaPendiente() bool
+	PlanPendienteDescripcion() string
+	ContinuarPlan() string
 }

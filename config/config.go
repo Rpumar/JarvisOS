@@ -23,8 +23,9 @@ type Config struct {
 	TTSRate             int      `json:"tts_rate"`
 	MaxHistorialIA      int      `json:"max_historial_ia"`
 
-	ClaudeAPIKey   string            `json:"claude_api_key"`
-	WorkspaceRoot  string            `json:"workspace_root"`
+	ModeloIA       string `json:"modelo_ia"`
+	ClaudeAPIKey   string `json:"claude_api_key"`
+	WorkspaceRoot  string `json:"workspace_root"`
 	OpenWeatherKey string            `json:"open_weather_key"`
 	NewsAPIKey     string            `json:"news_api_key"`
 	Apps           map[string]string `json:"apps"`
@@ -47,6 +48,7 @@ func defaultConfig() *Config {
 		TTSVoice:            "",
 		TTSRate:             0,
 		MaxHistorialIA:      20,
+		ModeloIA:            "qwen2.5-coder:7b",
 		ClaudeAPIKey:        "",
 		WorkspaceRoot:       filepath.Join(os.Getenv("USERPROFILE"), "Desktop"),
 		OpenWeatherKey:      "",
@@ -119,6 +121,7 @@ func Load() *Config {
 		TTSVoice            string  `json:"tts_voice"`
 		TTSRate             int     `json:"tts_rate"`
 		MaxHistorialIA      int     `json:"max_historial_ia"`
+		ModeloIA            string            `json:"modelo_ia"`
 		ClaudeAPIKey        string            `json:"claude_api_key"`
 		WorkspaceRoot       string            `json:"workspace_root"`
 		OpenWeatherKey      string            `json:"open_weather_key"`
@@ -146,6 +149,7 @@ func Load() *Config {
 	if alias.TTSVoice != "" { cfg.TTSVoice = alias.TTSVoice }
 	cfg.TTSRate = alias.TTSRate
 	if alias.MaxHistorialIA > 0 { cfg.MaxHistorialIA = alias.MaxHistorialIA }
+	if alias.ModeloIA != "" { cfg.ModeloIA = alias.ModeloIA }
 	if alias.ClaudeAPIKey != "" { cfg.ClaudeAPIKey = alias.ClaudeAPIKey }
 	if alias.WorkspaceRoot != "" { cfg.WorkspaceRoot = alias.WorkspaceRoot }
 	if alias.OpenWeatherKey != "" { cfg.OpenWeatherKey = alias.OpenWeatherKey }
@@ -171,6 +175,7 @@ func (c *Config) Save() error {
 		"tts_voice":              c.TTSVoice,
 		"tts_rate":               c.TTSRate,
 		"max_historial_ia":       c.MaxHistorialIA,
+		"modelo_ia":              c.ModeloIA,
 		"claude_api_key":         c.ClaudeAPIKey,
 		"workspace_root":         c.WorkspaceRoot,
 		"open_weather_key":       c.OpenWeatherKey,
