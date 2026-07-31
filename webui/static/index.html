@@ -148,6 +148,40 @@
     transition: background .2s;
   }
   .quick button:hover { background: #0055aa; color: #fff; }
+  #header-actions { display: flex; gap: 8px; }
+  #btn-voz.activa { background: #0055aa; color: #fff; border-color: #00d4ff; }
+  #holo {
+    display: none;
+    position: fixed; inset: 0; z-index: 9999;
+    background: radial-gradient(circle at center, #06121f 0%, #02070d 70%, #000 100%);
+    flex-direction: column; align-items: center; justify-content: center;
+    color: #00d4ff; font-family: 'Segoe UI', sans-serif; text-align: center;
+    cursor: pointer; overflow: hidden;
+  }
+  #holo.activo { display: flex; }
+  .holo-circulo {
+    width: 260px; height: 260px; border-radius: 50%;
+    border: 3px solid rgba(0, 212, 255, .5);
+    box-shadow: 0 0 60px rgba(0, 212, 255, .35), inset 0 0 40px rgba(0, 212, 255, .15);
+    position: relative; display: flex; align-items: center; justify-content: center;
+    animation: holoGiro 14s linear infinite;
+  }
+  .holo-circulo::before {
+    content: ''; position: absolute; inset: 22px; border-radius: 50%;
+    border: 2px dashed rgba(0, 212, 255, .35);
+  }
+  .holo-nucleo {
+    width: 90px; height: 90px; border-radius: 50%;
+    background: radial-gradient(circle, #7ff3ff 0%, #00d4ff 40%, rgba(0, 212, 255, 0) 70%);
+    box-shadow: 0 0 80px rgba(0, 212, 255, .8);
+    animation: holoPulso 2s ease-in-out infinite;
+  }
+  .holo-titulo { margin-top: 40px; font-size: 56px; font-weight: 700; letter-spacing: 8px; text-shadow: 0 0 30px rgba(0, 212, 255, .7); }
+  .holo-linea { margin-top: 12px; font-size: 18px; letter-spacing: 2px; color: #9fd9e8; }
+  .holo-estado { margin-top: 30px; font-size: 14px; color: #5a8ea3; letter-spacing: 1px; }
+  .holo-hint { position: absolute; bottom: 30px; font-size: 12px; color: #33606e; letter-spacing: 2px; }
+  @keyframes holoGiro { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes holoPulso { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.12); opacity: .85; } }
 </style>
 </head>
 <body>
@@ -156,8 +190,19 @@
     <h1>J.A.R.V.I.S</h1>
     <span>Asistente personal</span>
   </div>
-  <button class="clear-btn" onclick="limpiarHistorial()">Limpiar</button>
+  <div id="header-actions">
+    <button class="clear-btn" id="btn-voz" onclick="toggleVozWeb()" title="Que Jarvis lea en voz alta">🔊 Voz</button>
+    <button class="clear-btn" onclick="modoPresentacion()" title="Modo presentación fullscreen">🎦 Presentación</button>
+    <button class="clear-btn" onclick="limpiarHistorial()">Limpiar</button>
+  </div>
 </header>
+<div id="holo" onclick="salirPresentacion()">
+  <div class="holo-circulo"><div class="holo-nucleo"></div></div>
+  <div class="holo-titulo">J.A.R.V.I.S</div>
+  <div class="holo-linea">Todos los sistemas en línea, señor.</div>
+  <div class="holo-estado" id="holo-estado">—</div>
+  <div class="holo-hint">Tocá en cualquier lado para salir · ESC</div>
+</div>
 <div id="status-bar">
   <div class="stat"><div class="label">Hora</div><div class="value" id="st-hora">--:--:--</div></div>
   <div class="stat"><div class="label">Fecha</div><div class="value" id="st-fecha">--/--/----</div></div>
@@ -195,6 +240,49 @@
   const input = document.getElementById('input');
   const sendBtn = document.getElementById('send');
 
+  let vozWeb = false;
+  let vozWebActiva = false;
+
+  function toggleVozWeb() {
+    vozWeb = !vozWeb;
+    document.getElementById('btn-voz').classList.toggle('activa', vozWeb);
+    document.getElementById('btn-voz').textContent = vozWeb ? '🔇 Voz' : '🔊 Voz';
+    if (!vozWeb) window.speechSynthesis && window.speechSynthesis.cancel();
+  }
+
+  function vozEspañola() {
+    const voces = window.speechSynthesis.getVoices();
+    return voces.find(v => v.lang && v.lang.toLowerCase().startsWith('es')) || voces[0] || null;
+  }
+
+  function hablar(texto) {
+    if (!vozWeb || !('speechSynthesis' in window)) return;
+    const limpio = texto.replace(/<[^>]*>/g, '').replace(/[#*_`]/g, '');
+    if (!limpio.trim()) return;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(limpio);
+    const v = vozEspañola();
+    if (v) u.voice = v;
+    u.lang = v && v.lang ? v.lang : 'es-AR';
+    u.rate = 1.02;
+    window.speechSynthesis.speak(u);
+  }
+
+  function modoPresentacion() {
+    document.getElementById('holo').classList.add('activo');
+    actualizarEstado();
+    const intervalo = setInterval(actualizarEstado, 2000);
+    document.getElementById('holo').onclick = () => { clearInterval(intervalo); salirPresentacion(); };
+  }
+
+  function salirPresentacion() {
+    document.getElementById('holo').classList.remove('activo');
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') salirPresentacion();
+  });
+
   input.addEventListener('keydown', e => { if (e.key === 'Enter') enviar(); });
 
   function cmd(texto) {
@@ -214,6 +302,8 @@
       document.getElementById('st-ip').textContent = s.ip_local || '-';
       document.getElementById('st-proc').textContent = s.procesos || '-';
       document.getElementById('st-cpu').textContent = s.cpu || '-';
+      const holo = document.getElementById('holo-estado');
+      if (holo) holo.textContent = (s.ram_usada || '-') + ' GB RAM · ' + (s.ram_porcentaje || '-') + '% · ' + (s.bateria || '-') + ' · ' + (s.procesos || '-') + ' procesos';
     } catch (e) {}
   }
 
@@ -240,6 +330,7 @@
       typingEl.remove();
       if (data.response) {
         addMsg('jarvis', data.response);
+        hablar(data.response);
       } else if (data.error) {
         addMsg('jarvis', 'Error: ' + data.error, true);
       }
