@@ -1,5 +1,6 @@
 # Binarios
 *.exe
+*.exe~
 *.dll
 *.a
 *.def
