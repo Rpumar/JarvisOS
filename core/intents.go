@@ -78,6 +78,72 @@ func NuevoClasificador() *Clasificador {
 			Handler: func(cmd string, h *Hands) string { return h.nivelBateria() },
 		},
 		{
+			Nombre: "ip_publica",
+			Frases: []string{"ip publica", "mi ip publica", "ip externa", "qué ip publica tengo", "que ip publica tengo"},
+			Palabras: []string{"publica"},
+			Handler: func(cmd string, h *Hands) string { return h.ipPublica() },
+		},
+		{
+			Nombre: "ping_sitio",
+			Frases: []string{"hacer ping", "ping a", "ping a google", "probá conexión", "proba conexion", "test de conexión", "test de conexion"},
+			Palabras: []string{"ping"},
+			Handler: func(cmd string, h *Hands) string {
+				host := extraerObjeto(cmd, []string{"ping a ", "ping ", "hacer ping a "})
+				if host == "" {
+					host = "google.com"
+				}
+				return h.hacerPing(host)
+			},
+		},
+		{
+			Nombre: "velocidad_internet",
+			Frases: []string{"velocidad de internet", "qué tan rápida es mi internet", "que tan rapida es mi internet", "velocidad de descarga", "test de velocidad", "testeá mi internet", "testea mi internet"},
+			Palabras: []string{"velocidad"},
+			Handler: func(cmd string, h *Hands) string { return h.velocidadInternet() },
+		},
+		{
+			Nombre: "escanear_red",
+			Frases: []string{"escanear red", "escanear la red", "dispositivos de la red", "dispositivos conectados", "qué hay en mi red", "que hay en mi red", "ver dispositivos conectados"},
+			Palabras: []string{"escanear"},
+			Handler: func(cmd string, h *Hands) string { return h.escanearRed() },
+		},
+		{
+			Nombre: "limpiar_dns",
+			Frases: []string{"limpiar dns", "liberar dns", "flush dns", "limpiar la caché dns", "limpiar la cache dns"},
+			Palabras: []string{"flush", "liberar"},
+			Handler: func(cmd string, h *Hands) string { return h.limpiarDNS() },
+		},
+		{
+			Nombre: "info_red",
+			Frases: []string{"adaptadores de red", "tarjeta de red", "redes activas", "mi conexión de red", "mi conexion de red", "info de red"},
+			Palabras: []string{"adaptadores", "tarjeta"},
+			Handler: func(cmd string, h *Hands) string { return h.infoRedDetallada() },
+		},
+		{
+			Nombre: "uso_ram",
+			Frases: []string{"cuánta ram me queda", "cuanta ram me queda", "ram libre", "memoria ram", "uso de ram", "cuánta memoria hay", "cuanta memoria hay"},
+			Palabras: []string{"ram", "memoria"},
+			Handler: func(cmd string, h *Hands) string { return h.usoRAM() },
+		},
+		{
+			Nombre: "temp_cpu",
+			Frases: []string{"temperatura del cpu", "temperatura del procesador", "temperatura de la pc", "está caliente la pc", "esta caliente la pc"},
+			Palabras: []string{"temperatura", "caliente"},
+			Handler: func(cmd string, h *Hands) string { return h.infoTemperatura() },
+		},
+		{
+			Nombre: "uso_disco",
+			Frases: []string{"espacio en disco", "disco duro", "cuánto espacio me queda", "cuanto espacio me queda", "almacenamiento", "espacio libre"},
+			Palabras: []string{"disco", "espacio"},
+			Handler: func(cmd string, h *Hands) string { return h.infoDisco() },
+		},
+		{
+			Nombre: "plan_energia",
+			Frases: []string{"plan de energía", "plan de energia", "modo ahorro", "rendimiento máximo", "rendimiento maximo", "plan de batería", "plan de bateria"},
+			Palabras: []string{"energía", "energia", "ahorro"},
+			Handler: func(cmd string, h *Hands) string { return h.planEnergia() },
+		},
+		{
 			Nombre: "mi_ip",
 			Frases: []string{"mi ip", "mi dirección ip", "mi direccion ip", "qué ip tengo", "que ip tengo", "ip local", "ip privada"},
 			Palabras: []string{"ip"},
