@@ -103,6 +103,7 @@ func main() {
 	rutinas := core.NuevoRutinaManager(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "rutinas.json"))
 
 	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout)
+	gestorSkills := core.NuevoSkillsManager()
 	hands := core.NewHands(core.HandsOpciones{
 		Apps:            cfg.Apps,
 		ClimaKey:        cfg.OpenWeatherKey,
@@ -114,6 +115,7 @@ func main() {
 		VozRate:         cfg.TTSRate,
 		WorkspaceRoot:   cfg.WorkspaceRoot,
 		DesarrolladorIA: conectorIA,
+		Skills:          gestorSkills,
 	})
 	coderAgent := agents.NewCoderAgent(conectorIA)
 	gestorPlan := agents.NuevoGestorPlan(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "planes"))
@@ -143,6 +145,7 @@ func main() {
 		Memoria:        almacen,
 		IngAgente:      ingAgente,
 		Prefs:          prefs,
+		Skills:         gestorSkills,
 		MaxHistorialIA: cfg.MaxHistorialIA,
 	})
 
@@ -274,6 +277,7 @@ func ejecutarModoServicio() {
 
 	cfg := config.Load()
 	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout)
+	gestorSkills := core.NuevoSkillsManager()
 	hands := core.NewHands(core.HandsOpciones{
 		Apps:            cfg.Apps,
 		ClimaKey:        cfg.OpenWeatherKey,
@@ -282,6 +286,7 @@ func ejecutarModoServicio() {
 		VozRate:         cfg.TTSRate,
 		WorkspaceRoot:   cfg.WorkspaceRoot,
 		DesarrolladorIA: conectorIA,
+		Skills:          gestorSkills,
 	})
 	coderAgent := agents.NewCoderAgent(conectorIA)
 	gestorPlan := agents.NuevoGestorPlan(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "planes"))
@@ -294,7 +299,7 @@ func ejecutarModoServicio() {
 	defer almacen.Cerrar()
 	brain := core.NewBrain(hands, core.BrainOpciones{
 		IA: conectorIA, Coder: coderAgent, Memoria: almacen, IngAgente: ingAgente,
-		MaxHistorialIA: cfg.MaxHistorialIA,
+		Skills: gestorSkills, MaxHistorialIA: cfg.MaxHistorialIA,
 	})
 	oidos, err := core.NewEars(cfg.ModeloVoz)
 	if err != nil {
@@ -375,11 +380,12 @@ func ejecutarWebUI() {
 	prefs := memoria.NuevoGestorPreferencias(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "preferencias.json"))
 	rutinas := core.NuevoRutinaManager(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "rutinas.json"))
 	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout)
+	gestorSkills := core.NuevoSkillsManager()
 	hands := core.NewHands(core.HandsOpciones{
 		Apps: cfg.Apps, ClimaKey: cfg.OpenWeatherKey, NewsKey: cfg.NewsAPIKey,
 		Prefs: prefs, Rutinas: rutinas,
 		VozActiva: prefs.Get().VozActivada, VozVoice: cfg.TTSVoice, VozRate: cfg.TTSRate,
-		WorkspaceRoot: cfg.WorkspaceRoot, DesarrolladorIA: conectorIA,
+		WorkspaceRoot: cfg.WorkspaceRoot, DesarrolladorIA: conectorIA, Skills: gestorSkills,
 	})
 	coderAgent := agents.NewCoderAgent(conectorIA)
 	gestorPlan := agents.NuevoGestorPlan(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "planes"))
@@ -390,7 +396,7 @@ func ejecutarWebUI() {
 	}
 	brain := core.NewBrain(hands, core.BrainOpciones{
 		IA: conectorIA, Coder: coderAgent, Memoria: almacen,
-		IngAgente: ingAgente, Prefs: prefs, MaxHistorialIA: cfg.MaxHistorialIA,
+		IngAgente: ingAgente, Prefs: prefs, Skills: gestorSkills, MaxHistorialIA: cfg.MaxHistorialIA,
 	})
 	servidor := webui.NuevoServidor(brain, 8080, webui.ServidorOpciones{
 		Estado:        hands,

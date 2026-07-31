@@ -622,6 +622,16 @@ func NuevoClasificador() *Clasificador {
 			Handler:  func(cmd string, h *Hands) string { return h.mejorarProyecto(cmd) },
 		},
 		{
+			Nombre: "listar_skills",
+			Frases: []string{
+				"qué skills tenés", "que skills tenes", "lista de skills", "listar skills",
+				"qué habilidades tenés", "que habilidades tenes", "mostrame las skills",
+				"skills disponibles", "qué skills tengo instaladas",
+			},
+			Palabras: []string{"skills", "skill"},
+			Handler:  func(cmd string, h *Hands) string { return h.listarSkills() },
+		},
+		{
 			Nombre: "ayuda",
 			Frases: []string{"ayuda", "qué podés hacer", "que podes hacer", "comandos", "qué sabes hacer", "que sabes hacer", "funciones", "instrucciones"},
 			Palabras: []string{"ayuda", "comandos", "funciones", "instrucciones"},

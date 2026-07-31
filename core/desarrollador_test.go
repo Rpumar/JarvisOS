@@ -99,3 +99,89 @@ func TestCrearProyectoWebEndToEnd(t *testing.T) {
 		t.Errorf("listarProyectos no muestra el proyecto: %s", resp3)
 	}
 }
+
+// iaDesarrolloFake simula la IA de desarrollo devolviendo respuestas en orden
+// y contando las llamadas, para probar el ciclo iterativo de verificación.
+type iaDesarrolloFake struct {
+	llamadas   int
+	respuestas []string
+	disponible bool
+}
+
+func (f *iaDesarrolloFake) Disponible() bool { return f.disponible }
+
+func (f *iaDesarrolloFake) ConsultarDesarrollo(peticion string) (string, string, error) {
+	if len(f.respuestas) == 0 {
+		return "", "sin respuesta", nil
+	}
+	r := f.respuestas[0]
+	f.respuestas = f.respuestas[1:]
+	f.llamadas++
+	return r, "explicacion de la IA", nil
+}
+
+func mainGoRoto() string {
+	return "ARCHIVO: main.go\nCONTENIDO:\npackage main\n\nfunc main( {\nEXPLICACION:\nrompe a proposito"
+}
+
+func mainGoValido() string {
+	return "ARCHIVO: main.go\nCONTENIDO:\npackage main\n\nfunc main() {}\nEXPLICACION:\nversion corregida"
+}
+
+func TestMejorarProyectoIteraHastaCorregir(t *testing.T) {
+	dir := t.TempDir()
+	fake := &iaDesarrolloFake{disponible: true}
+	h := NewHands(HandsOpciones{WorkspaceRoot: dir, DesarrolladorIA: fake})
+	resp := h.crearProyectoWeb("crear proyecto web prueba")
+	if !strings.Contains(resp, "creado y compilando") {
+		t.Fatalf("no se creó el proyecto: %s", resp)
+	}
+
+	// Primero devuelve código roto, después la corrección válida.
+	fake.respuestas = []string{mainGoRoto(), mainGoValido()}
+	resp = h.mejorarProyecto("mejorar el proyecto prueba agregá un contador")
+	if !strings.Contains(resp, "tras 2 intentos") {
+		t.Errorf("se esperaba éxito tras 2 intentos, obtuve: %s", resp)
+	}
+	if fake.llamadas != 2 {
+		t.Errorf("la IA debió ser llamada 2 veces, fue %d", fake.llamadas)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "prueba", ".git")); err != nil {
+		t.Errorf("se esperaba un checkpoint de git tras el éxito: %v", err)
+	}
+}
+
+func TestMejorarProyectoRindeTrasMaxIntentos(t *testing.T) {
+	dir := t.TempDir()
+	fake := &iaDesarrolloFake{disponible: true}
+	h := NewHands(HandsOpciones{WorkspaceRoot: dir, DesarrolladorIA: fake})
+	resp := h.crearProyectoWeb("crear proyecto web prueba")
+	if !strings.Contains(resp, "creado y compilando") {
+		t.Fatalf("no se creó el proyecto: %s", resp)
+	}
+
+	fake.respuestas = []string{mainGoRoto(), mainGoRoto(), mainGoRoto()}
+	resp = h.mejorarProyecto("mejorar el proyecto prueba agregá un contador")
+	if !strings.Contains(resp, "no compila tras 3 intentos") {
+		t.Errorf("se esperaba rendición tras 3 intentos, obtuve: %s", resp)
+	}
+	if fake.llamadas != 3 {
+		t.Errorf("la IA debió ser llamada 3 veces, fue %d", fake.llamadas)
+	}
+}
+
+func TestMejorarProyectoBloqueaFueraDelProyecto(t *testing.T) {
+	dir := t.TempDir()
+	fake := &iaDesarrolloFake{disponible: true}
+	h := NewHands(HandsOpciones{WorkspaceRoot: dir, DesarrolladorIA: fake})
+	resp := h.crearProyectoWeb("crear proyecto web prueba")
+	if !strings.Contains(resp, "creado y compilando") {
+		t.Fatalf("no se creó el proyecto: %s", resp)
+	}
+
+	fake.respuestas = []string{"ARCHIVO: ../afuera.txt\nCONTENIDO:\nevil\nEXPLICACION:\ntest"}
+	resp = h.mejorarProyecto("mejorar el proyecto prueba")
+	if !strings.Contains(resp, "bloqueé") {
+		t.Errorf("se esperaba bloqueo de escritura fuera del proyecto: %s", resp)
+	}
+}

@@ -12,6 +12,7 @@ type Brain struct {
 	mem   MemoriaPersistente
 	ing   IngAgente
 	prefs RegistroPreferencias
+	skills *SkillsManager
 
 	ultimaApp      string
 	ultimaBusqueda string
@@ -28,7 +29,7 @@ type accionConfirmable struct {
 }
 
 func NewBrain(h EjecutorComandos, opciones BrainOpciones) *Brain {
-	b := &Brain{hands: h, ia: opciones.IA, coder: opciones.Coder, mem: opciones.Memoria, ing: opciones.IngAgente, prefs: opciones.Prefs, maxHistorialIA: 5}
+	b := &Brain{hands: h, ia: opciones.IA, coder: opciones.Coder, mem: opciones.Memoria, ing: opciones.IngAgente, prefs: opciones.Prefs, skills: opciones.Skills, maxHistorialIA: 5}
 	if opciones.MaxHistorialIA > 0 {
 		b.maxHistorialIA = opciones.MaxHistorialIA
 	}
@@ -163,7 +164,13 @@ func (b *Brain) procesarInterno(input string) string {
 	}
 
 	if b.ia != nil && b.ia.Disponible() {
-		respuestaIA, err := b.ia.Consultar(input, b.historialIA)
+		prompt := input
+		if b.skills != nil {
+			if texto := b.skills.TextoParaIA(input); texto != "" {
+				prompt = texto + "\n\n" + prompt
+			}
+		}
+		respuestaIA, err := b.ia.Consultar(prompt, b.historialIA)
 		if err == nil && respuestaIA != "" {
 			b.historialIA = append(b.historialIA, TurnoConversacion{Usuario: input, Asistente: respuestaIA})
 			if len(b.historialIA) > b.maxHistorialIA {
@@ -408,7 +415,12 @@ DESARROLLADOR FULLSTACK:
   ejecutar proyecto [nombre]    -> lo levanta y lo abre en el navegador
   detener proyecto [nombre]     -> detiene la app en ejecución
   estado del proyecto [nombre]  -> si está corriendo y en qué puerto
-  mejorar el proyecto [nombre]  -> mejora con IA (requiere Ollama)
+  mejorar el proyecto [nombre]  -> mejora con IA: edita, verifica y corrige
+  agregá [feature] al proyecto [nombre] -> agrega funcionalidad con IA
+
+SKILLS:
+  qué skills tenés              -> lista las skills cargadas
+  (las skills se activan solas según lo que pidas)
 
 CLIMA / NOTICIAS (requiere API key en config.json):
   clima / qué temperatura hace   -> clima de tu ciudad (si configurado)

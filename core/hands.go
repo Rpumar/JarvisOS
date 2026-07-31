@@ -55,6 +55,7 @@ type Hands struct {
 
 	WorkspaceRoot   string
 	DesarrolladorIA GeneradorFullstackIA
+	Skills          *SkillsManager
 
 	proyectosMu sync.Mutex
 	proyectos   map[string]*ProyectoEjecutando
@@ -83,6 +84,7 @@ type HandsOpciones struct {
 
 	WorkspaceRoot   string
 	DesarrolladorIA GeneradorFullstackIA
+	Skills          *SkillsManager
 }
 
 func NewHands(opciones ...HandsOpciones) *Hands {
@@ -98,9 +100,13 @@ func NewHands(opciones ...HandsOpciones) *Hands {
 		h.VozRate = opciones[0].VozRate
 		h.WorkspaceRoot = opciones[0].WorkspaceRoot
 		h.DesarrolladorIA = opciones[0].DesarrolladorIA
+		h.Skills = opciones[0].Skills
 	}
 	if strings.TrimSpace(h.WorkspaceRoot) == "" {
 		h.WorkspaceRoot = carpetaEscritorio()
+	}
+	if h.Skills == nil {
+		h.Skills = NuevoSkillsManager()
 	}
 	return h
 }

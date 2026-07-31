@@ -58,6 +58,7 @@ type BrainOpciones struct {
 	Memoria        MemoriaPersistente
 	IngAgente      IngAgente
 	Prefs          RegistroPreferencias
+	Skills         *SkillsManager
 	MaxHistorialIA int
 }
 

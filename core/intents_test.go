@@ -90,6 +90,8 @@ func TestClasificarArmas(t *testing.T) {
 		{"mejorar el proyecto panel", "mejorar_proyecto"},
 		{"agregá una feature al proyecto panel", "mejorar_proyecto"},
 		{"agregar un botón a la app", "mejorar_proyecto"},
+		{"qué skills tenés", "listar_skills"},
+		{"mostrame las skills", "listar_skills"},
 		{"carpeta descargas", ""},
 	}
 	c := NuevoClasificador()

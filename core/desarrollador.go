@@ -261,8 +261,14 @@ func (h *Hands) listarProyectos() string {
 	return fmt.Sprintf("Proyectos en %s: %s. Para crear uno nuevo diga 'crear proyecto web' con un nombre, señor.", h.WorkspaceRoot, strings.Join(nombres, ", "))
 }
 
+// maxIteracionesDesarrollo es cuántas veces Jarvis le devuelve a la IA el
+// error de verificación para que corrija antes de rendirse (estilo Claude Code:
+// editar, verificar y reparar hasta que quede verde).
+const maxIteracionesDesarrollo = 3
+
 // mejorarProyecto usa la IA (si está disponible) para escribir una mejora real
-// en un proyecto existente y la compila. Nunca ejecuta el resultado.
+// en un proyecto existente y la itera hasta que compila, pasa vet y los tests.
+// Nunca ejecuta el resultado.
 func (h *Hands) mejorarProyecto(comando string) string {
 	nombre, feature := extraerNombreYFeatureProyecto(comando)
 	if nombre == "" {
@@ -278,14 +284,69 @@ func (h *Hands) mejorarProyecto(comando string) string {
 	if feature == "" {
 		feature = "realiza una mejora general al panel, manteniendo el estilo existente"
 	}
-	cruda, explicacion, err := h.DesarrolladorIA.ConsultarDesarrollo(feature)
+
+	instrucciones := ""
+	if h.Skills != nil {
+		instrucciones = h.Skills.TextoParaIA(feature)
+	}
+
+	peticion := fmt.Sprintf("CONTEXTO DEL PROYECTO (%s):\n%s\n\nPETICION: %s", nombre, contextoProyecto(ruta), feature)
+	if instrucciones != "" {
+		peticion += "\n\n" + instrucciones
+	}
+
+	archivo, contenido, explicacion, err := h.pedirCodigoDesarrollo(peticion)
 	if err != nil {
 		return "La IA no respondió: " + err.Error()
 	}
-	archivo, contenido := extraerArchivoDesarrollo(cruda)
 	if archivo == "" {
 		return "La IA devolvió algo inesperado. " + explicacion
 	}
+
+	for i := 1; i <= maxIteracionesDesarrollo; i++ {
+		if msg := escribirMejora(ruta, archivo, contenido); msg != "" {
+			return msg
+		}
+		salida, errV := verificarProyecto(ruta, nombre)
+		if errV == nil {
+			h.checkpointProyecto(ruta)
+			if i == 1 {
+				return fmt.Sprintf("Mejora aplicada en '%s' del proyecto '%s', señor. Compila, pasa vet y los tests. %s", archivo, nombre, explicacion)
+			}
+			return fmt.Sprintf("Mejora aplicada en '%s' del proyecto '%s' tras %d intentos de corrección, señor. %s", archivo, nombre, i, explicacion)
+		}
+		if i == maxIteracionesDesarrollo {
+			return fmt.Sprintf("La mejora en '%s' quedó escrita pero el proyecto no compila tras %d intentos, señor. Error: %s", archivo, maxIteracionesDesarrollo, strings.TrimSpace(salida))
+		}
+		correccion := fmt.Sprintf(
+			"La verificación del proyecto falló con este error:\n%s\n\nEl archivo actual '%s' es:\n%s\n\nCorregí el error y devolvé el archivo completo corregido en el mismo formato (ARCHIVO: / CONTENIDO: / EXPLICACION:).",
+			salida, archivo, contenido)
+		if instrucciones != "" {
+			correccion += "\n\n" + instrucciones
+		}
+		archivo, contenido, explicacion, err = h.pedirCodigoDesarrollo(correccion)
+		if err != nil {
+			return "La IA falló al corregir: " + err.Error()
+		}
+		if archivo == "" {
+			return "La IA no devolvió una corrección válida. " + explicacion
+		}
+	}
+	return "No pude terminar la mejora, señor."
+}
+
+func (h *Hands) pedirCodigoDesarrollo(peticion string) (archivo, contenido, explicacion string, err error) {
+	cruda, explicacion, err := h.DesarrolladorIA.ConsultarDesarrollo(peticion)
+	if err != nil {
+		return "", "", explicacion, err
+	}
+	archivo, contenido = extraerArchivoDesarrollo(cruda)
+	return archivo, contenido, explicacion, nil
+}
+
+// escribirMejora valida y escribe el archivo generado. Devuelve "" si escribió
+// bien, o un mensaje de error si el archivo salía del proyecto o no se pudo.
+func escribirMejora(ruta, archivo, contenido string) string {
 	archivo = strings.ReplaceAll(archivo, "\\", "/")
 	destino := filepath.Join(ruta, archivo)
 	absRuta, _ := filepath.Abs(ruta)
@@ -303,11 +364,98 @@ func (h *Hands) mejorarProyecto(comando string) string {
 	if err := os.WriteFile(destino, []byte(contenido), 0o644); err != nil {
 		return "No pude escribir la mejora: " + err.Error()
 	}
-	salida, errB := compilarProyectoEn(ruta, nombre)
-	if errB != nil {
-		return fmt.Sprintf("Apliqué la mejora en '%s' pero el proyecto no compila: %s. %s", archivo, strings.TrimSpace(salida), explicacion)
+	return ""
+}
+
+// contextoProyecto arma el árbol de archivos y el contenido de los archivos
+// clave del proyecto para dárselo de contexto a la IA.
+func contextoProyecto(ruta string) string {
+	var b strings.Builder
+	b.WriteString("Estructura del proyecto:\n")
+	_ = filepath.WalkDir(ruta, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			if d.Name() == ".git" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if strings.HasPrefix(d.Name(), ".git") {
+			return nil
+		}
+		rel, err := filepath.Rel(ruta, path)
+		if err == nil {
+			b.WriteString(rel + "\n")
+		}
+		return nil
+	})
+	for _, f := range []string{"main.go", "README.md", "frontend/app.js", "frontend/index.html"} {
+		datos, err := os.ReadFile(filepath.Join(ruta, f))
+		if err != nil {
+			continue
+		}
+		b.WriteString("\n===== " + f + " =====\n")
+		b.WriteString(string(datos))
 	}
-	return fmt.Sprintf("Mejora aplicada en '%s' del proyecto '%s', señor. Compila sin errores. %s", archivo, nombre, explicacion)
+	return b.String()
+}
+
+// verificarProyecto corre build + vet + test y devuelve la salida y un error si
+// alguna de las tres falla.
+func verificarProyecto(ruta, exe string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	build := exec.CommandContext(ctx, "go", "build", "-o", exe+".exe", ".")
+	build.Dir = ruta
+	salidaBuild, errBuild := build.CombinedOutput()
+	if errBuild != nil {
+		return "BUILD:\n" + string(salidaBuild), errBuild
+	}
+
+	vet := exec.CommandContext(ctx, "go", "vet", ".")
+	vet.Dir = ruta
+	salidaVet, errVet := vet.CombinedOutput()
+	if errVet != nil {
+		return "VET:\n" + string(salidaVet), errVet
+	}
+
+	test := exec.CommandContext(ctx, "go", "test", "./...")
+	test.Dir = ruta
+	salidaTest, errTest := test.CombinedOutput()
+	if errTest != nil {
+		return "TEST:\n" + string(salidaTest), errTest
+	}
+	return "build, vet y tests OK", nil
+}
+
+// checkpointProyecto crea un commit de git en el proyecto tras un cambio
+// exitoso (comportamiento de checkpoints de Claude Code). Best effort.
+func (h *Hands) checkpointProyecto(ruta string) {
+	git := func(args ...string) {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = ruta
+		_ = cmd.Run()
+	}
+	if !existeRuta(filepath.Join(ruta, ".git")) {
+		git("init", "-q")
+	}
+	git("add", "-A")
+	git("commit", "-q", "-m", "mejora: "+time.Now().Format("2006-01-02 15:04"))
+}
+
+// listarSkills responde por voz cuáles skills tiene cargadas Jarvis.
+func (h *Hands) listarSkills() string {
+	if h.Skills == nil {
+		return "No tengo skills cargadas, señor."
+	}
+	nombres := h.Skills.Listar()
+	if len(nombres) == 0 {
+		return "No tengo skills cargadas, señor."
+	}
+	return "Tengo estas skills: " + strings.Join(nombres, ", ") + ". Se activan solas según lo que pida, señor."
 }
 
 func compilarProyectoEn(ruta, exe string) (string, error) {
