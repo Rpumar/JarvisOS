@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	vosk "github.com/alphacep/vosk-api/go"
@@ -21,11 +22,16 @@ const (
 )
 
 type Ears struct {
+	mu          sync.Mutex
+	inicializado bool
+
 	stream      *portaudio.Stream
 	modelo      *vosk.VoskModel
 	reconocedor *vosk.VoskRecognizer
 	buffer      []int16
-	lineaStd    chan string
+
+	lineaStd chan string
+	rutaModelo string
 }
 
 type resultadoVosk struct {
@@ -36,22 +42,36 @@ func NewEars(rutaModelo string) (*Ears, error) {
 	if rutaModelo == "" {
 		rutaModelo = "./modelo-voz-es"
 	}
+	e := &Ears{
+		lineaStd:   make(chan string, 1),
+		rutaModelo: rutaModelo,
+	}
+	go e.leerStdin()
+	return e, nil
+}
 
-	if err := portaudio.Initialize(); err != nil {
-		return nil, fmt.Errorf("error al inicializar PortAudio: %w", err)
+func (e *Ears) inicializarVoz() error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.inicializado {
+		return nil
 	}
 
-	modelo, err := vosk.NewModel(rutaModelo)
+	if err := portaudio.Initialize(); err != nil {
+		return fmt.Errorf("error al inicializar PortAudio: %w", err)
+	}
+
+	modelo, err := vosk.NewModel(e.rutaModelo)
 	if err != nil {
 		portaudio.Terminate()
-		return nil, fmt.Errorf("no se pudo cargar el modelo de voz en '%s' (descárgalo de https://alphacephei.com/vosk/models): %w", rutaModelo, err)
+		return fmt.Errorf("no se pudo cargar el modelo de voz en '%s': %w", e.rutaModelo, err)
 	}
 
 	reconocedor, err := vosk.NewRecognizer(modelo, float64(tasaMuestreo))
 	if err != nil {
 		modelo.Free()
 		portaudio.Terminate()
-		return nil, fmt.Errorf("no se pudo crear el reconocedor de voz: %w", err)
+		return fmt.Errorf("no se pudo crear el reconocedor de voz: %w", err)
 	}
 
 	buffer := make([]int16, muestrasPorBloque)
@@ -61,7 +81,7 @@ func NewEars(rutaModelo string) (*Ears, error) {
 		reconocedor.Free()
 		modelo.Free()
 		portaudio.Terminate()
-		return nil, fmt.Errorf("no se pudo abrir el micrófono predeterminado: %w", err)
+		return fmt.Errorf("no se pudo abrir el micrófono predeterminado: %w", err)
 	}
 
 	if err := stream.Start(); err != nil {
@@ -69,18 +89,32 @@ func NewEars(rutaModelo string) (*Ears, error) {
 		reconocedor.Free()
 		modelo.Free()
 		portaudio.Terminate()
-		return nil, fmt.Errorf("no se pudo iniciar la captura de audio: %w", err)
+		return fmt.Errorf("no se pudo iniciar la captura de audio: %w", err)
 	}
 
-	e := &Ears{
-		stream:      stream,
-		modelo:      modelo,
-		reconocedor: reconocedor,
-		buffer:      buffer,
-		lineaStd:    make(chan string, 1),
+	e.stream = stream
+	e.modelo = modelo
+	e.reconocedor = reconocedor
+	e.buffer = buffer
+	e.inicializado = true
+	return nil
+}
+
+func (e *Ears) detenerVoz() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.stream != nil {
+		e.stream.Stop()
 	}
-	go e.leerStdin()
-	return e, nil
+}
+
+func (e *Ears) reanudarVoz() error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.stream != nil {
+		return e.stream.Start()
+	}
+	return nil
 }
 
 func (e *Ears) leerStdin() {
@@ -107,6 +141,13 @@ func (e *Ears) EscucharTexto() (string, error) {
 }
 
 func (e *Ears) Escuchar() (string, error) {
+	if err := e.inicializarVoz(); err != nil {
+		return "", err
+	}
+
+	e.reanudarVoz()
+	defer e.detenerVoz()
+
 	ultimoPoll := time.Now()
 	for {
 		if err := e.stream.Read(); err != nil {
@@ -139,18 +180,25 @@ func (e *Ears) Escuchar() (string, error) {
 	}
 }
 
-// Cerrar detiene el stream y libera PortAudio y Vosk. Llamar una sola vez
-// antes de salir del programa (idealmente con defer).
 func (e *Ears) Cerrar() {
-	_ = e.stream.Stop()
-	_ = e.stream.Close()
-	e.reconocedor.Free()
-	e.modelo.Free()
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if !e.inicializado {
+		return
+	}
+	if e.stream != nil {
+		e.stream.Stop()
+		e.stream.Close()
+	}
+	if e.reconocedor != nil {
+		e.reconocedor.Free()
+	}
+	if e.modelo != nil {
+		e.modelo.Free()
+	}
 	portaudio.Terminate()
 }
 
-// int16ABytes convierte las muestras PCM de PortAudio (int16) a []byte en
-// little-endian, el formato que espera AcceptWaveform de Vosk.
 func int16ABytes(muestras []int16) []byte {
 	datos := make([]byte, len(muestras)*2)
 	for i, m := range muestras {
