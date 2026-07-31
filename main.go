@@ -102,17 +102,19 @@ func main() {
 	prefs := memoria.NuevoGestorPreferencias(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "preferencias.json"))
 	rutinas := core.NuevoRutinaManager(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "rutinas.json"))
 
-	hands := core.NewHands(core.HandsOpciones{
-		Apps:      cfg.Apps,
-		ClimaKey:  cfg.OpenWeatherKey,
-		NewsKey:   cfg.NewsAPIKey,
-		Prefs:     prefs,
-		Rutinas:   rutinas,
-		VozActiva: prefs.Get().VozActivada,
-		VozVoice:  cfg.TTSVoice,
-		VozRate:   cfg.TTSRate,
-	})
 	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout)
+	hands := core.NewHands(core.HandsOpciones{
+		Apps:            cfg.Apps,
+		ClimaKey:        cfg.OpenWeatherKey,
+		NewsKey:         cfg.NewsAPIKey,
+		Prefs:           prefs,
+		Rutinas:         rutinas,
+		VozActiva:       prefs.Get().VozActivada,
+		VozVoice:        cfg.TTSVoice,
+		VozRate:         cfg.TTSRate,
+		WorkspaceRoot:   cfg.WorkspaceRoot,
+		DesarrolladorIA: conectorIA,
+	})
 	coderAgent := agents.NewCoderAgent(conectorIA)
 	gestorPlan := agents.NuevoGestorPlan(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "planes"))
 	ingAgente := agents.NuevoAgenteProyecto(conectorIA, cfg.WorkspaceRoot, gestorPlan)
@@ -271,14 +273,16 @@ func ejecutarModoServicio() {
 	}
 
 	cfg := config.Load()
-	hands := core.NewHands(core.HandsOpciones{
-		Apps:     cfg.Apps,
-		ClimaKey: cfg.OpenWeatherKey,
-		NewsKey:  cfg.NewsAPIKey,
-		VozVoice: cfg.TTSVoice,
-		VozRate:  cfg.TTSRate,
-	})
 	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout)
+	hands := core.NewHands(core.HandsOpciones{
+		Apps:            cfg.Apps,
+		ClimaKey:        cfg.OpenWeatherKey,
+		NewsKey:         cfg.NewsAPIKey,
+		VozVoice:        cfg.TTSVoice,
+		VozRate:         cfg.TTSRate,
+		WorkspaceRoot:   cfg.WorkspaceRoot,
+		DesarrolladorIA: conectorIA,
+	})
 	coderAgent := agents.NewCoderAgent(conectorIA)
 	gestorPlan := agents.NuevoGestorPlan(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "planes"))
 	ingAgente := agents.NuevoAgenteProyecto(conectorIA, cfg.WorkspaceRoot, gestorPlan)
@@ -370,12 +374,13 @@ func ejecutarWebUI() {
 	cfg := config.Load()
 	prefs := memoria.NuevoGestorPreferencias(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "preferencias.json"))
 	rutinas := core.NuevoRutinaManager(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "rutinas.json"))
+	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout)
 	hands := core.NewHands(core.HandsOpciones{
 		Apps: cfg.Apps, ClimaKey: cfg.OpenWeatherKey, NewsKey: cfg.NewsAPIKey,
 		Prefs: prefs, Rutinas: rutinas,
 		VozActiva: prefs.Get().VozActivada, VozVoice: cfg.TTSVoice, VozRate: cfg.TTSRate,
+		WorkspaceRoot: cfg.WorkspaceRoot, DesarrolladorIA: conectorIA,
 	})
-	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout)
 	coderAgent := agents.NewCoderAgent(conectorIA)
 	gestorPlan := agents.NuevoGestorPlan(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "planes"))
 	ingAgente := agents.NuevoAgenteProyecto(conectorIA, cfg.WorkspaceRoot, gestorPlan)

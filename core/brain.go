@@ -401,6 +401,15 @@ CÓDIGO / IA:
   escribe un script que [tarea]  -> genera script con IA
   confirmar / cancelar           -> confirma o cancela script propuesto
 
+DESARROLLADOR FULLSTACK:
+  crear proyecto web [nombre]    -> genera app Go + frontend y la compila
+  mis proyectos                 -> lista los proyectos creados
+  compilar el proyecto [nombre] -> compila un proyecto
+  ejecutar proyecto [nombre]    -> lo levanta y lo abre en el navegador
+  detener proyecto [nombre]     -> detiene la app en ejecución
+  estado del proyecto [nombre]  -> si está corriendo y en qué puerto
+  mejorar el proyecto [nombre]  -> mejora con IA (requiere Ollama)
+
 CLIMA / NOTICIAS (requiere API key en config.json):
   clima / qué temperatura hace   -> clima de tu ciudad (si configurado)
   noticias / últimas noticias    -> titulares de noticias (si configurado)

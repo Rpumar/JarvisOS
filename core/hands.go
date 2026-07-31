@@ -53,6 +53,12 @@ type Hands struct {
 	VozVoice  string
 	VozRate   int
 
+	WorkspaceRoot   string
+	DesarrolladorIA GeneradorFullstackIA
+
+	proyectosMu sync.Mutex
+	proyectos   map[string]*ProyectoEjecutando
+
 	vigilanciaMu      sync.Mutex
 	vigilanciaStop    chan struct{}
 	vigilanciaActiva  bool
@@ -74,10 +80,13 @@ type HandsOpciones struct {
 	VozActiva bool
 	VozVoice  string
 	VozRate   int
+
+	WorkspaceRoot   string
+	DesarrolladorIA GeneradorFullstackIA
 }
 
 func NewHands(opciones ...HandsOpciones) *Hands {
-	h := &Hands{cache: make(map[string]cacheEntry), clasif: NuevoClasificador(), VozActiva: true}
+	h := &Hands{cache: make(map[string]cacheEntry), clasif: NuevoClasificador(), VozActiva: true, proyectos: make(map[string]*ProyectoEjecutando)}
 	if len(opciones) > 0 {
 		h.Apps = opciones[0].Apps
 		h.ClimaKey = opciones[0].ClimaKey
@@ -87,6 +96,11 @@ func NewHands(opciones ...HandsOpciones) *Hands {
 		h.VozActiva = opciones[0].VozActiva
 		h.VozVoice = opciones[0].VozVoice
 		h.VozRate = opciones[0].VozRate
+		h.WorkspaceRoot = opciones[0].WorkspaceRoot
+		h.DesarrolladorIA = opciones[0].DesarrolladorIA
+	}
+	if strings.TrimSpace(h.WorkspaceRoot) == "" {
+		h.WorkspaceRoot = carpetaEscritorio()
 	}
 	return h
 }

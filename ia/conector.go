@@ -193,38 +193,85 @@ func (c *Conector) ConsultarCodigo(peticion string) (codigo string, explicacion 
 	if !c.ollama {
 		return "", "", fmt.Errorf("no hay IA disponible (Ollama no esta corriendo)")
 	}
+	respuesta, err := c.chatConSistema(promptSistemaCodigo, peticion)
+	if err != nil {
+		return "", "", err
+	}
+	return parsearRespuestaCodigo(respuesta)
+}
 
+const promptSistemaDesarrollo = `Sos un ingeniero de software senior fullstack (backend, frontend, base de datos y DevOps), que trabaja como desarrollador de JarvisOS para su usuario.
+El proyecto en el que trabajás es una aplicación web con stack fijo:
+- Backend: Go usando SOLO la librería estándar (net/http, encoding/json, sync, time). Nada de frameworks ni dependencias externas.
+- Frontend: HTML, CSS y JavaScript puro, sin frameworks ni CDN. El estilo actual es un panel oscuro (verde/cian sobre fondo #0b0f17).
+- La app sirve el frontend desde la carpeta "frontend" y expone una API JSON bajo /api.
+Reglas estrictas, sin excepciones:
+- Generá UN SOLO archivo, nuevo o a modificar, que implemente la mejora pedida de forma completa y compilable.
+- Solo se permiten archivos dentro del proyecto: main.go, frontend/index.html, frontend/style.css o frontend/app.js.
+- No generes código que borre archivos, ejecute comandos del sistema, acceda a internet, o introduzca dependencias.
+- Si la petición es peligrosa o fuera del alcance del proyecto, dejá CONTENIDO vacío y explicá por qué.
+Respondé ÚNICAMENTE en este formato exacto, sin texto adicional antes ni después:
+ARCHIVO:
+<ruta relativa del archivo a escribir o reemplazar, ej: main.go o frontend/app.js>
+CONTENIDO:
+<el código completo del archivo>
+EXPLICACION:
+<resumen breve en español de qué hace el cambio y cómo se prueba>`
+
+func (c *Conector) ConsultarDesarrollo(peticion string) (respuesta string, explicacion string, err error) {
+	if !c.ollama {
+		return "", "", fmt.Errorf("no hay IA disponible (Ollama no esta corriendo)")
+	}
+	codigo, err := c.chatConSistema(promptSistemaDesarrollo, peticion)
+	if err != nil {
+		return "", "", err
+	}
+	return codigo, extraerExplicacionDesarrollo(codigo), nil
+}
+
+func extraerExplicacionDesarrollo(texto string) string {
+	idx := strings.Index(texto, "EXPLICACION:")
+	if idx == -1 {
+		return strings.TrimSpace(texto)
+	}
+	return strings.TrimSpace(texto[idx+len("EXPLICACION:"):])
+}
+
+func (c *Conector) chatConSistema(system, user string) (string, error) {
 	cuerpo := peticionOllamaChat{
 		Model: c.modelo,
 		Messages: []mensajeChat{
-			{Role: "system", Content: promptSistemaCodigo},
-			{Role: "user", Content: peticion},
+			{Role: "system", Content: system},
+			{Role: "user", Content: user},
 		},
 		Stream: false,
 	}
 	datosJSON, err := json.Marshal(cuerpo)
 	if err != nil {
-		return "", "", fmt.Errorf("error al preparar la peticion: %w", err)
+		return "", fmt.Errorf("error al preparar la peticion: %w", err)
 	}
 	req, err := http.NewRequest(http.MethodPost, endpointOllama, bytes.NewReader(datosJSON))
 	if err != nil {
-		return "", "", fmt.Errorf("error al construir la peticion HTTP: %w", err)
+		return "", fmt.Errorf("error al construir la peticion HTTP: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return "", "", fmt.Errorf("error al contactar Ollama: %w", err)
+		return "", fmt.Errorf("error al contactar Ollama: %w", err)
 	}
 	defer resp.Body.Close()
 	cuerpoResp, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", "", fmt.Errorf("error al leer la respuesta: %w", err)
+		return "", fmt.Errorf("error al leer la respuesta: %w", err)
 	}
 	var r respuestaOllamaChat
 	if err := json.Unmarshal(cuerpoResp, &r); err != nil {
-		return "", "", fmt.Errorf("error al interpretar respuesta de Ollama: %w", err)
+		return "", fmt.Errorf("error al interpretar respuesta de Ollama: %w", err)
 	}
-	return parsearRespuestaCodigo(r.Message.Content)
+	if r.Message.Content == "" {
+		return "", fmt.Errorf("Ollama no devolvió contenido")
+	}
+	return r.Message.Content, nil
 }
 
 func parsearRespuestaCodigo(texto string) (codigo string, explicacion string, err error) {
