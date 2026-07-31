@@ -1364,8 +1364,8 @@ func (h *Hands) crearArchivo(cmd string) string {
 }
 
 func (h *Hands) vaciarPapelera() string {
-	ps := "(New-Object -ComObject Shell.Application).NameSpace(0x0a).Items() | ForEach-Object { $_.InvokeVerb('delete') }"
-	if err := exec.Command("powershell", "-Command", ps).Run(); err != nil {
+	ps := "Clear-RecycleBin -Force -ErrorAction SilentlyContinue"
+	if err := exec.Command("powershell", "-NoProfile", "-Command", ps).Run(); err != nil {
 		return "No pude vaciar la papelera, señor."
 	}
 	return "Papelera vaciada, señor."

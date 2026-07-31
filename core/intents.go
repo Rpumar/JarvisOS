@@ -531,6 +531,18 @@ func NuevoClasificador() *Clasificador {
 			Handler: func(cmd string, h *Hands) string { return h.estadoVigilancia() },
 		},
 		{
+			Nombre: "plan_accion",
+			Frases: []string{"plan de acción", "plan de accion", "generá un plan", "genera un plan", "qué debería hacer", "que deberia hacer", "plan de mejora", "plan de optimización", "plan de optimizacion", "armá un plan", "arma un plan", "decime qué hago", "plan de mantenimiento", "qué me recomendás", "que me recomendas"},
+			Palabras: []string{"plan de acción", "plan de accion", "plan de mejora", "qué debería hacer", "que deberia hacer", "armá un plan", "arma un plan"},
+			Handler: func(cmd string, h *Hands) string { return h.planAccion() },
+		},
+		{
+			Nombre: "ejecutar_plan",
+			Frases: []string{"ejecutá el plan", "ejecuta el plan", "aplicá el plan", "aplica el plan", "ejecutá el plan de acción", "ejecuta el plan de accion", "hacé lo que corresponde", "hace lo que corresponde", "corré el plan", "corre el plan", "ejecutá las acciones", "ejecuta las acciones", "poné en marcha el plan"},
+			Palabras: []string{"ejecutá el plan", "ejecuta el plan", "aplicá el plan", "corré el plan", "ejecutá las acciones"},
+			Handler: func(cmd string, h *Hands) string { return h.ejecutarPlan() },
+		},
+		{
 			Nombre: "ayuda",
 			Frases: []string{"ayuda", "qué podés hacer", "que podes hacer", "comandos", "qué sabes hacer", "que sabes hacer", "funciones", "instrucciones"},
 			Palabras: []string{"ayuda", "comandos", "funciones", "instrucciones"},

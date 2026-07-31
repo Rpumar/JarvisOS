@@ -64,6 +64,11 @@ func TestClasificarArmas(t *testing.T) {
 		{"modo vigilante", "vigilante_on"},
 		{"pará la vigilancia", "vigilante_off"},
 		{"estás vigilando", "vigilante_estado"},
+		{"plan de acción", "plan_accion"},
+		{"generá un plan", "plan_accion"},
+		{"qué debería hacer", "plan_accion"},
+		{"ejecutá el plan", "ejecutar_plan"},
+		{"aplicá el plan", "ejecutar_plan"},
 		{"carpeta descargas", ""},
 	}
 	c := NuevoClasificador()

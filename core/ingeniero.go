@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -385,9 +386,8 @@ $antes=(Get-ChildItem ([System.IO.Path]::GetTempPath()) -Recurse -Force -ErrorAc
 Get-ChildItem ([System.IO.Path]::GetTempPath()) -Force -ErrorAction SilentlyContinue | ForEach-Object { Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue }
 Get-ChildItem "$env:WINDIR\Temp" -Force -ErrorAction SilentlyContinue | ForEach-Object { Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue }
 Get-ChildItem "$env:LOCALAPPDATA\Microsoft\Windows\Explorer" -Filter "thumbcache_*" -Force -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
-$despues=(Get-ChildItem ([System.IO.Path]::GetTempPath()) -Recurse -Force -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
-if(-not $antes){$antes=0}; if(-not $despues){$despues=0}
-"{0:N2}" -f (($antes-$despues)/1MB)
+if(-not $antes){$antes=0}
+"{0:N2}" -f ($antes/1MB)
 `
 	out, err := ejecutarPS(script)
 	if err != nil {
@@ -440,6 +440,103 @@ func tamanoCarpeta(raiz string) int64 {
 		return nil
 	})
 	return total
+}
+
+// === PLAN DE ACCIÓN ===
+
+type Accion struct {
+	Orden   int
+	Tipo    string // auto | manual | aviso
+	Titulo  string
+	Detalle string
+}
+
+func generarPlan(d *Diagnostico, problemas []Problema) []Accion {
+	var plan []Accion
+	for _, p := range problemas {
+		minus := strings.ToLower(p.Texto)
+		switch {
+		case strings.Contains(minus, "temporal"):
+			plan = append(plan, Accion{Orden: p.Gravedad, Tipo: "auto", Titulo: "Limpiar archivos temporales", Detalle: "Eliminar temporales del usuario y del sistema."})
+		case strings.Contains(minus, "libre"):
+			plan = append(plan, Accion{Orden: p.Gravedad, Tipo: "auto", Titulo: "Liberar espacio en disco", Detalle: "Limpieza general de temporales, papelera y DNS."})
+		case strings.Contains(minus, "reinicio"):
+			plan = append(plan, Accion{Orden: p.Gravedad, Tipo: "manual", Titulo: "Reiniciar la PC", Detalle: "Aplicar cambios pendientes del sistema."})
+		case strings.Contains(minus, "memoria"):
+			plan = append(plan, Accion{Orden: p.Gravedad, Tipo: "aviso", Titulo: "Reducir uso de memoria", Detalle: "Cerrar aplicaciones pesadas o reiniciar la PC."})
+		case strings.Contains(minus, "servicio"):
+			plan = append(plan, Accion{Orden: p.Gravedad, Tipo: "aviso", Titulo: "Revisar servicios detenidos", Detalle: "Ver detalle con 'servicios caídos' e iniciar los que correspondan."})
+		case strings.Contains(minus, "cpu"):
+			plan = append(plan, Accion{Orden: p.Gravedad, Tipo: "aviso", Titulo: "Revisar uso de CPU", Detalle: "Identificar el proceso pesado con 'top procesos'."})
+		case strings.Contains(minus, "errores"):
+			plan = append(plan, Accion{Orden: p.Gravedad, Tipo: "aviso", Titulo: "Revisar errores del sistema", Detalle: "Analizar el Visor de eventos con 'eventos de error recientes'."})
+		case strings.Contains(minus, "bater"):
+			plan = append(plan, Accion{Orden: p.Gravedad, Tipo: "aviso", Titulo: "Conectar el cargador", Detalle: "Batería baja sin carga."})
+		default:
+			plan = append(plan, Accion{Orden: p.Gravedad, Tipo: "aviso", Titulo: p.Texto, Detalle: p.Fix})
+		}
+	}
+	sort.SliceStable(plan, func(i, j int) bool { return plan[i].Orden > plan[j].Orden })
+	return plan
+}
+
+func (h *Hands) planAccion() string {
+	d, err := h.diagnosticar()
+	if err != nil {
+		return err.Error() + ", señor."
+	}
+	puntaje, problemas := analizarSalud(d)
+	acciones := generarPlan(d, problemas)
+	fmt.Println("=== PLAN DE ACCIÓN ===")
+	fmt.Printf("Salud actual: %d/100\n", puntaje)
+	if len(acciones) == 0 {
+		fmt.Println("Sin acciones necesarias.")
+		return "No hay nada que corregir, señor. Su PC está impecable."
+	}
+	nAuto := 0
+	for i, a := range acciones {
+		etiqueta := "AVISO"
+		switch a.Tipo {
+		case "auto":
+			etiqueta = "AUTO"
+			nAuto++
+		case "manual":
+			etiqueta = "CONFIRMAR"
+		}
+		fmt.Printf("[%d][%s] %s — %s\n", i+1, etiqueta, a.Titulo, a.Detalle)
+	}
+	if nAuto > 0 {
+		return fmt.Sprintf("Plan listo, señor: %d acciones. Puedo ejecutar %d automáticamente. Diga 'ejecutá el plan' cuando quiera.", len(acciones), nAuto)
+	}
+	return fmt.Sprintf("Plan listo, señor: %d acciones a considerar. Vea la consola.", len(acciones))
+}
+
+func (h *Hands) ejecutarPlan() string {
+	d, err := h.diagnosticar()
+	if err != nil {
+		return err.Error() + ", señor."
+	}
+	_, problemas := analizarSalud(d)
+	acciones := generarPlan(d, problemas)
+	hechas := 0
+	for _, a := range acciones {
+		if a.Tipo != "auto" {
+			continue
+		}
+		switch {
+		case strings.Contains(a.Titulo, "temporal") || strings.Contains(a.Titulo, "Liberar"):
+			fmt.Printf("[PLAN] Ejecutando: %s...\n", a.Titulo)
+			liberado := limpiarTemporalesTexto()
+			h.vaciarPapelera()
+			h.limpiarDNS()
+			fmt.Printf("[PLAN] Completado: %s (%s MB liberados).\n", a.Titulo, liberado)
+			hechas++
+		}
+	}
+	if hechas == 0 {
+		return "No hay acciones automáticas que ejecutar, señor. El plan solo contiene pasos que requieren su decisión."
+	}
+	return fmt.Sprintf("Plan ejecutado, señor: %d acciones automáticas completadas. Su PC quedó optimizada.", hechas)
 }
 
 // === MODO VIGILANTE ===
