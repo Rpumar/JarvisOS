@@ -1325,12 +1325,16 @@ func (h *Hands) listarDirectorio() string {
 }
 
 func (h *Hands) crearCarpeta(cmd string) string {
-	nombre := strings.TrimSpace(strings.Replace(cmd, "crear carpeta ", "", 1))
-	nombre = strings.TrimSpace(strings.Replace(nombre, "crear directorio ", "", 1))
+	nombre := extraerObjeto(cmd, []string{
+		"crear carpeta ", "crear directorio ", "crear una carpeta ",
+		"creá una carpeta ", "crea una carpeta ", "nueva carpeta ",
+		"hacé una carpeta ", "hace una carpeta ",
+	})
+	nombre = strings.TrimSpace(nombre)
 	if nombre == "" {
 		nombre = fmt.Sprintf("nueva_carpeta_%d", time.Now().Unix())
 	}
-	ruta := filepath.Join(os.Getenv("USERPROFILE"), "Desktop", nombre)
+	ruta := filepath.Join(carpetaEscritorio(), nombre)
 	if err := os.MkdirAll(ruta, 0o700); err != nil {
 		return fmt.Sprintf("No pude crear la carpeta: %v", err)
 	}
@@ -1338,12 +1342,16 @@ func (h *Hands) crearCarpeta(cmd string) string {
 }
 
 func (h *Hands) crearArchivo(cmd string) string {
-	nombre := strings.TrimSpace(strings.Replace(cmd, "crear archivo ", "", 1))
-	nombre = strings.TrimSpace(strings.Replace(nombre, "nuevo archivo ", "", 1))
+	nombre := extraerObjeto(cmd, []string{
+		"crear archivo ", "nuevo archivo ", "crear un archivo de texto ",
+		"creá un archivo ", "crea un archivo ", "hacé un archivo ", "hace un archivo ",
+		"crear txt ",
+	})
+	nombre = strings.TrimSpace(nombre)
 	if nombre == "" {
 		nombre = fmt.Sprintf("nuevo_archivo_%d.txt", time.Now().Unix())
 	}
-	ruta := filepath.Join(os.Getenv("USERPROFILE"), "Desktop", nombre)
+	ruta := filepath.Join(carpetaEscritorio(), nombre)
 	if err := os.WriteFile(ruta, []byte(""), 0o600); err != nil {
 		return fmt.Sprintf("No pude crear el archivo: %v", err)
 	}

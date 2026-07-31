@@ -243,7 +243,14 @@ func esConsultaSegura(entrada string) bool {
 		strings.HasPrefix(entrada, "eco ") ||
 		strings.HasPrefix(entrada, "repite ") ||
 		strings.HasPrefix(entrada, "busca ") ||
-		strings.HasPrefix(entrada, "buscá ")
+		strings.HasPrefix(entrada, "buscá ") ||
+		strings.HasPrefix(entrada, "tomá nota") ||
+		strings.HasPrefix(entrada, "toma nota") ||
+		strings.HasPrefix(entrada, "tomá nota de") ||
+		strings.HasPrefix(entrada, "anotá esto") ||
+		strings.HasPrefix(entrada, "anotá ") ||
+		strings.HasPrefix(entrada, "anota esto") ||
+		strings.HasPrefix(entrada, "anota ")
 }
 
 func esPeticionIngenieria(entrada string) bool {

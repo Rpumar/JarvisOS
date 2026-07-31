@@ -37,6 +37,19 @@ func TestClasificarArmas(t *testing.T) {
 		{"listar cámaras", "listar_camaras"},
 		{"informe del sistema", "informe_sistema"},
 		{"qué hay en el portapapeles", "ver_portapapeles"},
+		{"no hables", "voz_desactivar"},
+		{"activá tu voz", "voz_activar"},
+		{"qué voces tenés", "voz_listar"},
+		{"crear carpeta informes", "crear_carpeta"},
+		{"nueva carpeta de fotos", "crear_carpeta"},
+		{"crear archivo listado", "crear_archivo"},
+		{"buscame el archivo receta", "buscar_archivo"},
+		{"abrir ubicación de mi documento", "abrir_ubicacion"},
+		{"borrar archivo basura", "borrar_archivo"},
+		{"tomá nota comprar leche", "tomar_nota"},
+		{"leé mis notas", "leer_notas"},
+		{"hablá sobre python", ""},
+		{"carpeta", ""},
 	}
 	c := NuevoClasificador()
 	for _, cso := range casos {

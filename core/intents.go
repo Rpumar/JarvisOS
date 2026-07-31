@@ -393,6 +393,60 @@ func NuevoClasificador() *Clasificador {
 			Handler: func(cmd string, h *Hands) string { return h.informeSistema() },
 		},
 		{
+			Nombre: "crear_carpeta",
+			Frases: []string{"crear carpeta", "creá una carpeta", "crea una carpeta", "nueva carpeta", "hacé una carpeta", "hace una carpeta", "crear una carpeta"},
+			Palabras: []string{"crear carpeta", "creá una carpeta", "nueva carpeta", "hacé una carpeta"},
+			Handler: func(cmd string, h *Hands) string { return h.crearCarpeta(cmd) },
+		},
+		{
+			Nombre: "crear_archivo",
+			Frases: []string{"crear archivo", "creá un archivo", "crea un archivo", "nuevo archivo", "hacé un archivo", "hace un archivo", "crear un archivo de texto", "crear txt"},
+			Palabras: []string{"crear archivo", "creá un archivo", "nuevo archivo"},
+			Handler: func(cmd string, h *Hands) string { return h.crearArchivo(cmd) },
+		},
+		{
+			Nombre: "buscar_archivo",
+			Frases: []string{"buscar archivo", "buscame el archivo", "busca el archivo", "buscá el archivo", "encontrá el archivo", "encontra el archivo", "dónde está mi archivo", "donde esta mi archivo", "buscame un archivo"},
+			Palabras: []string{"buscar archivo", "buscame el archivo", "encontrá el archivo", "encontra el archivo"},
+			Handler: func(cmd string, h *Hands) string {
+				nombre := extraerObjeto(cmd, []string{"buscar archivo ", "buscame el archivo ", "busca el archivo ", "buscá el archivo ", "encontrá el archivo ", "encontra el archivo ", "dónde está mi archivo ", "donde esta mi archivo ", "buscame un archivo "})
+				return h.buscarArchivo(nombre)
+			},
+		},
+		{
+			Nombre: "abrir_ubicacion",
+			Frases: []string{"abrir ubicación de", "abrir ubicacion de", "mostrame dónde está", "mostrame donde esta", "mostrá la carpeta de", "mostra la carpeta de", "abrir carpeta que contiene", "ubicación de mi archivo", "ubicacion de mi archivo"},
+			Palabras: []string{"ubicación de", "ubicacion de", "dónde está mi", "donde esta mi"},
+			Handler: func(cmd string, h *Hands) string {
+				nombre := extraerObjeto(cmd, []string{"abrir ubicación de ", "abrir ubicacion de ", "mostrame dónde está ", "mostrame donde esta ", "mostrá la carpeta de ", "mostra la carpeta de ", "abrir carpeta que contiene ", "ubicación de mi archivo ", "ubicacion de mi archivo "})
+				return h.abrirUbicacion(nombre)
+			},
+		},
+		{
+			Nombre: "borrar_archivo",
+			Frases: []string{"borrar archivo", "borrá el archivo", "borra el archivo", "borrar el archivo", "eliminar archivo", "eliminá el archivo", "elimina el archivo", "eliminar el archivo", "mover a la papelera"},
+			Palabras: []string{"borrar archivo", "borrá el archivo", "eliminar archivo", "eliminá el archivo", "papelera de reciclaje"},
+			Handler: func(cmd string, h *Hands) string {
+				nombre := extraerObjeto(cmd, []string{"borrar archivo ", "borrá el archivo ", "borra el archivo ", "borrar el archivo ", "eliminar archivo ", "eliminá el archivo ", "elimina el archivo ", "eliminar el archivo ", "mover a la papelera "})
+				return h.borrarArchivo(nombre)
+			},
+		},
+		{
+			Nombre: "tomar_nota",
+			Frases: []string{"tomá nota", "toma nota", "anotá", "anota", "escribí una nota", "escribe una nota", "tomá nota de", "anotá esto", "guarda esta nota", "guardá esta nota"},
+			Palabras: []string{"anotá", "anota", "tomá nota", "guarda esta nota"},
+			Handler: func(cmd string, h *Hands) string {
+				texto := extraerObjeto(cmd, []string{"tomá nota de ", "tomá nota ", "toma nota de ", "toma nota ", "anotá esto ", "anotá ", "anota esto ", "anota ", "escribí una nota ", "escribe una nota ", "guarda esta nota ", "guardá esta nota "})
+				return h.tomarNota(texto)
+			},
+		},
+		{
+			Nombre: "leer_notas",
+			Frases: []string{"leé mis notas", "lee mis notas", "qué notas tengo", "que notas tengo", "mostrame las notas", "mostrame mis notas", "mis notas", "leé las notas", "lee las notas"},
+			Palabras: []string{"mis notas", "las notas"},
+			Handler: func(cmd string, h *Hands) string { return h.leerNotas() },
+		},
+		{
 			Nombre: "ver_portapapeles",
 			Frases: []string{"qué hay en el portapapeles", "que hay en el portapapeles", "contenido del portapapeles", "qué copié", "que copie"},
 			Palabras: []string{"portapapeles"},
