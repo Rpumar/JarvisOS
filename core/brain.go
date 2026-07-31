@@ -219,6 +219,10 @@ var palabrasPeligrosas = []struct {
 
 func esAccionPeligrosa(entrada string) (string, bool) {
 	entrada = strings.TrimSpace(entrada)
+	if strings.Contains(entrada, "activar suspensión") || strings.Contains(entrada, "activar suspension") ||
+		strings.Contains(entrada, "desactivar suspensión") || strings.Contains(entrada, "desactivar suspension") {
+		return "", false
+	}
 	for _, p := range palabrasPeligrosas {
 		if strings.Contains(entrada, p.frase) {
 			return p.accion, true

@@ -312,6 +312,75 @@ func NuevoClasificador() *Clasificador {
 			Handler: func(cmd string, h *Hands) string { return h.manejarRutina(cmd) },
 		},
 		{
+			Nombre: "notificacion",
+			Frases: []string{"avisame", "avisame en la pantalla", "avisame que", "avísame", "mostrar notificacion", "mostrame una notificacion", "mostrar notificación", "mostrame una notificación", "notificame", "notifica"},
+			Palabras: []string{"avisame", "avísame", "notificame", "notifica"},
+			Handler: func(cmd string, h *Hands) string {
+				texto := extraerObjeto(cmd, []string{"avisame en la pantalla ", "avísame en la pantalla ", "avisame que ", "avísame que ", "avisame ", "avísame ", "notificame que ", "notificame ", "notificá "})
+				return h.enviarNotificacion(texto)
+			},
+		},
+		{
+			Nombre: "comprimir",
+			Frases: []string{"comprimir carpeta", "comprimir la carpeta", "comprimí la carpeta", "comprimi la carpeta", "comprimir descargas"},
+			Palabras: []string{"comprimir", "comprimí", "comprimi", "comprime"},
+			Handler: func(cmd string, h *Hands) string { return h.comprimirCarpeta(cmd) },
+		},
+		{
+			Nombre: "descomprimir",
+			Frases: []string{"descomprimir archivo", "descomprimir", "descomprimí", "descomprimi", "descomprime"},
+			Palabras: []string{"descomprimir", "descomprimí", "descomprimi", "descomprime"},
+			Handler: func(cmd string, h *Hands) string { return h.descomprimirArchivo(cmd) },
+		},
+		{
+			Nombre: "expulsar_disco",
+			Frases: []string{"expulsar usb", "expulsar el usb", "expulsá el usb", "expulsa el usb", "sacar el pendrive", "expulsar disco"},
+			Palabras: []string{"expulsar", "expulsá", "expulsa"},
+			Handler: func(cmd string, h *Hands) string { return h.expulsarDisco() },
+		},
+		{
+			Nombre: "mantener_despierto",
+			Frases: []string{"mantené la pc despierta", "mantene la pc despierta", "mantener la pc despierta", "modo no dormir", "que la pc no duerma", "desactivar suspensión"},
+			Palabras: []string{"despierta"},
+			Handler: func(cmd string, h *Hands) string { return h.mantenerDespierto() },
+		},
+		{
+			Nombre: "activar_suspension",
+			Frases: []string{"activar suspensión", "activar suspension", "restaurar la suspensión", "restaurar la suspension", "que la pc duerma"},
+			Palabras: []string{"suspensión", "suspension"},
+			Handler: func(cmd string, h *Hands) string { return h.activarSuspension() },
+		},
+		{
+			Nombre: "probar_sonido",
+			Frases: []string{"probar el sonido", "probá el sonido", "proba el sonido", "test de audio", "probar audio", "probá los parlantes", "proba los parlantes", "probar los altavoces"},
+			Palabras: []string{"altavoces", "parlantes"},
+			Handler: func(cmd string, h *Hands) string { return h.probarSonido() },
+		},
+		{
+			Nombre: "listar_audio",
+			Frases: []string{"dispositivos de audio", "dispositivos de sonido", "salidas de audio", "qué audio tengo"},
+			Palabras: []string{"audio"},
+			Handler: func(cmd string, h *Hands) string { return h.listarAudio() },
+		},
+		{
+			Nombre: "listar_camaras",
+			Frases: []string{"qué cámaras tengo", "que camaras tengo", "cámaras conectadas", "camaras conectadas", "listar cámaras", "listar camaras", "webcam"},
+			Palabras: []string{"cámaras", "camaras", "webcam"},
+			Handler: func(cmd string, h *Hands) string { return h.listarCamaras() },
+		},
+		{
+			Nombre: "informe_sistema",
+			Frases: []string{"informe del sistema", "reporte del sistema", "resumen del sistema", "diagnóstico del sistema", "diagnostico del sistema", "estado general de la pc"},
+			Palabras: []string{"informe", "reporte", "diagnóstico", "diagnostico"},
+			Handler: func(cmd string, h *Hands) string { return h.informeSistema() },
+		},
+		{
+			Nombre: "ver_portapapeles",
+			Frases: []string{"qué hay en el portapapeles", "que hay en el portapapeles", "contenido del portapapeles", "qué copié", "que copie"},
+			Palabras: []string{"portapapeles"},
+			Handler: func(cmd string, h *Hands) string { return h.verPortapapeles() },
+		},
+		{
 			Nombre: "ayuda",
 			Frases: []string{"ayuda", "qué podés hacer", "que podes hacer", "comandos", "qué sabes hacer", "que sabes hacer", "funciones", "instrucciones"},
 			Palabras: []string{"ayuda", "comandos", "funciones", "instrucciones"},

@@ -293,6 +293,24 @@ func TestProcess_PropuestaPendiente_BloqueaComandosNormales(t *testing.T) {
 	}
 }
 
+func TestEsAccionPeligrosa_SuspensionExcepciones(t *testing.T) {
+	casos := []struct {
+		entrada  string
+		peligroso bool
+	}{
+		{"suspender la pc", true},
+		{"activar suspensión", false},
+		{"desactivar suspensión", false},
+		{"mantené la pc despierta", false},
+	}
+	for _, c := range casos {
+		desc, peligroso := esAccionPeligrosa(c.entrada)
+		if peligroso != c.peligroso {
+			t.Errorf("esAccionPeligrosa(%q) peligroso=%v (%q), esperaba %v", c.entrada, peligroso, desc, c.peligroso)
+		}
+	}
+}
+
 func TestEsPeticionDeCodigo(t *testing.T) {
 	casos := []struct {
 		entrada  string
