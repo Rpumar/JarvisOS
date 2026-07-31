@@ -6,13 +6,14 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
-	"sort"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -39,11 +40,12 @@ const (
 // Hands ejecuta acciones reales sobre Windows: abrir/cerrar apps, volumen,
 // multimedia, navegador, sistema de archivos, capturas y voz (TTS).
 type Hands struct {
-	muCache sync.Mutex
-	cache   map[string]cacheEntry
-	Apps    map[string]string
+	muCache  sync.Mutex
+	cache    map[string]cacheEntry
+	Apps     map[string]string
 	ClimaKey string
 	NewsKey  string
+	clasif   *Clasificador
 }
 
 type cacheEntry struct {
@@ -58,7 +60,7 @@ type HandsOpciones struct {
 }
 
 func NewHands(opciones ...HandsOpciones) *Hands {
-	h := &Hands{cache: make(map[string]cacheEntry)}
+	h := &Hands{cache: make(map[string]cacheEntry), clasif: NuevoClasificador()}
 	if len(opciones) > 0 {
 		h.Apps = opciones[0].Apps
 		h.ClimaKey = opciones[0].ClimaKey
@@ -86,55 +88,24 @@ func (h *Hands) obtenerOCache(clave string, ttl time.Duration, fn func() string)
 // como "[MANOS]": eso se agrega solo al imprimir, no al hablar).
 func (h *Hands) RunCommand(cmd string) string {
 	cmd = strings.ToLower(strings.TrimSpace(cmd))
-
-	// APPS (dinámico desde config)
-	if nombreApp := h.buscarAppEnComando(cmd); nombreApp != "" {
-		return h.abrirApp(nombreApp)
+	if cmd == "" {
+		return ComandoNoReconocido
 	}
 
-	// VOLUMEN (mecanismo corregido esta ronda: ver enviarTeclaVirtual)
-	switch {
-	case strings.Contains(cmd, "subir volumen"):
-		return h.volumen("up")
-	case strings.Contains(cmd, "bajar volumen"):
-		return h.volumen("down")
-	case strings.Contains(cmd, "silencio"), strings.Contains(cmd, "mute"):
-		return h.volumen("mute")
+	verbosAbrir := []string{"abrir ", "abri ", "abrime ", "abrím ", "abrí "}
+	if contieneAlguna(cmd, verbosAbrir) {
+		if app, _ := extraerApp(cmd, h.Apps); app != "" {
+			return h.abrirApp(app)
+		}
 	}
 
-	// MULTIMEDIA (nuevo)
-	switch {
-	case strings.Contains(cmd, "pausar"), strings.Contains(cmd, "reproducir"), cmd == "play":
-		return h.controlMedia("play_pause")
-	case strings.Contains(cmd, "siguiente canción"), strings.Contains(cmd, "siguiente cancion"):
-		return h.controlMedia("next")
-	case strings.Contains(cmd, "canción anterior"), strings.Contains(cmd, "cancion anterior"):
-		return h.controlMedia("prev")
+	if h.clasif != nil {
+		if nombre, ok := h.clasif.Clasificar(cmd); ok {
+			return h.clasif.Ejecutar(nombre, cmd, h)
+		}
 	}
 
-	// INFO
-	switch {
-	case strings.Contains(cmd, "hora"):
-		return h.decirHora()
-	case strings.Contains(cmd, "fecha"), strings.Contains(cmd, "qué día es"):
-		return h.decirFecha()
-	case strings.Contains(cmd, "batería"), strings.Contains(cmd, "bateria"):
-		return h.nivelBateria()
-	case strings.Contains(cmd, "mi ip"):
-		return h.obtenerIP()
-	}
-
-	// UTILIDADES (nuevo)
-	switch {
-	case strings.Contains(cmd, "chiste"):
-		return h.contarChiste()
-	case strings.Contains(cmd, "copiar "):
-		texto := strings.TrimSpace(strings.Replace(cmd, "copiar ", "", 1))
-		return h.copiarAlPortapapeles(texto)
-	}
-
-	// NAVEGADOR (el orden importa: las frases más específicas van primero,
-	// porque "buscar en youtube"/"buscar en wikipedia" también contienen "buscar ")
+	// NAVEGADOR
 	if strings.Contains(cmd, "buscar en youtube ") {
 		consulta := strings.TrimSpace(strings.Replace(cmd, "buscar en youtube ", "", 1))
 		return h.buscarEnYoutube(consulta)
@@ -143,52 +114,28 @@ func (h *Hands) RunCommand(cmd string) string {
 		consulta := strings.TrimSpace(strings.Replace(cmd, "buscar en wikipedia ", "", 1))
 		return h.buscarEnWikipedia(consulta)
 	}
-	if strings.Contains(cmd, "buscar ") {
-		consulta := strings.TrimSpace(strings.Replace(cmd, "buscar ", "", 1))
+	if strings.Contains(cmd, "buscar ") || strings.Contains(cmd, "busca ") || strings.Contains(cmd, "buscá ") || strings.Contains(cmd, "googleá ") || strings.Contains(cmd, "googlea ") {
+		consulta := extraerObjeto(cmd, []string{"buscar ", "busca ", "buscá ", "googleá ", "googlea "})
 		return h.buscarEnGoogle(consulta)
 	}
 	if strings.Contains(cmd, "ir a ") {
 		sitio := strings.TrimSpace(strings.Replace(cmd, "ir a ", "", 1))
 		return h.irASitio(sitio)
 	}
-	if strings.Contains(cmd, "andá a ") {
+	if strings.Contains(cmd, "andá a ") || strings.Contains(cmd, "anda a ") {
 		sitio := strings.TrimSpace(strings.Replace(cmd, "andá a ", "", 1))
 		return h.irASitio(sitio)
 	}
-	if strings.Contains(cmd, "anda a ") {
-		sitio := strings.TrimSpace(strings.Replace(cmd, "anda a ", "", 1))
-		return h.irASitio(sitio)
-	}
-	if strings.Contains(cmd, "navegar a ") {
+	if strings.Contains(cmd, "navegar a ") || strings.Contains(cmd, "navegá a ") {
 		sitio := strings.TrimSpace(strings.Replace(cmd, "navegar a ", "", 1))
 		return h.irASitio(sitio)
 	}
-	if strings.Contains(cmd, "navegá a ") {
-		sitio := strings.TrimSpace(strings.Replace(cmd, "navegá a ", "", 1))
-		return h.irASitio(sitio)
-	}
-	if strings.Contains(cmd, "dirigite a ") {
+	if strings.Contains(cmd, "dirigite a ") || strings.Contains(cmd, "dirigirse a ") {
 		sitio := strings.TrimSpace(strings.Replace(cmd, "dirigite a ", "", 1))
 		return h.irASitio(sitio)
 	}
-	if strings.Contains(cmd, "dirigirse a ") {
-		sitio := strings.TrimSpace(strings.Replace(cmd, "dirigirse a ", "", 1))
-		return h.irASitio(sitio)
-	}
-	if strings.Contains(cmd, "abrím ") {
-		sitio := strings.TrimSpace(strings.Replace(cmd, "abrím ", "", 1))
-		return h.irASitio(sitio)
-	}
-	if strings.Contains(cmd, "abrime ") {
-		sitio := strings.TrimSpace(strings.Replace(cmd, "abrime ", "", 1))
-		return h.irASitio(sitio)
-	}
-	if strings.Contains(cmd, "entrá a ") {
+	if strings.Contains(cmd, "entrá a ") || strings.Contains(cmd, "entra a ") {
 		sitio := strings.TrimSpace(strings.Replace(cmd, "entrá a ", "", 1))
-		return h.irASitio(sitio)
-	}
-	if strings.Contains(cmd, "entra a ") {
-		sitio := strings.TrimSpace(strings.Replace(cmd, "entra a ", "", 1))
 		return h.irASitio(sitio)
 	}
 	if strings.Contains(cmd, "vamos a ") {
@@ -218,6 +165,10 @@ func (h *Hands) RunCommand(cmd string) string {
 		return h.abrirPapelera()
 	case strings.Contains(cmd, "abrir configuración"), strings.Contains(cmd, "abrir configuracion"):
 		return h.abrirConfiguracion()
+	case strings.Contains(cmd, "abrir imágenes") || strings.Contains(cmd, "abrir imagenes") || strings.Contains(cmd, "abrir fotos carpeta"):
+		return h.abrirCarpeta("Pictures")
+	case strings.Contains(cmd, "abrir música carpeta") || strings.Contains(cmd, "abrir musica carpeta"):
+		return h.abrirCarpeta("Music")
 	}
 
 	// BOCA - REPETIR TEXTO
@@ -229,13 +180,13 @@ func (h *Hands) RunCommand(cmd string) string {
 		return mensaje
 	}
 
-	// === 15 SISTEMA / INFORMACIÓN ===
+	// === SISTEMA / INFORMACIÓN ===
 	switch {
 	case strings.Contains(cmd, "procesador") || strings.Contains(cmd, "cpu"):
 		return h.infoCPU()
 	case strings.Contains(cmd, "memoria ram") || strings.Contains(cmd, "ram"):
 		return h.infoRAM()
-	case strings.Contains(cmd, "disco") || strings.Contains(cmd, "almacenamiento") || strings.Contains(cmd, "almacenamiento"):
+	case strings.Contains(cmd, "disco") || strings.Contains(cmd, "almacenamiento"):
 		return h.infoDisco()
 	case strings.Contains(cmd, "sistema operativo") || strings.Contains(cmd, "versión de windows") || strings.Contains(cmd, "version de windows"):
 		return h.infoSO()
@@ -263,7 +214,7 @@ func (h *Hands) RunCommand(cmd string) string {
 		return h.infoTemperatura()
 	}
 
-	// === 8 NUEVAS RED ===
+	// === RED ===
 	switch {
 	case strings.Contains(cmd, "ip pública") || strings.Contains(cmd, "ip publica") || strings.Contains(cmd, "ip externa"):
 		return h.ipPublica()
@@ -287,7 +238,7 @@ func (h *Hands) RunCommand(cmd string) string {
 		return h.infoInterfaces()
 	}
 
-	// === 8 NUEVAS ENERGÍA / SISTEMA ===
+	// === ENERGÍA / SISTEMA ===
 	switch {
 	case strings.Contains(cmd, "suspender") || strings.Contains(cmd, "dormir") || strings.Contains(cmd, "suspensión"):
 		return h.suspender()
@@ -307,11 +258,9 @@ func (h *Hands) RunCommand(cmd string) string {
 		return h.brilloPorcentaje(cmd)
 	case strings.Contains(cmd, "modo avión") || strings.Contains(cmd, "modo avion") || strings.Contains(cmd, "airplane"):
 		return h.modoAvion()
-	case strings.Contains(cmd, "apagar la pc") || strings.Contains(cmd, "apagar pc") || strings.Contains(cmd, "apagar el equipo") || strings.Contains(cmd, "apagar computadora"):
-		return h.apagarPC()
 	}
 
-	// === 7 NUEVAS VENTANAS ===
+	// === VENTANAS ===
 	switch {
 	case strings.Contains(cmd, "maximizar ventana") || strings.Contains(cmd, "maximizar"):
 		return h.maximizarVentana()
@@ -321,17 +270,15 @@ func (h *Hands) RunCommand(cmd string) string {
 		return h.restaurarVentana()
 	case strings.Contains(cmd, "cambiar ventana") || strings.Contains(cmd, "siguiente ventana"):
 		return h.cambiarVentana()
-	case strings.Contains(cmd, "mostrar escritorio") || strings.Contains(cmd, "ver escritorio"):
-		return h.mostrarEscritorio()
 	case strings.Contains(cmd, "organizar ventanas") || strings.Contains(cmd, "mosaico"):
 		return h.organizarVentanas()
 	case strings.Contains(cmd, "cerrar ventana") || strings.Contains(cmd, "cerrar esta"):
 		return h.cerrarVentanaActiva()
 	}
 
-	// === 10 NUEVAS ATAJOS WEB (directos, no búsqueda) ===
+	// === ATAJOS WEB ===
 	switch {
-	case strings.Contains(cmd, "abrir youtube.com") || strings.Contains(cmd, "abrir youtube") && !strings.Contains(cmd, "buscar"):
+	case strings.Contains(cmd, "abrir youtube") || strings.Contains(cmd, "abre youtube") || strings.Contains(cmd, "abrime youtube"):
 		return h.irASitio("youtube.com")
 	case strings.Contains(cmd, "abrir gmail") || strings.Contains(cmd, "abrir correo"):
 		return h.irASitio("gmail.com")
@@ -353,7 +300,7 @@ func (h *Hands) RunCommand(cmd string) string {
 		return h.irASitio("netflix.com")
 	}
 
-	// === 8 NUEVAS ARCHIVOS ===
+	// === ARCHIVOS ===
 	switch {
 	case strings.Contains(cmd, "listar archivos") || strings.Contains(cmd, "listar directorio") || strings.Contains(cmd, "lista archivos") || strings.Contains(cmd, "ver archivos"):
 		return h.listarDirectorio()
@@ -367,15 +314,11 @@ func (h *Hands) RunCommand(cmd string) string {
 		return h.vaciarPapelera()
 	case strings.Contains(cmd, "ruta actual") || strings.Contains(cmd, "dónde estoy") || strings.Contains(cmd, "pwd"):
 		return h.rutaActual()
-	case strings.Contains(cmd, "abrir imágenes") || strings.Contains(cmd, "abrir imagenes") || strings.Contains(cmd, "abrir fotos carpeta"):
-		return h.abrirCarpeta("Pictures")
-	case strings.Contains(cmd, "abrir música carpeta") || strings.Contains(cmd, "abrir musica carpeta"):
-		return h.abrirCarpeta("Music")
 	case strings.Contains(cmd, "archivos recientes") || strings.Contains(cmd, "recientes"):
 		return h.abrirCarpeta("Recent")
 	}
 
-	// === 10 NUEVAS DIVERSIÓN ===
+	// === DIVERSIÓN ===
 	switch {
 	case strings.Contains(cmd, "moneda") || strings.Contains(cmd, "cara o cruz") || strings.Contains(cmd, "cara y cruz"):
 		return h.lanzarMoneda()
@@ -399,7 +342,7 @@ func (h *Hands) RunCommand(cmd string) string {
 		return h.diasParaNavidad()
 	}
 
-	// === 5 NUEVAS VOZ / SONIDO ===
+	// === VOZ / SONIDO ===
 	switch {
 	case strings.Contains(cmd, "volumen actual") || strings.Contains(cmd, "qué volumen") || strings.Contains(cmd, "que volumen"):
 		return h.volumenActual()
@@ -418,15 +361,7 @@ func (h *Hands) RunCommand(cmd string) string {
 		return h.saludarPersonalizado()
 	}
 
-	// === CLIMA Y NOTICIAS ===
-	switch {
-	case strings.Contains(cmd, "clima") || strings.Contains(cmd, "temperatura") || strings.Contains(cmd, "qué calor") || strings.Contains(cmd, "qué frío"):
-		return h.consultarClima()
-	case strings.Contains(cmd, "noticias") || strings.Contains(cmd, "titulares") || strings.Contains(cmd, "últimas noticias") || strings.Contains(cmd, "ultimas noticias"):
-		return h.consultarNoticias()
-	}
-
-	// === 4 NUEVAS MISC ===
+	// === MISC ===
 	switch {
 	case strings.Contains(cmd, "tomar nota rápida") || strings.Contains(cmd, "tomar nota") && strings.Contains(cmd, "rápida"):
 		return h.tomarNotaRapida()
@@ -438,7 +373,7 @@ func (h *Hands) RunCommand(cmd string) string {
 		return h.recordatorioEstiramiento()
 	}
 
-	// CERRAR APLICACIONES (genérico: va al final para no robarle casos específicos como "cerrar sesión" o "cerrar ventana")
+	// CERRAR APLICACIONES
 	if strings.Contains(cmd, "cerrar ") {
 		app := strings.TrimSpace(strings.Replace(cmd, "cerrar ", "", 1))
 		return h.cerrarApp(app)
@@ -492,6 +427,62 @@ func esProcesoProtegido(proceso string) bool {
 	return false
 }
 
+var (
+	patronURLSegura = regexp.MustCompile(`^[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}(/[a-zA-Z0-9\-\._~:/?#\[\]@!$&'()*+,;=]*)?$`)
+)
+
+func argumentoUsuarioSeguro(arg string) bool {
+	if len(arg) > 256 {
+		return false
+	}
+	for _, r := range arg {
+		if r < 32 || r > 126 {
+			return false
+		}
+		if strings.ContainsRune("&|;`$<>(){}[]#!'\""+"\\\n\r\t", r) {
+			return false
+		}
+	}
+	return true
+}
+
+func urlSegura(sitio string) bool {
+	if len(sitio) > 512 {
+		return false
+	}
+	sitio = strings.TrimPrefix(sitio, "https://")
+	sitio = strings.TrimPrefix(sitio, "http://")
+	sitio = strings.TrimPrefix(sitio, "www.")
+	return patronURLSegura.MatchString(sitio)
+}
+
+func validarArgumentoPowerShell(argumento string) string {
+	return strings.NewReplacer(
+		"`", "``",
+		"'", "''",
+		"$", "`$",
+		"\n", " ",
+		"\r", " ",
+	).Replace(argumento)
+}
+
+type limitadorSensible struct {
+	mu        sync.Mutex
+	ultimaAcc time.Time
+}
+
+func (l *limitadorSensible) Permitir(intervalo time.Duration) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if time.Since(l.ultimaAcc) < intervalo {
+		return false
+	}
+	l.ultimaAcc = time.Now()
+	return true
+}
+
+var limitadorGlobal = &limitadorSensible{}
+
 func (h *Hands) buscarAppEnComando(cmd string) string {
 	nombres := make([]string, 0, len(h.Apps))
 	for n := range h.Apps {
@@ -509,6 +500,9 @@ func (h *Hands) buscarAppEnComando(cmd string) string {
 }
 
 func (h *Hands) apagarPC() string {
+	if !limitadorGlobal.Permitir(30 * time.Second) {
+		return "Ya se ha solicitado un apagado recientemente, señor. Espere unos segundos."
+	}
 	if err := exec.Command("shutdown", "/s", "/t", "5").Run(); err != nil {
 		return "No pude iniciar el apagado, señor."
 	}
@@ -522,6 +516,9 @@ func (h *Hands) cerrarApp(app string) string {
 	proceso := app
 	if !strings.HasSuffix(proceso, ".exe") {
 		proceso += ".exe"
+	}
+	if !esRutaSegura(proceso) {
+		return fmt.Sprintf("No puedo cerrar '%s', señor: nombre no válido.", app)
 	}
 	if esProcesoProtegido(proceso) {
 		return fmt.Sprintf("No voy a cerrar %s, señor: es un proceso del sistema y podría dejar Windows inestable.", app)
@@ -1077,7 +1074,7 @@ func (h *Hands) hibernar() string {
 }
 
 func (h *Hands) reiniciar() string {
-	if err := exec.Command("shutdown", "/r", "/t", "5", "/c", "JarvisOS está reiniciando el equipo...").Run(); err != nil {
+	if err := exec.Command("shutdown", "/r", "/t", "5").Run(); err != nil {
 		return "No pude iniciar el reinicio, señor."
 	}
 	return "Reiniciando el equipo en 5 segundos, señor."

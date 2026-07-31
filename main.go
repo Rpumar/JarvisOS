@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -17,6 +18,41 @@ import (
 )
 
 func main() {
+	if len(os.Args) > 1 {
+		switch os.Args[1] {
+		case "--install":
+			if err := core.InstalarServicio(); err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
+			}
+			return
+		case "--uninstall":
+			if err := core.DesinstalarServicio(); err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
+			}
+			return
+		case "--start":
+			if err := core.IniciarServicio(); err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
+			}
+			return
+		case "--stop":
+			if err := core.DetenerServicio(); err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
+			}
+			return
+		case "--status":
+			fmt.Println(core.EstadoServicio())
+			return
+		case "--service":
+			ejecutarModoServicio()
+			return
+		}
+	}
+
 	cfg := config.Load()
 
 	fmt.Println("=================================")
@@ -153,6 +189,101 @@ loop:
 	close(apagar)
 	wg.Wait()
 	fmt.Println("[APAGANDO] Sistemas fuera. Hasta luego, señor.")
+}
+
+func ejecutarModoServicio() {
+	_ = os.Stdin.Close()
+	logF, err := os.OpenFile(
+		filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "service.log"),
+		os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600,
+	)
+	if err == nil {
+		os.Stdout = logF
+		os.Stderr = logF
+		defer logF.Close()
+	}
+
+	cfg := config.Load()
+	hands := core.NewHands(core.HandsOpciones{
+		Apps:     cfg.Apps,
+		ClimaKey: cfg.OpenWeatherKey,
+		NewsKey:  cfg.NewsAPIKey,
+	})
+	conectorIA := ia.NuevoConector(cfg.Timeout)
+	coderAgent := agents.NewCoderAgent(conectorIA)
+	almacen, err := memoria.NuevoAlmacen(cfg.RutaMemoria)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[SERVICE] Error fatal: %v\n", err)
+		os.Exit(1)
+	}
+	defer almacen.Cerrar()
+	brain := core.NewBrain(hands, core.BrainOpciones{
+		IA: conectorIA, Coder: coderAgent, Memoria: almacen,
+		MaxHistorialIA: cfg.MaxHistorialIA,
+	})
+	oidos, err := core.NewEars(cfg.ModeloVoz)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "[SERVICE] Error voz: %v\n", err)
+		os.Exit(1)
+	}
+	defer oidos.Cerrar()
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		vigilarRecordatoriosService(almacen, hands)
+	}()
+
+	fmt.Println("[SERVICE] JarvisOS iniciado en modo servicio.")
+
+	for {
+		comando, err := oidos.EscucharTexto()
+		if err != nil {
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		if comando == "" {
+			time.Sleep(100 * time.Millisecond)
+			continue
+		}
+		comandoLower := strings.ToLower(comando)
+		if esPalabraDeActivacion(comandoLower, cfg.WakeWords) {
+			escuchaActiva := true
+			for escuchaActiva {
+				comando, err := oidos.Escuchar()
+				if err != nil || comando == "" {
+					escuchaActiva = false
+					continue
+				}
+				respuesta := brain.Process(comando)
+				if respuesta != "" {
+					fmt.Printf("[SERVICE] %s\n", respuesta)
+					hands.Hablar(respuesta)
+				}
+				escuchaActiva = false
+			}
+		}
+	}
+}
+
+func vigilarRecordatoriosService(almacen *memoria.Almacen, hands *core.Hands) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("[SERVICE] Vigía de recordatorios detenido: %v\n", r)
+		}
+	}()
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	for range ticker.C {
+		pendientes := almacen.RecordatoriosPendientes(time.Now())
+		for _, r := range pendientes {
+			hands.Hablar(fmt.Sprintf("Recordatorio, señor: %s", r.Texto))
+			if err := almacen.MarcarCumplido(r.ID); err != nil {
+				fmt.Printf("[SERVICE] Error marcando recordatorio: %v\n", err)
+			}
+		}
+	}
 }
 
 func esPalabraDeActivacion(comandoLower string, wakeWords []string) bool {
