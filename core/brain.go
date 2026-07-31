@@ -11,6 +11,7 @@ type Brain struct {
 	coder AgenteDeCodigo
 	mem   MemoriaPersistente
 	ing   IngAgente
+	prefs RegistroPreferencias
 
 	ultimaApp      string
 	ultimaBusqueda string
@@ -27,7 +28,7 @@ type accionConfirmable struct {
 }
 
 func NewBrain(h EjecutorComandos, opciones BrainOpciones) *Brain {
-	b := &Brain{hands: h, ia: opciones.IA, coder: opciones.Coder, mem: opciones.Memoria, ing: opciones.IngAgente, maxHistorialIA: 5}
+	b := &Brain{hands: h, ia: opciones.IA, coder: opciones.Coder, mem: opciones.Memoria, ing: opciones.IngAgente, prefs: opciones.Prefs, maxHistorialIA: 5}
 	if opciones.MaxHistorialIA > 0 {
 		b.maxHistorialIA = opciones.MaxHistorialIA
 	}
@@ -36,6 +37,9 @@ func NewBrain(h EjecutorComandos, opciones BrainOpciones) *Brain {
 
 func (b *Brain) Process(input string) string {
 	respuesta := b.personalizarRespuesta(b.procesarInterno(input))
+	if b.prefs != nil {
+		b.prefs.RegistrarComando(input)
+	}
 	if respuesta != "" {
 		b.ultimaRespuesta = respuesta
 	}
@@ -48,6 +52,16 @@ func (b *Brain) Saludar() string {
 
 func (b *Brain) Despedirse() string {
 	return b.personalizarRespuesta(Despedida())
+}
+
+func (b *Brain) sincronizarPrefs(clave, valor string) {
+	if b.prefs == nil {
+		return
+	}
+	switch clave {
+	case "nombre":
+		b.prefs.SetNombre(valor)
+	}
 }
 
 func (b *Brain) personalizarRespuesta(respuesta string) string {

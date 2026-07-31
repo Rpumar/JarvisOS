@@ -64,10 +64,13 @@ func main() {
 	fmt.Println(" El que maneja el total de la PC")
 	fmt.Println("=================================")
 
+	prefs := memoria.NuevoGestorPreferencias(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "preferencias.json"))
+
 	hands := core.NewHands(core.HandsOpciones{
 		Apps:     cfg.Apps,
 		ClimaKey: cfg.OpenWeatherKey,
 		NewsKey:  cfg.NewsAPIKey,
+		Prefs:    prefs,
 	})
 	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout)
 	coderAgent := agents.NewCoderAgent(conectorIA)
@@ -81,11 +84,23 @@ func main() {
 	}
 	defer almacen.Cerrar()
 
+	if cfg.WorkspaceRoot != "" {
+		prefs.SetUltimoProyecto(cfg.WorkspaceRoot)
+	}
+	p := prefs.Get()
+	nombre := p.Nombre
+	if nombre != "" {
+		fmt.Printf("[JARVIS] Bienvenido de nuevo, %s. %s\n", nombre, prefs.String())
+	} else {
+		fmt.Printf("[JARVIS] %s\n", prefs.String())
+	}
+
 	brain := core.NewBrain(hands, core.BrainOpciones{
 		IA:             conectorIA,
 		Coder:          coderAgent,
 		Memoria:        almacen,
 		IngAgente:      ingAgente,
+		Prefs:          prefs,
 		MaxHistorialIA: cfg.MaxHistorialIA,
 	})
 
@@ -311,8 +326,10 @@ func esPalabraDeActivacion(comandoLower string, wakeWords []string) bool {
 
 func ejecutarWebUI() {
 	cfg := config.Load()
+	prefs := memoria.NuevoGestorPreferencias(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "preferencias.json"))
 	hands := core.NewHands(core.HandsOpciones{
 		Apps: cfg.Apps, ClimaKey: cfg.OpenWeatherKey, NewsKey: cfg.NewsAPIKey,
+		Prefs: prefs,
 	})
 	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout)
 	coderAgent := agents.NewCoderAgent(conectorIA)
@@ -324,7 +341,7 @@ func ejecutarWebUI() {
 	}
 	brain := core.NewBrain(hands, core.BrainOpciones{
 		IA: conectorIA, Coder: coderAgent, Memoria: almacen,
-		IngAgente: ingAgente, MaxHistorialIA: cfg.MaxHistorialIA,
+		IngAgente: ingAgente, Prefs: prefs, MaxHistorialIA: cfg.MaxHistorialIA,
 	})
 	servidor := webui.NuevoServidor(brain, 8080)
 	if err := servidor.Iniciar(); err != nil {

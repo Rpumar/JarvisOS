@@ -42,11 +42,22 @@ type MemoriaPersistente interface {
 	EliminarLista(nombre string) error
 }
 
+type RegistroPreferencias interface {
+	RegistrarApp(nombre string)
+	RegistrarComando(comando string)
+	SetUltimoProyecto(ruta string)
+	SetNombre(nombre string)
+	SetTema(tema string)
+	SetVoz(activada bool)
+	SetVolumen(nivel int)
+}
+
 type BrainOpciones struct {
 	IA             ConectorIA
 	Coder          AgenteDeCodigo
 	Memoria        MemoriaPersistente
 	IngAgente      IngAgente
+	Prefs          RegistroPreferencias
 	MaxHistorialIA int
 }
 

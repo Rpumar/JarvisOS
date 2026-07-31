@@ -133,6 +133,7 @@ func (b *Brain) procesarMemoria(original string) (string, bool) {
 		if err := b.mem.GuardarHecho(clave, valor); err != nil {
 			return fmt.Sprintf("No pude guardarlo, señor: %v", err), true
 		}
+		b.sincronizarPrefs(clave, valor)
 		return fmt.Sprintf("Anotado. Ya sé que su %s es %s.", clave, valor), true
 	}
 
@@ -144,6 +145,7 @@ func (b *Brain) procesarMemoria(original string) (string, bool) {
 			if err := b.mem.GuardarHecho(clave, valor); err != nil {
 				return fmt.Sprintf("No pude guardarlo, señor: %v", err), true
 			}
+			b.sincronizarPrefs(clave, valor)
 			return fmt.Sprintf("Anotado. Ya sé que su %s es %s.", clave, valor), true
 		}
 		if err := b.mem.AgregarNota(contenido); err != nil {

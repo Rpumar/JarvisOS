@@ -45,6 +45,7 @@ type Hands struct {
 	Apps     map[string]string
 	ClimaKey string
 	NewsKey  string
+	Prefs    RegistroPreferencias
 	clasif   *Clasificador
 }
 
@@ -57,6 +58,7 @@ type HandsOpciones struct {
 	Apps      map[string]string
 	ClimaKey string
 	NewsKey  string
+	Prefs    RegistroPreferencias
 }
 
 func NewHands(opciones ...HandsOpciones) *Hands {
@@ -65,6 +67,7 @@ func NewHands(opciones ...HandsOpciones) *Hands {
 		h.Apps = opciones[0].Apps
 		h.ClimaKey = opciones[0].ClimaKey
 		h.NewsKey = opciones[0].NewsKey
+		h.Prefs = opciones[0].Prefs
 	}
 	return h
 }
@@ -385,6 +388,9 @@ func (h *Hands) abrirApp(ruta string) string {
 	}
 	if err := exec.Command("cmd", "/C", "start", "", ruta).Run(); err != nil {
 		return fmt.Sprintf("No pude abrir eso, señor: %v", err)
+	}
+	if h.Prefs != nil {
+		h.Prefs.RegistrarApp(filepath.Base(ruta))
 	}
 	return ConfirmacionGenerica()
 }
