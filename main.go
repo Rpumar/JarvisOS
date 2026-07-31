@@ -15,6 +15,7 @@ import (
 	"JarvisOS/core"
 	"JarvisOS/ia"
 	"JarvisOS/memoria"
+	"JarvisOS/webui"
 )
 
 func main() {
@@ -49,6 +50,9 @@ func main() {
 			return
 		case "--service":
 			ejecutarModoServicio()
+			return
+		case "--web":
+			ejecutarWebUI()
 			return
 		}
 	}
@@ -303,6 +307,30 @@ func esPalabraDeActivacion(comandoLower string, wakeWords []string) bool {
 		}
 	}
 	return false
+}
+
+func ejecutarWebUI() {
+	cfg := config.Load()
+	hands := core.NewHands(core.HandsOpciones{
+		Apps: cfg.Apps, ClimaKey: cfg.OpenWeatherKey, NewsKey: cfg.NewsAPIKey,
+	})
+	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout)
+	coderAgent := agents.NewCoderAgent(conectorIA)
+	gestorPlan := agents.NuevoGestorPlan(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "planes"))
+	ingAgente := agents.NuevoAgenteProyecto(conectorIA, cfg.WorkspaceRoot, gestorPlan)
+	almacen, _ := memoria.NuevoAlmacen(cfg.RutaMemoria)
+	if almacen != nil {
+		defer almacen.Cerrar()
+	}
+	brain := core.NewBrain(hands, core.BrainOpciones{
+		IA: conectorIA, Coder: coderAgent, Memoria: almacen,
+		IngAgente: ingAgente, MaxHistorialIA: cfg.MaxHistorialIA,
+	})
+	servidor := webui.NuevoServidor(brain, 8080)
+	if err := servidor.Iniciar(); err != nil {
+		fmt.Fprintf(os.Stderr, "[WEBUI] Error: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 func vigilarRecordatorios(almacen *memoria.Almacen, hands *core.Hands) {

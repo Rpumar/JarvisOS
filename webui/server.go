@@ -1,0 +1,138 @@
+package webui
+
+import (
+	"embed"
+	"encoding/json"
+	"fmt"
+	"io/fs"
+	"net/http"
+	"os/exec"
+	"runtime"
+	"sync"
+	"time"
+)
+
+type ChatRequest struct {
+	Message string `json:"message"`
+}
+
+type ChatResponse struct {
+	Response string `json:"response"`
+	Error    string `json:"error,omitempty"`
+}
+
+type ProcesadorChat interface {
+	Process(input string) string
+}
+
+type ServidorWeb struct {
+	brain    ProcesadorChat
+	historial []HistorialEntry
+	mu       sync.Mutex
+	port     int
+}
+
+type HistorialEntry struct {
+	Usuario   string `json:"usuario"`
+	Jarvis    string `json:"jarvis"`
+	Timestamp string `json:"timestamp"`
+}
+
+func NuevoServidor(brain ProcesadorChat, port int) *ServidorWeb {
+	return &ServidorWeb{
+		brain:     brain,
+		historial: make([]HistorialEntry, 0),
+		port:      port,
+	}
+}
+
+func (s *ServidorWeb) Iniciar() error {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/api/chat", s.manejarChat)
+	mux.HandleFunc("/api/historial", s.manejarHistorial)
+	mux.HandleFunc("/api/limpiar", s.manejarLimpiar)
+
+	mux.Handle("/", http.FileServer(http.FS(archivosEstaticos)))
+
+	addr := fmt.Sprintf("127.0.0.1:%d", s.port)
+	fmt.Printf("[WEBUI] Interfaz disponible en http://%s\n", addr)
+
+	go s.abrirNavegador(addr)
+
+	return http.ListenAndServe(addr, mux)
+}
+
+func (s *ServidorWeb) abrirNavegador(addr string) {
+	time.Sleep(500 * time.Millisecond)
+	url := fmt.Sprintf("http://%s", addr)
+	switch runtime.GOOS {
+	case "windows":
+		exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+	case "darwin":
+		exec.Command("open", url).Start()
+	default:
+		exec.Command("xdg-open", url).Start()
+	}
+}
+
+func (s *ServidorWeb) manejarChat(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST required", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req ChatRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if req.Message == "" {
+		json.NewEncoder(w).Encode(ChatResponse{Response: ""})
+		return
+	}
+
+	respuesta := s.brain.Process(req.Message)
+
+	s.mu.Lock()
+	s.historial = append(s.historial, HistorialEntry{
+		Usuario:   req.Message,
+		Jarvis:    respuesta,
+		Timestamp: time.Now().Format("15:04:05"),
+	})
+	if len(s.historial) > 100 {
+		s.historial = s.historial[len(s.historial)-100:]
+	}
+	s.mu.Unlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(ChatResponse{Response: respuesta})
+}
+
+func (s *ServidorWeb) manejarHistorial(w http.ResponseWriter, r *http.Request) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(s.historial)
+}
+
+func (s *ServidorWeb) manejarLimpiar(w http.ResponseWriter, r *http.Request) {
+	s.mu.Lock()
+	s.historial = nil
+	s.mu.Unlock()
+	w.WriteHeader(http.StatusOK)
+}
+
+//go:embed static
+var archivosEmbeber embed.FS
+
+var archivosEstaticos fs.FS
+
+func init() {
+	var err error
+	archivosEstaticos, err = fs.Sub(archivosEmbeber, "static")
+	if err != nil {
+		panic(err)
+	}
+}

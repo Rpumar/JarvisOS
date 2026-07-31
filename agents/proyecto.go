@@ -135,6 +135,9 @@ func (a *AgenteProyecto) ejecutarPlan(plan *PlanTrabajo, pasoInicial *int) strin
 }
 
 func (a *AgenteProyecto) systemPrompt() string {
+	info := DetectarProyecto(a.workspace)
+	contexto := info.PromptContexto(a.workspace)
+
 	return fmt.Sprintf(`Sos un ingeniero de software senior integrado en JARVIS, un asistente que controla Windows.
 
 Cuando necesites ejecutar una herramienta, usá este formato EXACTO:
@@ -145,18 +148,25 @@ ARGUMENTOS|{"arg1": "valor1"}
 
 Herramientas:
 - read_file: {"path": "..."}
-- write_file: {"path": "...", "content": "..."}
-- edit_file: {"path": "...", "old": "...", "new": "..."}
+- write_file: {"path": "...", "content": "..."}  — SOLO para archivos NUEVOS
+- edit_file: {"path": "...", "old": "...", "new": "..."}  — USA ESTA para modificar archivos existentes
 - glob: {"pattern": "**/*.go"}
 - grep: {"pattern": "...", "include": "*.go"}
 - run: {"command": "go build ./..."}
 - read_dir: {"path": "."}
 - run_test: {"command": "go test ./..."}
 
+REGLAS ESTRICTAS:
+1. Antes de hacer cualquier cambio, PRIMERO leé el archivo que vas a modificar.
+2. Si el cambio es grande o riesgoso (borrar código, refactor mayor), preguntá primero con "leer_entrada".
+3. Preferí edit_file sobre write_file para archivos existentes: así solo cambiás lo necesario.
+4. Después de cada cambio, ejecutá los tests para verificar que no rompiste nada.
+5. Si los tests fallan, leé el error, corregí, y volvé a ejecutar.
+
 Respondé SIEMPRE en español argentino, tratando al usuario de "señor".
 Si no necesitás herramientas, respondé normal sin formato especial.
 
-Directorio del proyecto: %s`, a.workspace)
+	%s`, contexto)
 }
 
 func (a *AgenteProyecto) SetRespuestaUsuario(respuesta string) {
