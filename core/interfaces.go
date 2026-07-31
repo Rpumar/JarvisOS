@@ -46,5 +46,14 @@ type BrainOpciones struct {
 	IA             ConectorIA
 	Coder          AgenteDeCodigo
 	Memoria        MemoriaPersistente
+	IngAgente      IngAgente
 	MaxHistorialIA int
+}
+
+type IngAgente interface {
+	Disponible() bool
+	Procesar(peticion string) string
+	SetRespuestaUsuario(respuesta string)
+	Reset()
+	TieneTareaPendiente() bool
 }

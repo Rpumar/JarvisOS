@@ -10,6 +10,7 @@ type Brain struct {
 	ia    ConectorIA
 	coder AgenteDeCodigo
 	mem   MemoriaPersistente
+	ing   IngAgente
 
 	ultimaApp      string
 	ultimaBusqueda string
@@ -26,7 +27,7 @@ type accionConfirmable struct {
 }
 
 func NewBrain(h EjecutorComandos, opciones BrainOpciones) *Brain {
-	b := &Brain{hands: h, ia: opciones.IA, coder: opciones.Coder, mem: opciones.Memoria, maxHistorialIA: 5}
+	b := &Brain{hands: h, ia: opciones.IA, coder: opciones.Coder, mem: opciones.Memoria, ing: opciones.IngAgente, maxHistorialIA: 5}
 	if opciones.MaxHistorialIA > 0 {
 		b.maxHistorialIA = opciones.MaxHistorialIA
 	}
@@ -148,6 +149,12 @@ func (b *Brain) procesarInterno(input string) string {
 		}
 	}
 
+	if b.ing != nil && b.ing.Disponible() {
+		if esPeticionIngenieria(entrada) {
+			return b.ing.Procesar(input)
+		}
+	}
+
 	return RespuestaConfusion()
 }
 
@@ -209,6 +216,17 @@ func esConsultaSegura(entrada string) bool {
 		strings.HasPrefix(entrada, "repite ") ||
 		strings.HasPrefix(entrada, "busca ") ||
 		strings.HasPrefix(entrada, "buscá ")
+}
+
+func esPeticionIngenieria(entrada string) bool {
+	tieneAccion := contieneAlguna(entrada, []string{
+		"programa", "codigo", "código", "script", "implementa", "implementá",
+		"crea", "creá", "hace", "hacé", "modifica", "modificá", "cambia",
+		"cambiá", "agrega", "agregá", "refactoriza", "refactoreá",
+		"arregla", "arreglá", "repara", "repará", "proyecto", "archivo",
+		"funcion", "función", "clase", "estructura", "test", "prueba",
+	})
+	return tieneAccion
 }
 
 func esPeticionDeCodigo(entrada string) bool {

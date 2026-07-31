@@ -67,6 +67,8 @@ func main() {
 	})
 	conectorIA := ia.NuevoConector(cfg.Timeout)
 	coderAgent := agents.NewCoderAgent(conectorIA)
+	claude := ia.NuevoClienteClaude(cfg.ClaudeAPIKey, cfg.Timeout*2)
+	ingAgente := agents.NuevoAgenteProyecto(claude, cfg.WorkspaceRoot)
 
 	almacen, err := memoria.NuevoAlmacen(cfg.RutaMemoria)
 	if err != nil {
@@ -79,6 +81,7 @@ func main() {
 		IA:             conectorIA,
 		Coder:          coderAgent,
 		Memoria:        almacen,
+		IngAgente:      ingAgente,
 		MaxHistorialIA: cfg.MaxHistorialIA,
 	})
 

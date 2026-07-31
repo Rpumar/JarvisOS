@@ -23,6 +23,8 @@ type Config struct {
 	TTSRate             int      `json:"tts_rate"`
 	MaxHistorialIA      int      `json:"max_historial_ia"`
 
+	ClaudeAPIKey   string            `json:"claude_api_key"`
+	WorkspaceRoot  string            `json:"workspace_root"`
 	OpenWeatherKey string            `json:"open_weather_key"`
 	NewsAPIKey     string            `json:"news_api_key"`
 	Apps           map[string]string `json:"apps"`
@@ -45,6 +47,8 @@ func defaultConfig() *Config {
 		TTSVoice:            "",
 		TTSRate:             0,
 		MaxHistorialIA:      20,
+		ClaudeAPIKey:        "",
+		WorkspaceRoot:       filepath.Join(os.Getenv("USERPROFILE"), "Desktop"),
 		OpenWeatherKey:      "",
 		NewsAPIKey:          "",
 		Apps: map[string]string{
@@ -115,6 +119,8 @@ func Load() *Config {
 		TTSVoice            string  `json:"tts_voice"`
 		TTSRate             int     `json:"tts_rate"`
 		MaxHistorialIA      int     `json:"max_historial_ia"`
+		ClaudeAPIKey        string            `json:"claude_api_key"`
+		WorkspaceRoot       string            `json:"workspace_root"`
 		OpenWeatherKey      string            `json:"open_weather_key"`
 		NewsAPIKey          string            `json:"news_api_key"`
 		Apps                map[string]string `json:"apps"`
@@ -140,6 +146,8 @@ func Load() *Config {
 	if alias.TTSVoice != "" { cfg.TTSVoice = alias.TTSVoice }
 	cfg.TTSRate = alias.TTSRate
 	if alias.MaxHistorialIA > 0 { cfg.MaxHistorialIA = alias.MaxHistorialIA }
+	if alias.ClaudeAPIKey != "" { cfg.ClaudeAPIKey = alias.ClaudeAPIKey }
+	if alias.WorkspaceRoot != "" { cfg.WorkspaceRoot = alias.WorkspaceRoot }
 	if alias.OpenWeatherKey != "" { cfg.OpenWeatherKey = alias.OpenWeatherKey }
 	if alias.NewsAPIKey != "" { cfg.NewsAPIKey = alias.NewsAPIKey }
 	if alias.Apps != nil { cfg.Apps = alias.Apps }
@@ -163,6 +171,8 @@ func (c *Config) Save() error {
 		"tts_voice":              c.TTSVoice,
 		"tts_rate":               c.TTSRate,
 		"max_historial_ia":       c.MaxHistorialIA,
+		"claude_api_key":         c.ClaudeAPIKey,
+		"workspace_root":         c.WorkspaceRoot,
 		"open_weather_key":       c.OpenWeatherKey,
 		"news_api_key":           c.NewsAPIKey,
 		"apps":                   c.Apps,
