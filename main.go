@@ -54,6 +54,41 @@ func main() {
 		case "--web":
 			ejecutarWebUI()
 			return
+		case "--voces":
+			hands := core.NewHands()
+			fmt.Println(hands.ListarVocesTexto())
+			return
+		case "--voz":
+			if len(os.Args) < 3 {
+				fmt.Fprintln(os.Stderr, "Uso: JarvisOS.exe --voz <nombre de la voz>")
+				os.Exit(1)
+			}
+			cfg := config.Load()
+			cfg.TTSVoice = strings.Join(os.Args[2:], " ")
+			if err := cfg.Save(); err != nil {
+				fmt.Fprintf(os.Stderr, "Error guardando config: %v\n", err)
+				os.Exit(1)
+			}
+			fmt.Printf("Voz configurada: %s\n", cfg.TTSVoice)
+			return
+		case "--velocidad-voz":
+			if len(os.Args) < 3 {
+				fmt.Fprintln(os.Stderr, "Uso: JarvisOS.exe --velocidad-voz <numero entre -10 y 10>")
+				os.Exit(1)
+			}
+			cfg := config.Load()
+			var n int
+			if _, err := fmt.Sscanf(os.Args[2], "%d", &n); err != nil || n < -10 || n > 10 {
+				fmt.Fprintln(os.Stderr, "La velocidad debe ser un número entre -10 y 10.")
+				os.Exit(1)
+			}
+			cfg.TTSRate = n
+			if err := cfg.Save(); err != nil {
+				fmt.Fprintf(os.Stderr, "Error guardando config: %v\n", err)
+				os.Exit(1)
+			}
+			fmt.Printf("Velocidad de voz configurada: %d\n", cfg.TTSRate)
+			return
 		}
 	}
 
@@ -68,11 +103,14 @@ func main() {
 	rutinas := core.NuevoRutinaManager(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "rutinas.json"))
 
 	hands := core.NewHands(core.HandsOpciones{
-		Apps:     cfg.Apps,
-		ClimaKey: cfg.OpenWeatherKey,
-		NewsKey:  cfg.NewsAPIKey,
-		Prefs:    prefs,
-		Rutinas:  rutinas,
+		Apps:      cfg.Apps,
+		ClimaKey:  cfg.OpenWeatherKey,
+		NewsKey:   cfg.NewsAPIKey,
+		Prefs:     prefs,
+		Rutinas:   rutinas,
+		VozActiva: prefs.Get().VozActivada,
+		VozVoice:  cfg.TTSVoice,
+		VozRate:   cfg.TTSRate,
 	})
 	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout)
 	coderAgent := agents.NewCoderAgent(conectorIA)
@@ -237,6 +275,8 @@ func ejecutarModoServicio() {
 		Apps:     cfg.Apps,
 		ClimaKey: cfg.OpenWeatherKey,
 		NewsKey:  cfg.NewsAPIKey,
+		VozVoice: cfg.TTSVoice,
+		VozRate:  cfg.TTSRate,
 	})
 	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout)
 	coderAgent := agents.NewCoderAgent(conectorIA)
@@ -333,6 +373,7 @@ func ejecutarWebUI() {
 	hands := core.NewHands(core.HandsOpciones{
 		Apps: cfg.Apps, ClimaKey: cfg.OpenWeatherKey, NewsKey: cfg.NewsAPIKey,
 		Prefs: prefs, Rutinas: rutinas,
+		VozActiva: prefs.Get().VozActivada, VozVoice: cfg.TTSVoice, VozRate: cfg.TTSRate,
 	})
 	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout)
 	coderAgent := agents.NewCoderAgent(conectorIA)

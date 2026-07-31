@@ -178,12 +178,16 @@
   <button onclick="cmd('informe del sistema')">📋 Informe</button>
   <button onclick="cmd('qué hay en el portapapeles')">📎 Portapapeles</button>
   <button onclick="cmd('apagar la pc')">⏻ Apagar</button>
+  <button onclick="cmd('no hables')">🔇 Silenciar voz</button>
+  <button onclick="cmd('activá tu voz')">🗣 Activar voz</button>
+  <button onclick="cmd('qué voces tenés')">🎙 Voces</button>
 </div>
 <div id="chat">
   <div class="msg jarvis"><strong>JARVIS</strong> — Sistemas en línea, señor. ¿En qué puedo ayudarle?</div>
 </div>
 <div id="input-area">
   <input type="text" id="input" placeholder="Escriba su comando, señor..." autofocus>
+  <button id="mic" onclick="dictar()" title="Dictado por voz (Chrome/Edge)">🎤</button>
   <button id="send" onclick="enviar()">Enviar</button>
 </div>
 <script>
@@ -293,6 +297,30 @@
       }
       chat.scrollTop = chat.scrollHeight;
     } catch (e) {}
+  }
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let reconociendo = false;
+  let reconocimiento = null;
+
+  function dictar() {
+    const mic = document.getElementById('mic');
+    if (!SR) { alert('Dictado por voz requiere Chrome o Edge.'); return; }
+    if (reconociendo) { if (reconocimiento) reconocimiento.stop(); return; }
+    reconocimiento = new SR();
+    reconocimiento.lang = 'es-AR';
+    reconocimiento.interimResults = true;
+    reconocimiento.maxAlternatives = 1;
+    reconocimiento.onstart = () => { reconociendo = true; mic.style.background = '#0055aa'; mic.textContent = '🔴'; };
+    reconocimiento.onend = () => { reconociendo = false; mic.style.background = ''; mic.textContent = '🎤'; };
+    reconocimiento.onerror = () => { reconociendo = false; mic.style.background = ''; mic.textContent = '🎤'; };
+    reconocimiento.onresult = (e) => {
+      let texto = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) texto += e.results[i][0].transcript;
+      input.value = texto;
+      if (e.results[0].isFinal && texto.trim()) enviar();
+    };
+    reconocimiento.start();
   }
 
   cargarHistorial();

@@ -84,6 +84,24 @@ func NuevoClasificador() *Clasificador {
 			Handler: func(cmd string, h *Hands) string { return h.ipPublica() },
 		},
 		{
+			Nombre: "voz_desactivar",
+			Frases: []string{"no hables", "no hables más", "no me hables", "no respondas por voz", "silenciá tu voz", "silencia tu voz", "no me respondas por audio", "callate", "cállate", "calmate", "cállate la boca"},
+			Palabras: []string{"callate", "cállate", "silenciá", "silencia", "no hables"},
+			Handler: func(cmd string, h *Hands) string { return h.desactivarVoz() },
+		},
+		{
+			Nombre: "voz_activar",
+			Frases: []string{"activá tu voz", "activa tu voz", "hablá de nuevo", "habla de nuevo", "respondeme por voz", "respondé por voz", "volvé a hablar", "volve a hablar", "respondeme por audio", "no me escribas", "voz activada"},
+			Palabras: []string{"activá tu voz", "activa tu voz", "hablá de nuevo", "habla de nuevo"},
+			Handler: func(cmd string, h *Hands) string { return h.activarVoz() },
+		},
+		{
+			Nombre: "voz_listar",
+			Frases: []string{"qué voces tenés", "que voces tenes", "voces disponibles", "voces de voz", "lista de voces", "qué voces instaladas", "que voces instaladas", "voces instaladas"},
+			Palabras: []string{"voces"},
+			Handler: func(cmd string, h *Hands) string { return h.listarVoces() },
+		},
+		{
 			Nombre: "ping_sitio",
 			Frases: []string{"hacer ping", "ping a", "ping a google", "probá conexión", "proba conexion", "test de conexión", "test de conexion"},
 			Palabras: []string{"ping"},

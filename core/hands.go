@@ -48,6 +48,10 @@ type Hands struct {
 	Prefs    RegistroPreferencias
 	rutinas  *RutinaManager
 	clasif   *Clasificador
+
+	VozActiva bool
+	VozVoice  string
+	VozRate   int
 }
 
 type cacheEntry struct {
@@ -61,16 +65,23 @@ type HandsOpciones struct {
 	NewsKey  string
 	Prefs    RegistroPreferencias
 	Rutinas  *RutinaManager
+
+	VozActiva bool
+	VozVoice  string
+	VozRate   int
 }
 
 func NewHands(opciones ...HandsOpciones) *Hands {
-	h := &Hands{cache: make(map[string]cacheEntry), clasif: NuevoClasificador()}
+	h := &Hands{cache: make(map[string]cacheEntry), clasif: NuevoClasificador(), VozActiva: true}
 	if len(opciones) > 0 {
 		h.Apps = opciones[0].Apps
 		h.ClimaKey = opciones[0].ClimaKey
 		h.NewsKey = opciones[0].NewsKey
 		h.Prefs = opciones[0].Prefs
 		h.rutinas = opciones[0].Rutinas
+		h.VozActiva = opciones[0].VozActiva
+		h.VozVoice = opciones[0].VozVoice
+		h.VozRate = opciones[0].VozRate
 	}
 	return h
 }
@@ -815,23 +826,72 @@ func (h *Hands) abrirConfiguracion() string {
 
 // Hablar reproduce texto en voz alta usando la síntesis de voz nativa de
 // Windows (SAPI) a través de PowerShell. No requiere ninguna dependencia
-// externa de Go.
+// externa de Go. Respeta la configuración de voz (TTSVoice, TTSRate) y el
+// toggle VozActiva.
 func (h *Hands) Hablar(texto string) string {
 	texto = strings.TrimSpace(texto)
-	if texto == "" {
+	if texto == "" || !h.VozActiva {
 		return ""
 	}
 	fmt.Printf("[JARVIS HABLANDO]: %s\n", texto)
 
 	textoEscapado := strings.ReplaceAll(texto, "'", "''")
+	configuracionVoz := ""
+	if h.VozVoice != "" {
+		vozEscapada := strings.ReplaceAll(h.VozVoice, "'", "''")
+		configuracionVoz += fmt.Sprintf(`$speak.SelectVoice('%s'); `, vozEscapada)
+	} else {
+		configuracionVoz += `try { $speak.SelectVoiceByHints([System.Speech.Synthesis.VoiceGender]::NotSet,[System.Speech.Synthesis.VoiceAge]::NotSet,0,[System.Globalization.CultureInfo]::GetCultureInfo('es-AR')) } catch {} `
+	}
+	if h.VozRate != 0 {
+		configuracionVoz += fmt.Sprintf(`$speak.Rate = %d; `, h.VozRate)
+	}
 	ps := fmt.Sprintf(`Add-Type -AssemblyName System.Speech; `+
 		`$speak = New-Object System.Speech.Synthesis.SpeechSynthesizer; `+
+		configuracionVoz+
 		`$speak.Speak('%s')`, textoEscapado)
 
 	if err := exec.Command("powershell", "-Command", ps).Run(); err != nil {
 		fmt.Printf("[ADVERTENCIA] No se pudo reproducir voz: %v\n", err)
 	}
 	return "Listo, señor."
+}
+
+func (h *Hands) activarVoz() string {
+	h.VozActiva = true
+	if h.Prefs != nil {
+		h.Prefs.SetVoz(true)
+	}
+	return "Voz activada, señor. Volveré a responderle por audio."
+}
+
+func (h *Hands) desactivarVoz() string {
+	h.VozActiva = false
+	if h.Prefs != nil {
+		h.Prefs.SetVoz(false)
+	}
+	return "Voz desactivada, señor. Escribiré las respuestas en pantalla."
+}
+
+func (h *Hands) listarVoces() string {
+	out, err := ejecutarPS(`Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).GetInstalledVoices() | ForEach-Object { $_.VoiceInfo.Name }`)
+	if err != nil || out == "" {
+		return "No encontré voces instaladas, señor."
+	}
+	lineas := filtrarLineas(out)
+	fmt.Println("Voces instaladas:")
+	for _, l := range lineas {
+		fmt.Println(" -", l)
+	}
+	return fmt.Sprintf("%d voces instaladas, señor. Mire la consola para verlas.", len(lineas))
+}
+
+func (h *Hands) ListarVocesTexto() string {
+	out, err := ejecutarPS(`Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).GetInstalledVoices() | ForEach-Object { $_.VoiceInfo.Name }`)
+	if err != nil || out == "" {
+		return "No se encontraron voces instaladas."
+	}
+	return "Voces instaladas:\n  " + strings.Join(filtrarLineas(out), "\n  ")
 }
 
 // === NUEVOS SISTEMA / INFORMACIÓN ===
