@@ -52,6 +52,11 @@ type Hands struct {
 	VozActiva bool
 	VozVoice  string
 	VozRate   int
+
+	vigilanciaMu      sync.Mutex
+	vigilanciaStop    chan struct{}
+	vigilanciaActiva  bool
+	vigilanciaAlertas map[string]time.Time
 }
 
 type cacheEntry struct {

@@ -33,13 +33,18 @@ type EstadoProvider interface {
 	EstadoPanel() core.EstadoPanel
 }
 
+type DiagnosticoProvider interface {
+	Diagnostico() (*core.Diagnostico, error)
+}
+
 type ServidorWeb struct {
-	brain     ProcesadorChat
-	estado    EstadoProvider
-	historial []HistorialEntry
-	mu        sync.Mutex
-	port      int
-	rutaHist  string
+	brain      ProcesadorChat
+	estado     EstadoProvider
+	diagnostico DiagnosticoProvider
+	historial  []HistorialEntry
+	mu         sync.Mutex
+	port       int
+	rutaHist   string
 }
 
 type HistorialEntry struct {
@@ -58,6 +63,9 @@ func NuevoServidor(brain ProcesadorChat, port int, opciones ...ServidorOpciones)
 		if o.Estado != nil {
 			s.estado = o.Estado
 		}
+		if o.Diagnostico != nil {
+			s.diagnostico = o.Diagnostico
+		}
 		if o.RutaHistorial != "" {
 			s.rutaHist = o.RutaHistorial
 		}
@@ -68,6 +76,7 @@ func NuevoServidor(brain ProcesadorChat, port int, opciones ...ServidorOpciones)
 
 type ServidorOpciones struct {
 	Estado        EstadoProvider
+	Diagnostico   DiagnosticoProvider
 	RutaHistorial string
 }
 
@@ -78,6 +87,8 @@ func (s *ServidorWeb) Iniciar() error {
 	mux.HandleFunc("/api/historial", s.manejarHistorial)
 	mux.HandleFunc("/api/limpiar", s.manejarLimpiar)
 	mux.HandleFunc("/api/estado", s.manejarEstado)
+	mux.HandleFunc("/api/diagnostico", s.manejarDiagnostico)
+	mux.HandleFunc("/api/salud", s.manejarSalud)
 
 	mux.Handle("/", http.FileServer(http.FS(archivosEstaticos)))
 
@@ -144,6 +155,38 @@ func (s *ServidorWeb) manejarEstado(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	json.NewEncoder(w).Encode(s.estado.EstadoPanel())
+}
+
+func (s *ServidorWeb) manejarDiagnostico(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if s.diagnostico == nil {
+		json.NewEncoder(w).Encode(map[string]string{"error": "sin diagnostico"})
+		return
+	}
+	d, err := s.diagnostico.Diagnostico()
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+	json.NewEncoder(w).Encode(d)
+}
+
+func (s *ServidorWeb) manejarSalud(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if s.diagnostico == nil {
+		json.NewEncoder(w).Encode(map[string]string{"error": "sin diagnostico"})
+		return
+	}
+	d, err := s.diagnostico.Diagnostico()
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		return
+	}
+	puntaje, problemas := core.AnalizarSalud(d)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"puntaje":   puntaje,
+		"problemas": problemas,
+	})
 }
 
 func (s *ServidorWeb) manejarHistorial(w http.ResponseWriter, r *http.Request) {

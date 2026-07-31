@@ -50,6 +50,21 @@ func TestClasificarArmas(t *testing.T) {
 		{"leé mis notas", "leer_notas"},
 		{"hablá sobre python", ""},
 		{"carpeta", ""},
+		{"diagnóstico completo", "diagnostico"},
+		{"revisá mi sistema", "diagnostico"},
+		{"salud de mi pc", "salud_sistema"},
+		{"qué problemas tiene mi pc", "problemas_sistema"},
+		{"limpiá mi pc", "mantenimiento"},
+		{"verificar integridad", "integridad"},
+		{"qué servicios fallaron", "servicios_caidos"},
+		{"qué procesos consumen más", "top_procesos"},
+		{"eventos de error recientes", "eventos_error"},
+		{"programas de inicio", "programas_inicio"},
+		{"qué ocupa espacio", "carpetas_grandes"},
+		{"modo vigilante", "vigilante_on"},
+		{"pará la vigilancia", "vigilante_off"},
+		{"estás vigilando", "vigilante_estado"},
+		{"carpeta descargas", ""},
 	}
 	c := NuevoClasificador()
 	for _, cso := range casos {

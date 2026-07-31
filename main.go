@@ -389,6 +389,7 @@ func ejecutarWebUI() {
 	})
 	servidor := webui.NuevoServidor(brain, 8080, webui.ServidorOpciones{
 		Estado:        hands,
+		Diagnostico:   hands,
 		RutaHistorial: filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "historial-web.json"),
 	})
 	if err := servidor.Iniciar(); err != nil {

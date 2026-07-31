@@ -182,6 +182,35 @@
   .holo-hint { position: absolute; bottom: 30px; font-size: 12px; color: #33606e; letter-spacing: 2px; }
   @keyframes holoGiro { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   @keyframes holoPulso { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.12); opacity: .85; } }
+  .modal {
+    display: none; position: fixed; inset: 0; z-index: 9000;
+    background: rgba(2, 7, 13, .85); align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .modal.abierto { display: flex; }
+  .modal-box {
+    background: #0d1117; border: 1px solid #1a3a5c; border-radius: 12px;
+    width: 100%; max-width: 720px; max-height: 86vh; display: flex; flex-direction: column;
+    box-shadow: 0 0 60px rgba(0, 212, 255, .15);
+  }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid #1a3a5c; }
+  .modal-head h2 { margin: 0; font-size: 18px; color: #00d4ff; letter-spacing: 1px; }
+  .modal-body { padding: 16px 20px; overflow-y: auto; font-size: 14px; }
+  .diag-score { display: flex; align-items: center; gap: 18px; margin-bottom: 14px; }
+  .diag-num { font-size: 44px; font-weight: 700; color: #00d4ff; text-shadow: 0 0 20px rgba(0, 212, 255, .5); }
+  .diag-bar { flex: 1; height: 12px; background: #161b22; border-radius: 6px; overflow: hidden; }
+  .diag-bar i { display: block; height: 100%; border-radius: 6px; transition: width 1s; }
+  .diag-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .diag-card { background: #161b22; border: 1px solid #262c36; border-radius: 8px; padding: 10px 12px; }
+  .diag-card .t { font-size: 11px; color: #7a8699; text-transform: uppercase; letter-spacing: .5px; }
+  .diag-card .v { font-size: 14px; color: #c8d6e5; margin-top: 2px; }
+  .diag-sec { margin-top: 12px; }
+  .diag-sec h3 { font-size: 13px; color: #00d4ff; margin: 0 0 8px; letter-spacing: 1px; text-transform: uppercase; }
+  .diag-row { display: flex; justify-content: space-between; gap: 10px; padding: 5px 0; border-bottom: 1px dashed #1a3a5c; font-size: 13px; }
+  .diag-row span:first-child { color: #9fb6c8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .diag-row span:last-child { color: #c8d6e5; white-space: nowrap; }
+  .problema { border-left: 3px solid #ff4444; padding: 6px 10px; margin: 6px 0; background: #1a0f14; border-radius: 4px; font-size: 13px; }
+  .problema .fix { color: #7a8699; font-size: 12px; margin-top: 3px; }
 </style>
 </head>
 <body>
@@ -203,6 +232,15 @@
   <div class="holo-estado" id="holo-estado">—</div>
   <div class="holo-hint">Tocá en cualquier lado para salir · ESC</div>
 </div>
+<div id="diag-modal" class="modal" onclick="if(event.target===this)cerrarDiag()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2>🔬 Ingeniero de sistemas</h2>
+      <button class="clear-btn" onclick="cerrarDiag()">✕</button>
+    </div>
+    <div class="modal-body" id="diag-body"><div class="typing">Analizando el sistema, señor...</div></div>
+  </div>
+</div>
 <div id="status-bar">
   <div class="stat"><div class="label">Hora</div><div class="value" id="st-hora">--:--:--</div></div>
   <div class="stat"><div class="label">Fecha</div><div class="value" id="st-fecha">--/--/----</div></div>
@@ -221,6 +259,8 @@
   <button onclick="cmd('cuánta ram me queda')">🧠 RAM</button>
   <button onclick="cmd('listar procesos')">⚙ Procesos</button>
   <button onclick="cmd('informe del sistema')">📋 Informe</button>
+  <button onclick="abrirDiag()">🔬 Diagnóstico</button>
+  <button onclick="cmd('modo vigilante')">🛡 Vigilar</button>
   <button onclick="cmd('qué hay en el portapapeles')">📎 Portapapeles</button>
   <button onclick="cmd('apagar la pc')">⏻ Apagar</button>
   <button onclick="cmd('no hables')">🔇 Silenciar voz</button>
@@ -277,6 +317,80 @@
 
   function salirPresentacion() {
     document.getElementById('holo').classList.remove('activo');
+  }
+
+  function abrirDiag() {
+    document.getElementById('diag-modal').classList.add('abierto');
+    cargarDiag();
+  }
+
+  function cerrarDiag() {
+    document.getElementById('diag-modal').classList.remove('abierto');
+  }
+
+  function escColor(p) {
+    if (p >= 90) return '#00e06a';
+    if (p >= 75) return '#7fd4ff';
+    if (p >= 60) return '#ffb300';
+    return '#ff4444';
+  }
+
+  async function cargarDiag() {
+    const body = document.getElementById('diag-body');
+    body.innerHTML = '<div class="typing">Analizando el sistema, señor...</div>';
+    try {
+      const [salud, d] = await Promise.all([
+        fetch('/api/salud').then(r => r.json()),
+        fetch('/api/diagnostico').then(r => r.json())
+      ]);
+      const color = escColor(salud.puntaje);
+      let html = '<div class="diag-score">' +
+        '<div class="diag-num">' + salud.puntaje + '<span style="font-size:18px">/100</span></div>' +
+        '<div style="flex:1">' +
+        '<div class="diag-bar"><i style="width:' + salud.puntaje + '%;background:' + color + '"></i></div>' +
+        '</div></div>';
+      html += '<div class="diag-grid">' +
+        card('Sistema', (d.os || '-') + ' ' + (d.version || '')) +
+        card('CPU', (d.cpu_nombre || '-') + ' · ' + (d.cpu_porcentaje || 0) + '%') +
+        card('Memoria', (d.ram_usada_gb || 0) + ' / ' + (d.ram_total_gb || 0) + ' GB (' + (d.ram_porcentaje || 0) + '%)') +
+        card('Tiempo activo', (d.uptime_dias || 0) + ' días') +
+        card('Temporales', (d.temp_gb || 0) + ' GB') +
+        card('Reinicio pendiente', d.reinicio_pendiente ? 'Sí' : 'No') +
+        '</div>';
+      if (d.discos && d.discos.length) {
+        html += '<div class="diag-sec"><h3>Discos</h3>';
+        for (const disco of d.discos) {
+          html += '<div class="diag-row"><span>' + disco.letra + '</span><span>' + disco.porcentaje + '% usado · ' + disco.libre_gb + ' GB libre</span></div>';
+        }
+        html += '</div>';
+      }
+      if (d.discos_fisicos && d.discos_fisicos.length) {
+        html += '<div class="diag-sec"><h3>Salud física</h3>';
+        for (const f of d.discos_fisicos) {
+          html += '<div class="diag-row"><span>' + (f.nombre || '-') + '</span><span>' + f.salud + '</span></div>';
+        }
+        html += '</div>';
+      }
+      if (d.top_ram && d.top_ram.length) {
+        html += '<div class="diag-sec"><h3>Top memoria</h3>';
+        for (const p of d.top_ram) html += '<div class="diag-row"><span>' + p.nombre + '</span><span>' + p.mb + ' MB</span></div>';
+        html += '</div>';
+      }
+      if (salud.problemas && salud.problemas.length) {
+        html += '<div class="diag-sec"><h3>Problemas (' + salud.problemas.length + ')</h3>';
+        for (const p of salud.problemas) html += '<div class="problema">' + p.Texto + '<div class="fix">→ ' + p.Fix + '</div></div>';
+        html += '</div>';
+      } else {
+        html += '<div class="diag-sec"><h3>Problemas</h3><div class="diag-card"><div class="v">Ninguno detectado, señor.</div></div></div>';
+      }
+      body.innerHTML = html;
+    } catch (e) {
+      body.innerHTML = '<div class="error">Error al analizar: ' + e.message + '</div>';
+    }
+  }
+
+  function card(t, v) {
+    return '<div class="diag-card"><div class="t">' + t + '</div><div class="v">' + v + '</div></div>';
   }
 
   document.addEventListener('keydown', e => {
