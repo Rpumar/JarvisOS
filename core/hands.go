@@ -92,11 +92,8 @@ func (h *Hands) RunCommand(cmd string) string {
 		return ComandoNoReconocido
 	}
 
-	verbosAbrir := []string{"abrir ", "abri ", "abrime ", "abrím ", "abrí "}
-	if contieneAlguna(cmd, verbosAbrir) {
-		if app, _ := extraerApp(cmd, h.Apps); app != "" {
-			return h.abrirApp(app)
-		}
+	if nombreApp := h.buscarAppDirecto(cmd); nombreApp != "" {
+		return h.abrirApp(nombreApp)
 	}
 
 	if h.clasif != nil {
@@ -482,6 +479,37 @@ func (l *limitadorSensible) Permitir(intervalo time.Duration) bool {
 }
 
 var limitadorGlobal = &limitadorSensible{}
+
+func (h *Hands) buscarAppDirecto(cmd string) string {
+	verbos := []string{"abrir ", "abri ", "abrime ", "abrim ", "abrí ", "abre ", "abrí ",
+		"abrime ", "abrime ", "abr", "quiero ", "podes ", "podés ", "puedo ", "puede ",
+		"necesito ", "podes abrir ", "podés abrir ", "puedo abrir ", "puede abrir "}
+
+	sinVerbo := cmd
+	for _, v := range verbos {
+		sinVerbo = strings.TrimPrefix(sinVerbo, v)
+	}
+
+	if app, _ := extraerApp(cmd, h.Apps); app != "" {
+		return app
+	}
+
+	palabras := strings.Fields(sinVerbo)
+	for _, p := range palabras {
+		if app, nombre := extraerApp(p, h.Apps); app != "" {
+			_ = nombre
+			return app
+		}
+	}
+
+	for _, p := range strings.Fields(cmd) {
+		if app, _ := extraerApp(p, h.Apps); app != "" {
+			return app
+		}
+	}
+
+	return ""
+}
 
 func (h *Hands) buscarAppEnComando(cmd string) string {
 	nombres := make([]string, 0, len(h.Apps))
