@@ -126,9 +126,24 @@ Get-NetTCPConnection -State Established -ErrorAction SilentlyContinue |
 
 func (h *Hands) sesionesActivas() string {
 	out, err := ejecutarPS("query user")
-	if err != nil {
+	if err != nil && strings.TrimSpace(out) == "" {
 		return "No pude listar las sesiones activas, señor."
 	}
+	lineas := filtrarLineas(out)
+	filtradas := make([]string, 0, len(lineas))
+	for _, l := range lineas {
+		if strings.Contains(strings.ToUpper(l), "NOMBRE USUARIO") || strings.Contains(strings.ToUpper(l), "USERNAME") {
+			continue
+		}
+		filtradas = append(filtradas, l)
+	}
+	if len(filtradas) == 0 {
+		return "No hay sesiones activas detectadas, señor."
+	}
 	fmt.Println(out)
-	return "Sesiones activas listadas, señor. Mire la consola."
+	plural := "sesiones activas"
+	if len(filtradas) == 1 {
+		plural = "sesión activa"
+	}
+	return fmt.Sprintf("%d %s, señor. Mire la consola.", len(filtradas), plural)
 }

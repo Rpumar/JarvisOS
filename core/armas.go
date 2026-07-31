@@ -8,10 +8,7 @@ import (
 
 func ejecutarPS(script string) (string, error) {
 	out, err := exec.Command("powershell", "-NoProfile", "-Command", script).Output()
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(out)), nil
+	return strings.TrimSpace(string(out)), err
 }
 
 func (h *Hands) velocidadInternet() string {

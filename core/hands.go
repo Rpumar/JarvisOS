@@ -98,14 +98,14 @@ func (h *Hands) RunCommand(cmd string) string {
 		return ComandoNoReconocido
 	}
 
-	if nombreApp := h.buscarAppDirecto(cmd); nombreApp != "" {
-		return h.abrirApp(nombreApp)
-	}
-
 	if h.clasif != nil {
 		if nombre, ok := h.clasif.Clasificar(cmd); ok {
 			return h.clasif.Ejecutar(nombre, cmd, h)
 		}
+	}
+
+	if nombreApp := h.buscarAppDirecto(cmd); nombreApp != "" {
+		return h.abrirApp(nombreApp)
 	}
 
 	// NAVEGADOR
