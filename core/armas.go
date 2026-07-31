@@ -1,13 +1,25 @@
 package core
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"strings"
+	"time"
 )
 
+// tiempoMaximoPS evita que un comando de PowerShell se cuelgue para siempre:
+// pasados los 5 minutos se cancela y la petición responde con error.
+const tiempoMaximoPS = 5 * time.Minute
+
 func ejecutarPS(script string) (string, error) {
-	out, err := exec.Command("powershell", "-NoProfile", "-Command", script).Output()
+	ctx, cancel := context.WithTimeout(context.Background(), tiempoMaximoPS)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "powershell", "-NoProfile", "-Command", script)
+	out, err := cmd.Output()
+	if ctx.Err() != nil {
+		return strings.TrimSpace(string(out)), fmt.Errorf("comando cancelado por tiempo límite: %v", ctx.Err())
+	}
 	return strings.TrimSpace(string(out)), err
 }
 

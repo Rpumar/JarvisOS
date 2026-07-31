@@ -131,7 +131,7 @@ type Diagnostico struct {
 
 func (h *Hands) diagnosticar() (*Diagnostico, error) {
 	out, err := ejecutarPS(scriptDiagnostico)
-	if err != nil || out == "" {
+	if out == "" {
 		return nil, fmt.Errorf("no se pudo ejecutar el diagnóstico: %v", err)
 	}
 	var d Diagnostico

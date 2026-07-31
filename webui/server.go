@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -92,12 +93,40 @@ func (s *ServidorWeb) Iniciar() error {
 
 	mux.Handle("/", http.FileServer(http.FS(archivosEstaticos)))
 
+	var listener net.Listener
+	var err error
+	for puerto := s.port; puerto < s.port+10; puerto++ {
+		listener, err = net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", puerto))
+		if err == nil {
+			s.port = puerto
+			break
+		}
+	}
+	if listener == nil {
+		return fmt.Errorf("no hay puertos libres (8080-8089): %v", err)
+	}
+
 	addr := fmt.Sprintf("127.0.0.1:%d", s.port)
 	fmt.Printf("[WEBUI] Interfaz disponible en http://%s\n", addr)
 
 	go s.abrirNavegador(addr)
 
-	return http.ListenAndServe(addr, mux)
+	return http.Serve(listener, s.conRecuperacion(mux))
+}
+
+// conRecuperacion evita que un error interno de un handler derribe a todo el
+// servidor: convierte el pánico en una respuesta 500 y el proceso sigue vivo.
+func (s *ServidorWeb) conRecuperacion(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if rec := recover(); rec != nil {
+				fmt.Printf("[WEBUI] Error interno en %s: %v\n", r.URL.Path, rec)
+				w.WriteHeader(http.StatusInternalServerError)
+				json.NewEncoder(w).Encode(map[string]string{"error": "error interno del servidor"})
+			}
+		}()
+		h.ServeHTTP(w, r)
+	})
 }
 
 func (s *ServidorWeb) abrirNavegador(addr string) {

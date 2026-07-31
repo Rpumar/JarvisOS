@@ -188,6 +188,12 @@
     padding: 20px;
   }
   .modal.abierto { display: flex; }
+  #conn-banner {
+    display: none; background: #5c1a1a; color: #ffb3b3; text-align: center;
+    padding: 8px 16px; font-size: 13px; border-bottom: 1px solid #8a2a2a;
+    position: sticky; top: 0; z-index: 5000;
+  }
+  #conn-banner.visible { display: block; }
   .modal-box {
     background: #0d1117; border: 1px solid #1a3a5c; border-radius: 12px;
     width: 100%; max-width: 720px; max-height: 86vh; display: flex; flex-direction: column;
@@ -214,6 +220,7 @@
 </style>
 </head>
 <body>
+<div id="conn-banner">Se perdió la conexión con JarvisOS en <span id="conn-url"></span>. Reintentando...</div>
 <header>
   <div>
     <h1>J.A.R.V.I.S</h1>
@@ -406,10 +413,13 @@
     enviar();
   }
 
+  let online = true;
+
   async function actualizarEstado() {
     try {
       const res = await fetch('/api/estado');
       const s = await res.json();
+      if (s.error) throw new Error(s.error);
       document.getElementById('st-hora').textContent = s.hora || '--';
       document.getElementById('st-fecha').textContent = s.fecha || '--';
       document.getElementById('st-ram').textContent = s.ram_usada + ' GB / ' + s.ram_total + ' GB (' + s.ram_porcentaje + '%)';
@@ -420,7 +430,17 @@
       document.getElementById('st-cpu').textContent = s.cpu || '-';
       const holo = document.getElementById('holo-estado');
       if (holo) holo.textContent = (s.ram_usada || '-') + ' GB RAM · ' + (s.ram_porcentaje || '-') + '% · ' + (s.bateria || '-') + ' · ' + (s.procesos || '-') + ' procesos';
-    } catch (e) {}
+      if (!online) {
+        online = true;
+        document.getElementById('conn-banner').classList.remove('visible');
+      }
+    } catch (e) {
+      if (online) {
+        online = false;
+        document.getElementById('conn-url').textContent = window.location.origin;
+        document.getElementById('conn-banner').classList.add('visible');
+      }
+    }
   }
 
   actualizarEstado();
@@ -452,7 +472,11 @@
       }
     } catch (err) {
       typingEl.remove();
-      addMsg('jarvis', 'Error de conexión: ' + err.message, true);
+      if (!online) {
+        document.getElementById('conn-url').textContent = window.location.origin;
+        document.getElementById('conn-banner').classList.add('visible');
+      }
+      addMsg('jarvis', 'Error de conexión: ' + err.message + ' (servidor en ' + window.location.origin + ')', true);
     }
 
     input.disabled = false;
