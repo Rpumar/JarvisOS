@@ -6,10 +6,14 @@ import (
 	"fmt"
 	"io/fs"
 	"net/http"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"sync"
 	"time"
+
+	"JarvisOS/core"
 )
 
 type ChatRequest struct {
@@ -25,11 +29,17 @@ type ProcesadorChat interface {
 	Process(input string) string
 }
 
+type EstadoProvider interface {
+	EstadoPanel() core.EstadoPanel
+}
+
 type ServidorWeb struct {
-	brain    ProcesadorChat
+	brain     ProcesadorChat
+	estado    EstadoProvider
 	historial []HistorialEntry
-	mu       sync.Mutex
-	port     int
+	mu        sync.Mutex
+	port      int
+	rutaHist  string
 }
 
 type HistorialEntry struct {
@@ -38,12 +48,27 @@ type HistorialEntry struct {
 	Timestamp string `json:"timestamp"`
 }
 
-func NuevoServidor(brain ProcesadorChat, port int) *ServidorWeb {
-	return &ServidorWeb{
+func NuevoServidor(brain ProcesadorChat, port int, opciones ...ServidorOpciones) *ServidorWeb {
+	s := &ServidorWeb{
 		brain:     brain,
 		historial: make([]HistorialEntry, 0),
 		port:      port,
 	}
+	for _, o := range opciones {
+		if o.Estado != nil {
+			s.estado = o.Estado
+		}
+		if o.RutaHistorial != "" {
+			s.rutaHist = o.RutaHistorial
+		}
+	}
+	s.cargarHistorial()
+	return s
+}
+
+type ServidorOpciones struct {
+	Estado        EstadoProvider
+	RutaHistorial string
 }
 
 func (s *ServidorWeb) Iniciar() error {
@@ -52,6 +77,7 @@ func (s *ServidorWeb) Iniciar() error {
 	mux.HandleFunc("/api/chat", s.manejarChat)
 	mux.HandleFunc("/api/historial", s.manejarHistorial)
 	mux.HandleFunc("/api/limpiar", s.manejarLimpiar)
+	mux.HandleFunc("/api/estado", s.manejarEstado)
 
 	mux.Handle("/", http.FileServer(http.FS(archivosEstaticos)))
 
@@ -105,9 +131,19 @@ func (s *ServidorWeb) manejarChat(w http.ResponseWriter, r *http.Request) {
 		s.historial = s.historial[len(s.historial)-100:]
 	}
 	s.mu.Unlock()
+	s.guardarHistorial()
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(ChatResponse{Response: respuesta})
+}
+
+func (s *ServidorWeb) manejarEstado(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if s.estado == nil {
+		json.NewEncoder(w).Encode(map[string]string{"error": "sin estado"})
+		return
+	}
+	json.NewEncoder(w).Encode(s.estado.EstadoPanel())
 }
 
 func (s *ServidorWeb) manejarHistorial(w http.ResponseWriter, r *http.Request) {
@@ -121,7 +157,36 @@ func (s *ServidorWeb) manejarLimpiar(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	s.historial = nil
 	s.mu.Unlock()
+	s.guardarHistorial()
 	w.WriteHeader(http.StatusOK)
+}
+
+func (s *ServidorWeb) cargarHistorial() {
+	if s.rutaHist == "" {
+		return
+	}
+	datos, err := os.ReadFile(s.rutaHist)
+	if err != nil {
+		return
+	}
+	var historial []HistorialEntry
+	if err := json.Unmarshal(datos, &historial); err != nil {
+		return
+	}
+	s.mu.Lock()
+	s.historial = historial
+	s.mu.Unlock()
+}
+
+func (s *ServidorWeb) guardarHistorial() {
+	if s.rutaHist == "" {
+		return
+	}
+	s.mu.Lock()
+	datos, _ := json.MarshalIndent(s.historial, "", "  ")
+	s.mu.Unlock()
+	os.MkdirAll(filepath.Dir(s.rutaHist), 0o700)
+	os.WriteFile(s.rutaHist, datos, 0o600)
 }
 
 //go:embed static

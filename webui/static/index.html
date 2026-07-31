@@ -112,6 +112,42 @@
   }
   .clear-btn:hover { border-color: #555; color: #999; }
   .error { color: #ff4444; }
+  #status-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    padding: 12px 24px;
+    background: #0d1117;
+    border-bottom: 1px solid #1a3a5c;
+  }
+  .stat {
+    background: #161b22;
+    border: 1px solid #262c36;
+    border-radius: 8px;
+    padding: 10px 14px;
+    min-width: 0;
+  }
+  .stat .label { font-size: 11px; color: #7a8699; text-transform: uppercase; letter-spacing: .5px; }
+  .stat .value { font-size: 15px; color: #00d4ff; font-weight: 600; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .quick {
+    padding: 10px 24px;
+    border-bottom: 1px solid #1a3a5c;
+    background: #0a0a0f;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .quick button {
+    background: #12263a;
+    border: 1px solid #1a3a5c;
+    color: #c8d6e5;
+    padding: 8px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background .2s;
+  }
+  .quick button:hover { background: #0055aa; color: #fff; }
 </style>
 </head>
 <body>
@@ -122,6 +158,27 @@
   </div>
   <button class="clear-btn" onclick="limpiarHistorial()">Limpiar</button>
 </header>
+<div id="status-bar">
+  <div class="stat"><div class="label">Hora</div><div class="value" id="st-hora">--:--:--</div></div>
+  <div class="stat"><div class="label">Fecha</div><div class="value" id="st-fecha">--/--/----</div></div>
+  <div class="stat"><div class="label">RAM</div><div class="value" id="st-ram">-</div></div>
+  <div class="stat"><div class="label">Batería</div><div class="value" id="st-bat">-</div></div>
+  <div class="stat"><div class="label">Uptime</div><div class="value" id="st-up">-</div></div>
+  <div class="stat"><div class="label">IP</div><div class="value" id="st-ip">-</div></div>
+  <div class="stat"><div class="label">Procesos</div><div class="value" id="st-proc">-</div></div>
+  <div class="stat"><div class="label">CPU</div><div class="value" id="st-cpu">-</div></div>
+</div>
+<div class="quick">
+  <button onclick="cmd('hora')">🕐 Hora</button>
+  <button onclick="cmd('qué clima hace')">🌤 Clima</button>
+  <button onclick="cmd('últimas noticias')">📰 Noticias</button>
+  <button onclick="cmd('captura de pantalla')">📸 Captura</button>
+  <button onclick="cmd('cuánta ram me queda')">🧠 RAM</button>
+  <button onclick="cmd('listar procesos')">⚙ Procesos</button>
+  <button onclick="cmd('informe del sistema')">📋 Informe</button>
+  <button onclick="cmd('qué hay en el portapapeles')">📎 Portapapeles</button>
+  <button onclick="cmd('apagar la pc')">⏻ Apagar</button>
+</div>
 <div id="chat">
   <div class="msg jarvis"><strong>JARVIS</strong> — Sistemas en línea, señor. ¿En qué puedo ayudarle?</div>
 </div>
@@ -135,6 +192,29 @@
   const sendBtn = document.getElementById('send');
 
   input.addEventListener('keydown', e => { if (e.key === 'Enter') enviar(); });
+
+  function cmd(texto) {
+    input.value = texto;
+    enviar();
+  }
+
+  async function actualizarEstado() {
+    try {
+      const res = await fetch('/api/estado');
+      const s = await res.json();
+      document.getElementById('st-hora').textContent = s.hora || '--';
+      document.getElementById('st-fecha').textContent = s.fecha || '--';
+      document.getElementById('st-ram').textContent = s.ram_usada + ' GB / ' + s.ram_total + ' GB (' + s.ram_porcentaje + '%)';
+      document.getElementById('st-bat').textContent = s.bateria || '-';
+      document.getElementById('st-up').textContent = s.uptime || '-';
+      document.getElementById('st-ip').textContent = s.ip_local || '-';
+      document.getElementById('st-proc').textContent = s.procesos || '-';
+      document.getElementById('st-cpu').textContent = s.cpu || '-';
+    } catch (e) {}
+  }
+
+  actualizarEstado();
+  setInterval(actualizarEstado, 5000);
 
   async function enviar() {
     const msg = input.value.trim();

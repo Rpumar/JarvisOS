@@ -346,7 +346,10 @@ func ejecutarWebUI() {
 		IA: conectorIA, Coder: coderAgent, Memoria: almacen,
 		IngAgente: ingAgente, Prefs: prefs, MaxHistorialIA: cfg.MaxHistorialIA,
 	})
-	servidor := webui.NuevoServidor(brain, 8080)
+	servidor := webui.NuevoServidor(brain, 8080, webui.ServidorOpciones{
+		Estado:        hands,
+		RutaHistorial: filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "historial-web.json"),
+	})
 	if err := servidor.Iniciar(); err != nil {
 		fmt.Fprintf(os.Stderr, "[WEBUI] Error: %v\n", err)
 		os.Exit(1)
