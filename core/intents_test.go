@@ -16,6 +16,16 @@ func TestClasificarArmas(t *testing.T) {
 		{"cuál es mi ip publica", "ip_publica"},
 		{"cuales son mis dns", ""},
 		{"red wifi", ""},
+		{"limpiar archivos temporales", "limpiar_temporales"},
+		{"organizá mis descargas", "organizar_descargas"},
+		{"grabá la pantalla", "grabar_pantalla"},
+		{"poné el modo oscuro", "modo_oscuro"},
+		{"está activo el firewall", "firewall"},
+		{"qué puertos están abiertos", "puertos_uso"},
+		{"aplicaciones usando internet", "procesos_red"},
+		{"sesiones abiertas", "sesiones_activas"},
+		{"crear rutina trabajo", "rutina"},
+		{"abrir descargas", ""},
 	}
 	c := NuevoClasificador()
 	for _, cso := range casos {

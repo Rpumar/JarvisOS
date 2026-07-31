@@ -65,12 +65,14 @@ func main() {
 	fmt.Println("=================================")
 
 	prefs := memoria.NuevoGestorPreferencias(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "preferencias.json"))
+	rutinas := core.NuevoRutinaManager(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "rutinas.json"))
 
 	hands := core.NewHands(core.HandsOpciones{
 		Apps:     cfg.Apps,
 		ClimaKey: cfg.OpenWeatherKey,
 		NewsKey:  cfg.NewsAPIKey,
 		Prefs:    prefs,
+		Rutinas:  rutinas,
 	})
 	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout)
 	coderAgent := agents.NewCoderAgent(conectorIA)
@@ -327,9 +329,10 @@ func esPalabraDeActivacion(comandoLower string, wakeWords []string) bool {
 func ejecutarWebUI() {
 	cfg := config.Load()
 	prefs := memoria.NuevoGestorPreferencias(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "preferencias.json"))
+	rutinas := core.NuevoRutinaManager(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "rutinas.json"))
 	hands := core.NewHands(core.HandsOpciones{
 		Apps: cfg.Apps, ClimaKey: cfg.OpenWeatherKey, NewsKey: cfg.NewsAPIKey,
-		Prefs: prefs,
+		Prefs: prefs, Rutinas: rutinas,
 	})
 	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout)
 	coderAgent := agents.NewCoderAgent(conectorIA)

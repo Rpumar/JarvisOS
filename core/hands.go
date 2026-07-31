@@ -46,6 +46,7 @@ type Hands struct {
 	ClimaKey string
 	NewsKey  string
 	Prefs    RegistroPreferencias
+	rutinas  *RutinaManager
 	clasif   *Clasificador
 }
 
@@ -59,6 +60,7 @@ type HandsOpciones struct {
 	ClimaKey string
 	NewsKey  string
 	Prefs    RegistroPreferencias
+	Rutinas  *RutinaManager
 }
 
 func NewHands(opciones ...HandsOpciones) *Hands {
@@ -68,6 +70,7 @@ func NewHands(opciones ...HandsOpciones) *Hands {
 		h.ClimaKey = opciones[0].ClimaKey
 		h.NewsKey = opciones[0].NewsKey
 		h.Prefs = opciones[0].Prefs
+		h.rutinas = opciones[0].Rutinas
 	}
 	return h
 }
