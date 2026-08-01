@@ -47,6 +47,7 @@ type Hands struct {
 	Prefs    RegistroPreferencias
 	rutinas  *RutinaManager
 	tareas   *GestorTareas
+	ordenes  *GestorOrdenes
 	procedimientos *GestorProcedimientos
 	procedimientoPendiente string
 	clasif   *Clasificador
@@ -80,6 +81,7 @@ type HandsOpciones struct {
 	Prefs    RegistroPreferencias
 	Rutinas  *RutinaManager
 	Tareas   *GestorTareas
+	Ordenes  *GestorOrdenes
 	Procedimientos *GestorProcedimientos
 
 	VozActiva bool
@@ -100,6 +102,7 @@ func NewHands(opciones ...HandsOpciones) *Hands {
 		h.Prefs = opciones[0].Prefs
 		h.rutinas = opciones[0].Rutinas
 		h.tareas = opciones[0].Tareas
+		h.ordenes = opciones[0].Ordenes
 		h.procedimientos = opciones[0].Procedimientos
 		h.VozActiva = opciones[0].VozActiva
 		h.VozVoice = opciones[0].VozVoice

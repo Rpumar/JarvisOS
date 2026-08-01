@@ -541,6 +541,14 @@ APRENDIZAJE (empleado digital):
   qué procedimientos sabés / qué sabés hacer       -> listo lo aprendido
   olvidate el procedimiento [x]                    -> borro lo aprendido
 
+ÓRDENES (el empleado no abandona):
+  agendá una orden [objetivo]          -> registro una orden que NO cierro hasta cumplirla
+  ejecutá la orden #N / tomá la orden #N -> la trabajo ahora
+  retomá las órdenes                   -> sigo todas las órdenes en juego (también al arrancar)
+  qué órdenes tengo / todas las órdenes -> listo en juego o historial
+  reportá la orden #N                  -> resumen de lo hecho
+  terminar la orden #N / bloquear #N / cancelar #N -> control del dueño
+
 CLIMA / NOTICIAS (requiere API key en config.json):
   clima / qué temperatura hace   -> clima de tu ciudad (si configurado)
   noticias / últimas noticias    -> titulares de noticias (si configurado)

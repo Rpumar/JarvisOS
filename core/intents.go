@@ -336,6 +336,12 @@ func NuevoClasificador() *Clasificador {
 			Handler: func(cmd string, h *Hands) string { return h.manejarProcedimiento(cmd) },
 		},
 		{
+			Nombre: "orden",
+			Frases: []string{"agendá una orden", "agenda una orden", "nueva orden", "registrá la orden", "registra la orden", "qué órdenes tengo", "que ordenes tengo", "órdenes pendientes", "ordenes pendientes", "todas las órdenes", "todas las ordenes", "retomá las órdenes", "retoma las ordenes", "ejecutá la orden", "ejecuta la orden", "tomá la orden", "toma la orden", "reportá la orden", "reporta la orden", "reporte de la orden", "terminá la orden", "termina la orden", "marcar la orden", "bloquear la orden", "cancelar la orden", "mis órdenes", "mis ordenes"},
+			Palabras: []string{"orden", "órdenes", "ordenes"},
+			Handler: func(cmd string, h *Hands) string { return h.manejarOrden(cmd) },
+		},
+		{
 			Nombre: "notificacion",
 			Frases: []string{"avisame", "avisame en la pantalla", "avisame que", "avísame", "mostrar notificacion", "mostrame una notificacion", "mostrar notificación", "mostrame una notificación", "notificame", "notifica"},
 			Palabras: []string{"avisame", "avísame", "notificame", "notifica"},

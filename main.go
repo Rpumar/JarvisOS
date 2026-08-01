@@ -102,6 +102,7 @@ func main() {
 	prefs := memoria.NuevoGestorPreferencias(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "preferencias.json"))
 	rutinas := core.NuevoRutinaManager(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "rutinas.json"))
 	tareas := core.NuevoGestorTareas(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "tareas.json"))
+	ordenes := core.NuevoGestorOrdenes(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "ordenes.json"))
 	procedimientos := core.NuevoGestorProcedimientos(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "procedimientos.json"))
 
 	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout, cfg.IAURL, cfg.IAAPIKey)
@@ -114,6 +115,7 @@ func main() {
 		Prefs:           prefs,
 		Rutinas:         rutinas,
 		Tareas:          tareas,
+		Ordenes:         ordenes,
 		Procedimientos:  procedimientos,
 		VozActiva:       prefs.Get().VozActivada,
 		VozVoice:        cfg.TTSVoice,
@@ -163,6 +165,11 @@ func main() {
 
 	if pendientes := tareas.TextoPendientes(); pendientes != "" {
 		fmt.Printf("[TAREAS] %s\n", pendientes)
+	}
+
+	if pendientesOrdenes := ordenes.TextoPendientes(); pendientesOrdenes != "" {
+		fmt.Printf("[ORDENES] %s\n", pendientesOrdenes)
+		fmt.Println("[ORDENES] Las órdenes no se abandonan. Diga 'retomá las órdenes' para seguir trabajándolas.")
 	}
 
 	if conectorIA.Disponible() {
@@ -291,6 +298,7 @@ func ejecutarModoServicio() {
 	gestorSkills := core.NuevoSkillsManager()
 	gestorRoles := core.NuevoRolesManager()
 	tareas := core.NuevoGestorTareas(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "tareas.json"))
+	ordenes := core.NuevoGestorOrdenes(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "ordenes.json"))
 	procedimientos := core.NuevoGestorProcedimientos(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "procedimientos.json"))
 	hands := core.NewHands(core.HandsOpciones{
 		Apps:            cfg.Apps,
@@ -302,6 +310,7 @@ func ejecutarModoServicio() {
 		DesarrolladorIA: conectorIA,
 		Skills:          gestorSkills,
 		Tareas:          tareas,
+		Ordenes:         ordenes,
 		Procedimientos:  procedimientos,
 	})
 	coderAgent := agents.NewCoderAgent(conectorIA)
@@ -396,13 +405,14 @@ func ejecutarWebUI() {
 	prefs := memoria.NuevoGestorPreferencias(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "preferencias.json"))
 	rutinas := core.NuevoRutinaManager(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "rutinas.json"))
 	tareas := core.NuevoGestorTareas(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "tareas.json"))
+	ordenes := core.NuevoGestorOrdenes(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "ordenes.json"))
 	procedimientos := core.NuevoGestorProcedimientos(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "procedimientos.json"))
 	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout, cfg.IAURL, cfg.IAAPIKey)
 	gestorSkills := core.NuevoSkillsManager()
 	gestorRoles := core.NuevoRolesManager()
 	hands := core.NewHands(core.HandsOpciones{
 		Apps: cfg.Apps, ClimaKey: cfg.OpenWeatherKey, NewsKey: cfg.NewsAPIKey,
-		Prefs: prefs, Rutinas: rutinas, Tareas: tareas, Procedimientos: procedimientos,
+		Prefs: prefs, Rutinas: rutinas, Tareas: tareas, Ordenes: ordenes, Procedimientos: procedimientos,
 		VozActiva: prefs.Get().VozActivada, VozVoice: cfg.TTSVoice, VozRate: cfg.TTSRate,
 		WorkspaceRoot: cfg.WorkspaceRoot, DesarrolladorIA: conectorIA, Skills: gestorSkills,
 	})
@@ -420,6 +430,10 @@ func ejecutarWebUI() {
 	})
 	if pendientes := tareas.TextoPendientes(); pendientes != "" {
 		fmt.Printf("[TAREAS] %s\n", pendientes)
+	}
+	if pendientesOrdenes := ordenes.TextoPendientes(); pendientesOrdenes != "" {
+		fmt.Printf("[ORDENES] %s\n", pendientesOrdenes)
+		fmt.Println("[ORDENES] Las órdenes no se abandonan. Diga 'retomá las órdenes' para seguir trabajándolas.")
 	}
 	servidor := webui.NuevoServidor(brain, 8080, webui.ServidorOpciones{
 		Estado:        hands,
