@@ -8,7 +8,7 @@ import (
 
 func (h *Hands) wifiListar() string {
 	ps := `(netsh wlan show interfaces) -match 'SSID' | ForEach-Object { $_ -replace '.*:\s*', '' }`
-	out, err := exec.Command("powershell", "-NoProfile", "-Command", ps).Output()
+	out, err := ejecutarConTimeout("powershell", "-NoProfile", "-Command", ps)
 	if err != nil {
 		return "No pude listar redes WiFi, señor."
 	}
@@ -53,7 +53,7 @@ func (h *Hands) bluetoothDesactivar() string {
 
 func (h *Hands) listarProcesos() string {
 	ps := `Get-Process | Sort-Object CPU -Descending | Select-Object -First 15 Name,CPU,PM | Format-Table -AutoSize | Out-String`
-	out, err := exec.Command("powershell", "-NoProfile", "-Command", ps).Output()
+	out, err := ejecutarConTimeout("powershell", "-NoProfile", "-Command", ps)
 	if err != nil {
 		return "No pude listar procesos, señor."
 	}
@@ -82,7 +82,7 @@ func (h *Hands) matarProceso(nombre string) string {
 
 func (h *Hands) listarUSB() string {
 	ps := `Get-PnpDevice -Class USB | Where-Object {$_.Status -eq 'OK'} | Select-Object FriendlyName | Format-Table -HideTableHeaders | Out-String`
-	out, err := exec.Command("powershell", "-NoProfile", "-Command", ps).Output()
+	out, err := ejecutarConTimeout("powershell", "-NoProfile", "-Command", ps)
 	if err != nil {
 		return "No pude listar dispositivos USB, señor."
 	}
@@ -122,7 +122,7 @@ func (h *Hands) cambiarModoPantalla(modo string) string {
 
 func (h *Hands) infoBateriaDetallada() string {
 	ps := `(Get-WmiObject Win32_Battery).EstimatedChargeRemaining`
-	out, err := exec.Command("powershell", "-NoProfile", "-Command", ps).Output()
+	out, err := ejecutarConTimeout("powershell", "-NoProfile", "-Command", ps)
 	if err != nil {
 		return "No hay batería en este equipo, señor."
 	}
@@ -131,7 +131,7 @@ func (h *Hands) infoBateriaDetallada() string {
 		return "No hay batería en este equipo, señor."
 	}
 	ps2 := `(Get-WmiObject Win32_Battery).BatteryStatus`
-	out2, _ := exec.Command("powershell", "-NoProfile", "-Command", ps2).Output()
+	out2, _ := ejecutarConTimeout("powershell", "-NoProfile", "-Command", ps2)
 	status := strings.TrimSpace(string(out2))
 	estado := "desconocido"
 	switch status {

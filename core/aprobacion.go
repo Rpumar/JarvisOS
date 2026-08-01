@@ -10,6 +10,10 @@ import (
 	"JarvisOS/core/audit"
 )
 
+// TiempoMaximoAprobacion es cuánto se espera el PIN del dueño antes de que
+// la orden quede expirada automáticamente (5 minutos).
+const TiempoMaximoAprobacion = 5 * time.Minute
+
 // aprobacionOrden guarda el estado del bucle cuando este se detiene a
 // esperar la aprobación del dueño, para reanudarlo tras el PIN.
 type aprobacionOrden struct {
@@ -51,6 +55,8 @@ func (h *Hands) pinValido(pin string) bool {
 // AprobarOrden autoriza la acción sensible pendiente de una orden y
 // reanuda el bucle del agente automáticamente.
 func (h *Hands) AprobarOrden(id int, pin string) string {
+	h.ExpirarAprobacionesAntiguas(TiempoMaximoAprobacion)
+
 	h.aprobacionMu.Lock()
 	pend := h.aprobacionPendiente
 	h.aprobacionMu.Unlock()
@@ -109,6 +115,8 @@ func (h *Hands) aprobarOrdenPersistida(id int, pin string) string {
 
 // DenegarOrden descarta la aprobación pendiente y deja la orden bloqueada.
 func (h *Hands) DenegarOrden(id int) string {
+	h.ExpirarAprobacionesAntiguas(TiempoMaximoAprobacion)
+
 	h.aprobacionMu.Lock()
 	if h.aprobacionPendiente != nil && h.aprobacionPendiente.Orden.ID == id {
 		h.aprobacionPendiente = nil
@@ -143,8 +151,41 @@ func (h *Hands) EstablecerPIN(pin string) string {
 
 // OrdenesParaPanel devuelve las órdenes activas para el panel del dueño.
 func (h *Hands) OrdenesParaPanel() []Orden {
+	h.ExpirarAprobacionesAntiguas(TiempoMaximoAprobacion)
 	if h.ordenes == nil {
 		return nil
 	}
 	return h.ordenes.Activas()
+}
+
+// ExpirarAprobacionesAntiguas revisa las órdenes que esperan el PIN del
+// dueño y expira las que superaron el timeout dado: la orden queda en estado
+// "expirada", la acción sensible se descarta y el hecho se audita como
+// "expirado_por_timeout_aprobacion". Devuelve un resumen hablable, o vacío
+// si no había nada que expirar.
+func (h *Hands) ExpirarAprobacionesAntiguas(timeout time.Duration) string {
+	if h.ordenes == nil {
+		return ""
+	}
+	ahora := time.Now()
+	expiradas := 0
+	for _, o := range h.ordenes.EsperandoAprobacion() {
+		desde, err := time.Parse(time.RFC3339, o.PendienteDesde)
+		if err != nil || ahora.Sub(desde) < timeout {
+			continue
+		}
+		h.aprobacionMu.Lock()
+		if h.aprobacionPendiente != nil && h.aprobacionPendiente.Orden.ID == o.ID {
+			h.aprobacionPendiente = nil
+		}
+		h.aprobacionMu.Unlock()
+		if h.ordenes.ExpirarAprobacion(o.ID) {
+			h.auditar(o.ID, o.PendienteAccion, "expirado_por_timeout_aprobacion")
+			expiradas++
+		}
+	}
+	if expiradas > 0 {
+		return fmt.Sprintf("La aprobación de %d orden(es) expiró por superar el tiempo máximo de espera, señor. Ejecute de nuevo la orden para volver a solicitarla.", expiradas)
+	}
+	return ""
 }

@@ -24,6 +24,7 @@ const (
 	OrdenTerminada           = "terminada"
 	OrdenBloqueada           = "bloqueada"
 	OrdenCancelada           = "cancelada"
+	OrdenExpirada            = "expirada"
 )
 
 type AccionOrden struct {
@@ -39,9 +40,10 @@ type Orden struct {
 	Estado             string        `json:"estado"`
 	FechaCreacion      string        `json:"fecha_creacion"`
 	Historial          []AccionOrden `json:"historial"`
-	Reporte            string        `json:"reporte,omitempty"`
-	PendienteAccion    string        `json:"pendiente_accion,omitempty"`
-	PendienteDescripcion string      `json:"pendiente_descripcion,omitempty"`
+	Reporte              string        `json:"reporte,omitempty"`
+	PendienteAccion      string        `json:"pendiente_accion,omitempty"`
+	PendienteDescripcion string        `json:"pendiente_descripcion,omitempty"`
+	PendienteDesde       string        `json:"pendiente_desde,omitempty"`
 }
 
 type GestorOrdenes struct {
@@ -150,7 +152,8 @@ func (g *GestorOrdenes) Continuables() []Orden {
 }
 
 // SolicitarAprobacion marca una orden como esperando aprobación y guarda
-// la acción sensible que el dueño debe autorizar.
+// la acción sensible que el dueño debe autorizar, junto con el momento en
+// que se pidió (para expirar por timeout si no se responde a tiempo).
 func (g *GestorOrdenes) SolicitarAprobacion(id int, accion, descripcion string) bool {
 	g.mu.Lock()
 	for i := range g.ordenes {
@@ -158,6 +161,7 @@ func (g *GestorOrdenes) SolicitarAprobacion(id int, accion, descripcion string) 
 			g.ordenes[i].Estado = OrdenEsperandoAprobacion
 			g.ordenes[i].PendienteAccion = accion
 			g.ordenes[i].PendienteDescripcion = descripcion
+			g.ordenes[i].PendienteDesde = time.Now().Format(time.RFC3339)
 			g.mu.Unlock()
 			g.guardar()
 			return true
@@ -174,6 +178,7 @@ func (g *GestorOrdenes) LimpiarAprobacion(id int) bool {
 		if g.ordenes[i].ID == id {
 			g.ordenes[i].PendienteAccion = ""
 			g.ordenes[i].PendienteDescripcion = ""
+			g.ordenes[i].PendienteDesde = ""
 			g.mu.Unlock()
 			g.guardar()
 			return true
@@ -191,6 +196,26 @@ func (g *GestorOrdenes) DenegarAprobacion(id int) bool {
 			g.ordenes[i].Estado = OrdenBloqueada
 			g.ordenes[i].PendienteAccion = ""
 			g.ordenes[i].PendienteDescripcion = ""
+			g.ordenes[i].PendienteDesde = ""
+			g.mu.Unlock()
+			g.guardar()
+			return true
+		}
+	}
+	g.mu.Unlock()
+	return false
+}
+
+// ExpirarAprobacion deja la orden como expirada cuando el dueño no aprobó a
+// tiempo. Solo aplica si está esperando aprobación; descarta la acción.
+func (g *GestorOrdenes) ExpirarAprobacion(id int) bool {
+	g.mu.Lock()
+	for i := range g.ordenes {
+		if g.ordenes[i].ID == id && g.ordenes[i].Estado == OrdenEsperandoAprobacion {
+			g.ordenes[i].Estado = OrdenExpirada
+			g.ordenes[i].PendienteAccion = ""
+			g.ordenes[i].PendienteDescripcion = ""
+			g.ordenes[i].PendienteDesde = ""
 			g.mu.Unlock()
 			g.guardar()
 			return true
@@ -483,6 +508,9 @@ func (h *Hands) procesarOrden(id int) string {
 	}
 	if orden.Estado == OrdenEsperandoAprobacion {
 		return fmt.Sprintf("La orden #%d está esperando su aprobación, señor: %s. Apruebe desde el panel, o diga 'aprobar la orden #%d' (o 'aprobar la orden #%d PIN'). Para rechazarla, 'denegar la orden #%d'.", id, orden.PendienteDescripcion, id, id, id)
+	}
+	if orden.Estado == OrdenExpirada {
+		return fmt.Sprintf("La orden #%d expiró porque no se aprobó a tiempo, señor. Diga 'ejecutá la orden #%d' para volver a trabajarla.", id, id)
 	}
 
 	h.ordenes.CambiarEstado(id, OrdenEnProgreso)

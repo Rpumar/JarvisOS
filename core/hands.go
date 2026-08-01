@@ -25,6 +25,24 @@ import (
 // una consulta de respaldo a la IA en vez de rendirse de inmediato.
 const ComandoNoReconocido = "__NO_RECONOCIDO__"
 
+// TiempoLimiteComando es el máximo de ejecución de un comando externo antes
+// de abortarlo (30 segundos). Es variable para poder probar el aborto sin
+// esperar 30 segundos reales.
+var TiempoLimiteComando = 30 * time.Second
+
+// ejecutarConTimeout corre un comando externo con límite de tiempo. Si lo
+// supera, lo aborta (matando el proceso) y devuelve un error claro que el
+// llamador puede reportar en lugar de quedarse colgado para siempre.
+func ejecutarConTimeout(args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), TiempoLimiteComando)
+	defer cancel()
+	salida, err := exec.CommandContext(ctx, args[0], args[1:]...).Output()
+	if ctx.Err() == context.DeadlineExceeded {
+		return salida, fmt.Errorf("ejecución abortada: superó el límite de %s", TiempoLimiteComando)
+	}
+	return salida, err
+}
+
 // Códigos de tecla virtual de Windows para multimedia (winuser.h). Son
 // valores estables desde Windows 2000. No existen como código nombrado en
 // WScript.Shell.SendKeys (que solo cubre un teclado estándar de 101 teclas),
@@ -686,7 +704,7 @@ func formatearFecha(ahora time.Time) string {
 // nivelBateria consulta el nivel de batería vía WMI/CIM (nuevo).
 func (h *Hands) nivelBateria() string {
 	ps := "(Get-CimInstance -ClassName Win32_Battery | Select-Object -ExpandProperty EstimatedChargeRemaining)"
-	salida, err := exec.Command("powershell", "-Command", ps).Output()
+	salida, err := ejecutarConTimeout("powershell", "-Command", ps)
 	if err != nil {
 		return "No pude leer el nivel de batería, señor."
 	}
@@ -914,7 +932,7 @@ func (h *Hands) ListarVocesTexto() string {
 func (h *Hands) infoCPU() string {
 	return h.obtenerOCache("cpu", 0, func() string {
 		ps := "(Get-CimInstance Win32_Processor | Select-Object -First 1 | ForEach-Object { $_.Name })"
-		salida, err := exec.Command("powershell", "-Command", ps).Output()
+		salida, err := ejecutarConTimeout("powershell", "-Command", ps)
 		if err != nil {
 			return "No pude obtener información del procesador, señor."
 		}
@@ -925,7 +943,7 @@ func (h *Hands) infoCPU() string {
 func (h *Hands) infoRAM() string {
 	return h.obtenerOCache("ram", 0, func() string {
 		ps := "Get-CimInstance Win32_ComputerSystem | ForEach-Object { [math]::Round($_.TotalPhysicalMemory / 1GB, 1) }"
-		salida, err := exec.Command("powershell", "-Command", ps).Output()
+		salida, err := ejecutarConTimeout("powershell", "-Command", ps)
 		if err != nil {
 			return "No pude leer la memoria RAM, señor."
 		}
@@ -936,7 +954,7 @@ func (h *Hands) infoRAM() string {
 func (h *Hands) infoDisco() string {
 	return h.obtenerOCache("disco", 30*time.Second, func() string {
 		ps := "Get-CimInstance Win32_LogicalDisk -Filter 'DriveType=3' | ForEach-Object { $d=$_; $f=[math]::Round($d.FreeSpace/1GB,1); $t=[math]::Round($d.Size/1GB,1); \"$($d.DeviceID) $f GB libres de $t GB\" }"
-		salida, err := exec.Command("powershell", "-Command", ps).Output()
+		salida, err := ejecutarConTimeout("powershell", "-Command", ps)
 		if err != nil {
 			return "No pude leer el disco, señor."
 		}
@@ -947,7 +965,7 @@ func (h *Hands) infoDisco() string {
 func (h *Hands) infoSO() string {
 	return h.obtenerOCache("so", 0, func() string {
 		ps := "(Get-CimInstance Win32_OperatingSystem | ForEach-Object { $_.Caption })"
-		salida, err := exec.Command("powershell", "-Command", ps).Output()
+		salida, err := ejecutarConTimeout("powershell", "-Command", ps)
 		if err != nil {
 			return "No pude obtener la versión del sistema, señor."
 		}
@@ -958,7 +976,7 @@ func (h *Hands) infoSO() string {
 func (h *Hands) infoUptime() string {
 	return h.obtenerOCache("uptime", 30*time.Second, func() string {
 		ps := "$boot=(Get-CimInstance Win32_OperatingSystem).LastBootUpTime; $up=(Get-Date)-$boot; \"{0} días, {1} horas y {2} minutos\" -f $up.Days, $up.Hours, $up.Minutes"
-		salida, err := exec.Command("powershell", "-Command", ps).Output()
+		salida, err := ejecutarConTimeout("powershell", "-Command", ps)
 		if err != nil {
 			return "No pude calcular el tiempo activo, señor."
 		}
@@ -977,7 +995,7 @@ func (h *Hands) infoPC() string {
 func (h *Hands) infoArquitectura() string {
 	return h.obtenerOCache("arq", 0, func() string {
 		ps := "(Get-CimInstance Win32_ComputerSystem).SystemType"
-		salida, err := exec.Command("powershell", "-Command", ps).Output()
+		salida, err := ejecutarConTimeout("powershell", "-Command", ps)
 		if err != nil {
 			return "No pude obtener la arquitectura, señor."
 		}
@@ -988,7 +1006,7 @@ func (h *Hands) infoArquitectura() string {
 func (h *Hands) infoProgramas() string {
 	return h.obtenerOCache("programas", 60*time.Second, func() string {
 		ps := "(Get-ItemProperty 'HKLM:\\Software\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*' | Measure-Object).Count"
-		salida, err := exec.Command("powershell", "-Command", ps).Output()
+		salida, err := ejecutarConTimeout("powershell", "-Command", ps)
 		if err != nil {
 			return "No pude contar los programas instalados, señor."
 		}
@@ -999,7 +1017,7 @@ func (h *Hands) infoProgramas() string {
 func (h *Hands) infoProcesos() string {
 	return h.obtenerOCache("procesos", 10*time.Second, func() string {
 		ps := "(Get-Process | Measure-Object).Count"
-		salida, err := exec.Command("powershell", "-Command", ps).Output()
+		salida, err := ejecutarConTimeout("powershell", "-Command", ps)
 		if err != nil {
 			return "No pude contar los procesos, señor."
 		}
@@ -1010,7 +1028,7 @@ func (h *Hands) infoProcesos() string {
 func (h *Hands) infoNucleos() string {
 	return h.obtenerOCache("nucleos", 0, func() string {
 		ps := "(Get-CimInstance Win32_Processor | ForEach-Object { $_.NumberOfCores })"
-		salida, err := exec.Command("powershell", "-Command", ps).Output()
+		salida, err := ejecutarConTimeout("powershell", "-Command", ps)
 		if err != nil {
 			return "No pude obtener los núcleos, señor."
 		}
@@ -1028,7 +1046,7 @@ func (h *Hands) infoNucleos() string {
 
 func (h *Hands) infoPantalla() string {
 	ps := "Add-Type -AssemblyName System.Windows.Forms; $s=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds; \"$($s.Width)x$($s.Height)\""
-	salida, err := exec.Command("powershell", "-Command", ps).Output()
+	salida, err := ejecutarConTimeout("powershell", "-Command", ps)
 	if err != nil {
 		return "No pude obtener la resolución, señor."
 	}
@@ -1037,7 +1055,7 @@ func (h *Hands) infoPantalla() string {
 
 func (h *Hands) infoIdioma() string {
 	ps := "(Get-CimInstance Win32_OperatingSystem).MUILanguages[0]"
-	salida, err := exec.Command("powershell", "-Command", ps).Output()
+	salida, err := ejecutarConTimeout("powershell", "-Command", ps)
 	if err != nil {
 		return "No pude obtener el idioma, señor."
 	}
@@ -1046,7 +1064,7 @@ func (h *Hands) infoIdioma() string {
 
 func (h *Hands) infoZonaHoraria() string {
 	ps := "(Get-CimInstance Win32_TimeZone).Caption"
-	salida, err := exec.Command("powershell", "-Command", ps).Output()
+	salida, err := ejecutarConTimeout("powershell", "-Command", ps)
 	if err != nil {
 		return "No pude obtener la zona horaria, señor."
 	}
@@ -1055,7 +1073,7 @@ func (h *Hands) infoZonaHoraria() string {
 
 func (h *Hands) infoTemperatura() string {
 	ps := "Get-CimInstance -Namespace 'root/wmi' -ClassName MSAcpi_ThermalZoneTemperature 2>$null | ForEach-Object { [math]::Round(($_.CurrentTemperature/10-273.15),1) }"
-	salida, err := exec.Command("powershell", "-Command", ps).Output()
+	salida, err := ejecutarConTimeout("powershell", "-Command", ps)
 	if err != nil || strings.TrimSpace(string(salida)) == "" {
 		return "No pude leer la temperatura, señor. Es posible que su equipo no tenga sensor térmico accesible."
 	}
@@ -1092,7 +1110,7 @@ func (h *Hands) hacerPing(host string) string {
 
 func (h *Hands) infoDNS() string {
 	ps := "Get-DnsClientServerAddress -AddressFamily IPv4 | Where-Object {$_.ServerAddresses} | ForEach-Object { $_.ServerAddresses -join ', ' }"
-	salida, err := exec.Command("powershell", "-Command", ps).Output()
+	salida, err := ejecutarConTimeout("powershell", "-Command", ps)
 	if err != nil {
 		return "No pude obtener los DNS, señor."
 	}
@@ -1118,7 +1136,7 @@ func (h *Hands) infoMAC() string {
 
 func (h *Hands) infoVelocidadRed() string {
 	ps := "Get-NetAdapter | Where-Object {$_.Status -eq 'Up'} | Select-Object -First 1 | ForEach-Object { [math]::Round($_.LinkSpeed/1000,1) }"
-	salida, err := exec.Command("powershell", "-Command", ps).Output()
+	salida, err := ejecutarConTimeout("powershell", "-Command", ps)
 	if err != nil {
 		return "No pude obtener la velocidad de red, señor."
 	}
@@ -1131,7 +1149,7 @@ func (h *Hands) infoVelocidadRed() string {
 
 func (h *Hands) infoWifi() string {
 	ps := "(netsh wlan show interfaces | Select-String 'SSID' | Select-String -NotMatch 'BSSID')"
-	salida, err := exec.Command("powershell", "-Command", ps).Output()
+	salida, err := ejecutarConTimeout("powershell", "-Command", ps)
 	if err != nil {
 		return "No pude obtener la red WiFi, señor."
 	}
@@ -1148,7 +1166,7 @@ func (h *Hands) infoWifi() string {
 
 func (h *Hands) infoConexiones() string {
 	ps := "(Get-NetTCPConnection | Where-Object {$_.State -eq 'Established'} | Measure-Object).Count"
-	salida, err := exec.Command("powershell", "-Command", ps).Output()
+	salida, err := ejecutarConTimeout("powershell", "-Command", ps)
 	if err != nil {
 		return "No pude contar las conexiones activas, señor."
 	}
@@ -1237,7 +1255,7 @@ func (h *Hands) brilloPorcentaje(cmd string) string {
 
 func (h *Hands) obtenerBrillo() int {
 	ps := "(Get-CimInstance -Namespace root\\wmi -ClassName WmiMonitorBrightness | Select-Object -ExpandProperty CurrentBrightness)"
-	salida, err := exec.Command("powershell", "-Command", ps).Output()
+	salida, err := ejecutarConTimeout("powershell", "-Command", ps)
 	if err != nil {
 		return 50
 	}
@@ -1256,7 +1274,7 @@ func (h *Hands) establecerBrillo(nivel int) string {
 
 func (h *Hands) modoAvion() string {
 	ps := `$ad=Get-NetAdapter -Physical | Where-Object {$_.Status -eq 'Up'}; if($ad){try{$ad | Disable-NetAdapter -Confirm:$false -ErrorAction Stop; "Modo avión activado, señor."}catch{"No pude activar modo avión. ¿Ejecuta como administrador, señor?"}}else{$ad=Get-NetAdapter -Physical | Where-Object {$_.Status -eq 'Disabled'}; if($ad){try{$ad | Enable-NetAdapter -Confirm:$false -ErrorAction Stop; "Modo avión desactivado, señor."}catch{"No pude desactivar modo avión. ¿Ejecuta como administrador, señor?"}}else{"No encontré adaptadores de red física, señor."}}`
-	salida, err := exec.Command("powershell", "-Command", ps).Output()
+	salida, err := ejecutarConTimeout("powershell", "-Command", ps)
 	if err != nil {
 		return "No pude cambiar el modo avión, señor."
 	}
@@ -1393,7 +1411,7 @@ func (h *Hands) rutaActual() string {
 
 func (h *Hands) volumenActual() string {
 	ps := `Add-Type -TypeDefinition 'using System.Runtime.InteropServices; public class Vol { [DllImport("winmm.dll")] public static extern int waveOutGetVolume(IntPtr hwo, out uint dwVolume); }'; $v=[uint32]0; [Vol]::waveOutGetVolume([IntPtr]::Zero, [ref]$v); $left=[math]::Round(($v -band 0xFFFF)/65535.0*100); $right=[math]::Round(($v -shr 16)/65535.0*100); [math]::Max($left,$right)`
-	salida, err := exec.Command("powershell", "-Command", ps).Output()
+	salida, err := ejecutarConTimeout("powershell", "-Command", ps)
 	if err != nil {
 		return "No pude leer el volumen actual, señor."
 	}
@@ -1443,7 +1461,7 @@ func (h *Hands) buscarArchivos(cmd string) string {
 		return -1
 	}, consulta)
 	ps := fmt.Sprintf(`Get-ChildItem -Path "$env:USERPROFILE" -Recurse -Filter "*%s*" -ErrorAction SilentlyContinue | Select-Object -First 10 -ExpandProperty FullName`, sanitizado)
-	salida, err := exec.Command("powershell", "-Command", ps).Output()
+	salida, err := ejecutarConTimeout("powershell", "-Command", ps)
 	if err != nil {
 		return fmt.Sprintf("No pude buscar archivos, señor: %v", err)
 	}
@@ -1538,7 +1556,7 @@ func (h *Hands) consultarNoticias() string {
 
 func (h *Hands) noticiasFallback() string {
 	ps := `(Invoke-WebRequest -Uri "https://news.google.com/rss?hl=es-419&gl=AR&ceid=AR:es-419" -UseBasicParsing).Content`
-	salida, err := exec.Command("powershell", "-Command", ps).Output()
+	salida, err := ejecutarConTimeout("powershell", "-Command", ps)
 	if err != nil {
 		return "No pude obtener las noticias, señor."
 	}

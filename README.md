@@ -28,8 +28,8 @@ La propuesta de negocio (detallada en `PLAN-EMPRESA.md`):
 2. **El empleado no abandona**: las órdenes persisten en disco; al arrancar, Jarvis anuncia las pendientes y las retoma con "retomá las órdenes".
 3. **Bucle de agente con IA** (`core/agente.go`): la IA recibe la orden + un **catálogo de herramientas** y responde con **JSON estricto** (`{"accion":"<comando>","razon":"<por qué>"}` para ejecutar un paso, o `{"fin":"<resumen>"}` para cerrar). El bucle ejecuta, observa el resultado, ajusta (hasta 10 iteraciones) y, al cumplirse, **aprende el procedimiento** para la próxima vez. Si la IA responde JSON malformado, se le re-pide mostrando el error (hasta 3 veces) antes de bloquear la orden.
 4. **Procedimientos** (`core/empleado.go`): se aprenden en 1 o 2 turnos ("aprendé que para hacer X: paso 1, paso 2"), se ejecutan, se consultan y se inyectan en el prompt de la IA.
-5. **Acciones sensibles → aprobación (F2 inicial)**: el bucle ya no bloquea en seco. Detecta la acción sensible con el paquete `core/security`, pasa la orden a **`esperando_aprobacion`**, dispara una **alerta visual en la Web UI** y exige el **PIN del dueño** (4-6 dígitos, en `config.json`) o el botón de autorización del panel. Al aprobar, el agente **reanuda la ejecución automáticamente**; al denegar, la orden queda bloqueada.
-6. **Auditoría inmutable** (`core/audit`, JSONL append-only): cada comando ejecutado se registra con usuario, rol, orden, comando y resultado exacto. Lista para alimentar SQLite y el panel de F2.
+5. **Acciones sensibles → aprobación (F2 inicial)**: el bucle ya no bloquea en seco. Detecta la acción sensible con el paquete `core/security`, pasa la orden a **`esperando_aprobacion`**, dispara una **alerta visual en la Web UI** y exige el **PIN del dueño** (4-6 dígitos, en `config.json`) o el botón de autorización del panel. Al aprobar, el agente **reanuda la ejecución automáticamente**; al denegar, la orden queda bloqueada. Si el dueño no responde en **5 minutos**, la orden expira sola (`expirada`, auditada como `expirado_por_timeout_aprobacion`) y se puede volver a ejecutar.
+6. **Auditoría inmutable** (`core/audit`, JSONL append-only): cada comando ejecutado se registra con usuario, rol, orden, comando y resultado exacto. Lista para alimentar SQLite y el panel de F2. Al superar **10 MB** el archivo se **rota automáticamente** (se archiva con sufijo `.YYYYMMDD_HHMMSS` y se sigue en un archivo nuevo limpio).
 7. **Escritura atómica** (temp + rename) para que un crash no corrompa órdenes/tareas/procedimientos.
 8. **Reporte por orden**: qué hizo, en qué orden, qué falló, qué necesita.
 
@@ -75,7 +75,7 @@ Ejemplo del bucle con IA (probado con IA falsa):
 
 ## 6. Qué sigue (plan por fases)
 
-- **F2 — Confiabilidad B2B** *(en curso)*: paquetes `security` (clasificación de riesgo) y `audit` (registro inmutable) ya separados; **aprobación por PIN/panel con reanudación automática** implementada para acciones sensibles. Pendiente: roles por usuario, autenticación, panel del dueño completo.
+- **F2 — Confiabilidad B2B** *(en curso)*: paquetes `security` (clasificación de riesgo) y `audit` (registro inmutable) ya separados; **aprobación por PIN/panel con reanudación automática** implementada para acciones sensibles; **timeout de aprobación de 5 min** (orden expira sola) y **rotación automática de la auditoría** a 10 MB; **timeout de ejecución de comandos externos** de 30 s (aborta con error claro en vez de colgarse). Pendiente: roles por usuario, autenticación, panel del dueño completo.
 - **F3 — Integraciones de oficina**: email (Gmail/Outlook), Office por COM (Word/Excel/PPT), calendario, PDF, redes sociales.
 - **F4 — Producto y presencia B2B**: marca corporativa, dashboard, onboarding en <15 min.
 - **F5 — Propuesta comercial**: documento de venta + demo guionizada + pilotos.

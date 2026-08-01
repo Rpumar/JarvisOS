@@ -197,10 +197,14 @@ func main() {
 	fmt.Println("[JARVIS] Sistemas en línea.")
 
 	var wg sync.WaitGroup
-	wg.Add(1)
+	wg.Add(2)
 	go func() {
 		defer wg.Done()
 		vigilarRecordatorios(almacen, hands)
+	}()
+	go func() {
+		defer wg.Done()
+		vigilarAprobaciones(hands)
 	}()
 
 	sigChan := make(chan os.Signal, 1)
@@ -350,6 +354,7 @@ func ejecutarModoServicio() {
 		defer wg.Done()
 		vigilarRecordatoriosService(almacen, hands)
 	}()
+	go vigilarAprobaciones(hands)
 
 	fmt.Println("[SERVICE] JarvisOS iniciado en modo servicio.")
 
@@ -449,6 +454,7 @@ func ejecutarWebUI() {
 		fmt.Printf("[ORDENES] %s\n", pendientesOrdenes)
 		fmt.Println("[ORDENES] Las órdenes no se abandonan. Diga 'retomá las órdenes' para seguir trabajándolas.")
 	}
+	go vigilarAprobaciones(hands)
 	servidor := webui.NuevoServidor(brain, 8080, webui.ServidorOpciones{
 		Estado:        hands,
 		Diagnostico:   hands,
@@ -458,6 +464,21 @@ func ejecutarWebUI() {
 	if err := servidor.Iniciar(); err != nil {
 		fmt.Fprintf(os.Stderr, "[WEBUI] Error: %v\n", err)
 		os.Exit(1)
+	}
+}
+
+func vigilarAprobaciones(hands *core.Hands) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("[ADVERTENCIA] El vigía de aprobaciones se detuvo por un error inesperado: %v\n", r)
+		}
+	}()
+
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		hands.ExpirarAprobacionesAntiguas(core.TiempoMaximoAprobacion)
 	}
 }
 

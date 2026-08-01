@@ -1,6 +1,7 @@
 package core
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -64,5 +65,30 @@ func TestEsProcesoProtegido_NoDistingueMayusculas(t *testing.T) {
 	// depender de ese orden como suposición implícita.
 	if !esProcesoProtegido("EXPLORER.EXE") {
 		t.Error("esProcesoProtegido debería ser insensible a mayúsculas/minúsculas")
+	}
+}
+
+func TestEjecutarConTimeout_Aborta(t *testing.T) {
+	viejo := TiempoLimiteComando
+	TiempoLimiteComando = 300 * time.Millisecond
+	defer func() { TiempoLimiteComando = viejo }()
+
+	_, err := ejecutarConTimeout("powershell", "-NoProfile", "-Command", "Start-Sleep -Seconds 5")
+	if err == nil || !strings.Contains(err.Error(), "límite") {
+		t.Fatalf("un comando que no termina debe abortarse con error de tiempo límite, obtuve: %v", err)
+	}
+}
+
+func TestEjecutarConTimeout_ComandoRapidoOk(t *testing.T) {
+	viejo := TiempoLimiteComando
+	TiempoLimiteComando = 30 * time.Second
+	defer func() { TiempoLimiteComando = viejo }()
+
+	salida, err := ejecutarConTimeout("cmd", "/C", "echo hola")
+	if err != nil {
+		t.Fatalf("un comando rápido no debe fallar: %v", err)
+	}
+	if !strings.Contains(string(salida), "hola") {
+		t.Fatalf("salida inesperada: %q", string(salida))
 	}
 }

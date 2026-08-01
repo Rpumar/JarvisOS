@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"JarvisOS/core/audit"
 )
@@ -176,5 +177,75 @@ func TestProcesarOrden_EsperandoAprobacionGuia(t *testing.T) {
 	got := h.procesarOrden(o.ID)
 	if !strings.Contains(got, "esperando su aprobación") {
 		t.Fatalf("esperaba guía de aprobación, obtuve: %q", got)
+	}
+}
+
+func TestAprobarOrden_ExpiraPorTimeout(t *testing.T) {
+	dir := t.TempDir()
+	h := &Hands{
+		ordenes:   NuevoGestorOrdenes(filepath.Join(dir, "ordenes.json")),
+		Auditoria: audit.NuevoRegistro(filepath.Join(dir, "auditoria.jsonl")),
+	}
+	o := h.ordenes.Agregar("tarea sensible", "dueño")
+	h.ordenes.SolicitarAprobacion(o.ID, "borrar la carpeta de respaldos", "borrar archivos o datos")
+
+	got := h.ExpirarAprobacionesAntiguas(TiempoMaximoAprobacion)
+	if got != "" {
+		t.Fatalf("una orden recién pedida no debe expirar, obtuve: %q", got)
+	}
+
+	orden, _ := h.ordenes.Obtener(o.ID)
+	if orden.Estado != OrdenEsperandoAprobacion {
+		t.Fatalf("la orden recién pedida debe seguir esperando, está: %s", orden.Estado)
+	}
+
+	h.ordenes.mu.Lock()
+	h.ordenes.ordenes[0].PendienteDesde = time.Now().Add(-6 * time.Minute).Format(time.RFC3339)
+	h.ordenes.mu.Unlock()
+
+	got = h.ExpirarAprobacionesAntiguas(TiempoMaximoAprobacion)
+	if !strings.Contains(got, "expiró") {
+		t.Fatalf("esperaba resumen de expiración, obtuve: %q", got)
+	}
+
+	orden, _ = h.ordenes.Obtener(o.ID)
+	if orden.Estado != OrdenExpirada {
+		t.Fatalf("la orden debía quedar expirada, está: %s", orden.Estado)
+	}
+	if orden.PendienteAccion != "" {
+		t.Fatalf("la acción sensible debía descartarse, quedó: %q", orden.PendienteAccion)
+	}
+
+	encontrado := false
+	for _, e := range h.Auditoria.Listar() {
+		if strings.Contains(e.Resultado, "expirado_por_timeout_aprobacion") {
+			encontrado = true
+		}
+	}
+	if !encontrado {
+		t.Fatal("la expiración por timeout debía auditarse como 'expirado_por_timeout_aprobacion'")
+	}
+
+	got = h.procesarOrden(o.ID)
+	if !strings.Contains(got, "expiró") {
+		t.Fatalf("procesar una orden expirada debe explicarlo, obtuve: %q", got)
+	}
+}
+
+func TestAprobarOrden_ExpiraYNoSePuedeAprobar(t *testing.T) {
+	dir := t.TempDir()
+	h := &Hands{
+		ordenes: NuevoGestorOrdenes(filepath.Join(dir, "ordenes.json")),
+	}
+	o := h.ordenes.Agregar("tarea sensible", "dueño")
+	h.ordenes.SolicitarAprobacion(o.ID, "borrar respaldos", "borrar archivos o datos")
+
+	h.ordenes.mu.Lock()
+	h.ordenes.ordenes[0].PendienteDesde = time.Now().Add(-6 * time.Minute).Format(time.RFC3339)
+	h.ordenes.mu.Unlock()
+
+	got := h.AprobarOrden(o.ID, "1234")
+	if !strings.Contains(got, "no está esperando aprobación") && !strings.Contains(got, "expirada") {
+		t.Fatalf("una orden expirada no debe poder aprobarse, obtuve: %q", got)
 	}
 }
