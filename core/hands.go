@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/rand"
 	"net"
 	"net/http"
 	"net/url"
@@ -47,6 +46,9 @@ type Hands struct {
 	NewsKey  string
 	Prefs    RegistroPreferencias
 	rutinas  *RutinaManager
+	tareas   *GestorTareas
+	procedimientos *GestorProcedimientos
+	procedimientoPendiente string
 	clasif   *Clasificador
 
 	VozActiva bool
@@ -77,6 +79,8 @@ type HandsOpciones struct {
 	NewsKey  string
 	Prefs    RegistroPreferencias
 	Rutinas  *RutinaManager
+	Tareas   *GestorTareas
+	Procedimientos *GestorProcedimientos
 
 	VozActiva bool
 	VozVoice  string
@@ -95,6 +99,8 @@ func NewHands(opciones ...HandsOpciones) *Hands {
 		h.NewsKey = opciones[0].NewsKey
 		h.Prefs = opciones[0].Prefs
 		h.rutinas = opciones[0].Rutinas
+		h.tareas = opciones[0].Tareas
+		h.procedimientos = opciones[0].Procedimientos
 		h.VozActiva = opciones[0].VozActiva
 		h.VozVoice = opciones[0].VozVoice
 		h.VozRate = opciones[0].VozRate
@@ -357,30 +363,6 @@ func (h *Hands) RunCommand(cmd string) string {
 		return h.abrirCarpeta("Recent")
 	}
 
-	// === DIVERSIÓN ===
-	switch {
-	case strings.Contains(cmd, "moneda") || strings.Contains(cmd, "cara o cruz") || strings.Contains(cmd, "cara y cruz"):
-		return h.lanzarMoneda()
-	case strings.Contains(cmd, "dado") || strings.Contains(cmd, "tirar dado") || strings.Contains(cmd, "lanzar dado"):
-		return h.tirarDado()
-	case strings.Contains(cmd, "número aleatorio") || strings.Contains(cmd, "numero aleatorio") || strings.Contains(cmd, "random"):
-		return h.numeroAleatorio()
-	case strings.Contains(cmd, "cumplido") || strings.Contains(cmd, "piropo") || strings.Contains(cmd, "algo bonito"):
-		return h.decirCumplido()
-	case strings.Contains(cmd, "sí o no") || strings.Contains(cmd, "si o no") || strings.Contains(cmd, "decisión") || strings.Contains(cmd, "decision"):
-		return h.decidir()
-	case strings.Contains(cmd, "color aleatorio") || strings.Contains(cmd, "color random"):
-		return h.colorAleatorio()
-	case strings.Contains(cmd, "motivación") || strings.Contains(cmd, "motivacion") || strings.Contains(cmd, "frase motivadora"):
-		return h.fraseMotivadora()
-	case strings.Contains(cmd, "trabalenguas") || strings.Contains(cmd, "traba lenguas"):
-		return h.trabalenguas()
-	case strings.Contains(cmd, "signo zodiacal") || strings.Contains(cmd, "horóscopo") || strings.Contains(cmd, "horoscopo"):
-		return h.signoZodiacal()
-	case strings.Contains(cmd, "días para") || strings.Contains(cmd, "dias para") || strings.Contains(cmd, "cuánto falta para") || strings.Contains(cmd, "cuanto falta para"):
-		return h.diasParaNavidad()
-	}
-
 	// === VOZ / SONIDO ===
 	switch {
 	case strings.Contains(cmd, "volumen actual") || strings.Contains(cmd, "qué volumen") || strings.Contains(cmd, "que volumen"):
@@ -404,12 +386,6 @@ func (h *Hands) RunCommand(cmd string) string {
 	switch {
 	case strings.Contains(cmd, "tomar nota rápida") || strings.Contains(cmd, "tomar nota") && strings.Contains(cmd, "rápida"):
 		return h.tomarNotaRapida()
-	case strings.Contains(cmd, "respira") || strings.Contains(cmd, "respiración") || strings.Contains(cmd, "respiracion"):
-		return h.ejercicioRespiración()
-	case strings.Contains(cmd, "beber agua") || strings.Contains(cmd, "hidratación") || strings.Contains(cmd, "hidratate") || strings.Contains(cmd, "hidratación"):
-		return h.recordatorioAgua()
-	case strings.Contains(cmd, "estiramiento") || strings.Contains(cmd, "estirar") || strings.Contains(cmd, "estirarse"):
-		return h.recordatorioEstiramiento()
 	}
 
 	// CERRAR APLICACIONES
@@ -708,21 +684,6 @@ func (h *Hands) obtenerIP() string {
 		}
 	}
 	return "No pude encontrar una dirección IP local, señor."
-}
-
-var chistes = []string{
-	"¿Por qué los pájaros no usan Facebook? Porque ya tienen Twitter.",
-	"¿Qué le dijo un semáforo a otro? No me mires que me estoy cambiando.",
-	"¿Cómo se llama el campeón de buceo? Miguel Ángel.",
-	"¿Por qué el libro de matemáticas está triste? Porque tiene muchos problemas.",
-	"Un bit le dice a otro: ¿nos vamos de bytes esta noche?",
-	"¿Cómo se despiden los químicos? Ácido un placer.",
-}
-
-// contarChiste devuelve un chiste al azar de una lista local (nuevo). Es
-// local a propósito: funciona incluso sin OPENAI_API_KEY configurada.
-func (h *Hands) contarChiste() string {
-	return chistes[rand.Intn(len(chistes))]
 }
 
 // copiarAlPortapapeles copia texto al portapapeles de Windows (nuevo).
@@ -1399,102 +1360,6 @@ func (h *Hands) rutaActual() string {
 	return fmt.Sprintf("La ruta actual es %s, señor.", ruta)
 }
 
-// === NUEVAS DIVERSIÓN ===
-
-func (h *Hands) lanzarMoneda() string {
-	if rand.Intn(2) == 0 {
-		return "Cara, señor."
-	}
-	return "Cruz, señor."
-}
-
-func (h *Hands) tirarDado() string {
-	return fmt.Sprintf("Salió %d, señor.", rand.Intn(6)+1)
-}
-
-func (h *Hands) numeroAleatorio() string {
-	return fmt.Sprintf("Su número aleatorio es %d, señor.", rand.Intn(100)+1)
-}
-
-var cumplidos = []string{
-	"Es usted una persona increíble, señor.",
-	"Admiro su inteligencia, señor.",
-	"Hoy está especialmente brillante, señor.",
-	"Tiene un gusto excelente, señor.",
-	"Es un placer trabajar para usted, señor.",
-	"Su determinación es inspiradora, señor.",
-}
-
-func (h *Hands) decirCumplido() string {
-	return cumplidos[rand.Intn(len(cumplidos))]
-}
-
-func (h *Hands) decidir() string {
-	if rand.Intn(2) == 0 {
-		return "Sí, señor."
-	}
-	return "No, señor."
-}
-
-var colores = []string{"rojo", "azul", "verde", "amarillo", "naranja", "violeta", "rosa", "negro", "blanco", "gris", "marrón", "turquesa", "dorado", "plateado"}
-
-func (h *Hands) colorAleatorio() string {
-	return fmt.Sprintf("Su color aleatorio es %s, señor.", colores[rand.Intn(len(colores))])
-}
-
-var motivacion = []string{
-	"El éxito no es la clave de la felicidad. La felicidad es la clave del éxito.",
-	"El único modo de hacer un gran trabajo es amar lo que haces.",
-	"No cuentes los días, haz que los días cuenten.",
-	"El futuro pertenece a quienes creen en la belleza de sus sueños.",
-	"Todo lo que siempre has querido está al otro lado del miedo.",
-	"La mejor manera de predecir el futuro es crearlo.",
-}
-
-func (h *Hands) fraseMotivadora() string {
-	return fmt.Sprintf("%s, señor.", motivacion[rand.Intn(len(motivacion))])
-}
-
-var trabalenguasLista = []string{
-	"Tres tristes tigres tragan trigo en un trigal.",
-	"El perro de San Roque no tiene rabo porque Ramón Ramírez se lo ha robado.",
-	"Pepe pisa pipas, pipas pisa Pepe.",
-	"El cielo está enladrillado ¿quién lo desenladrillará?",
-	"Pablito clavó un clavito, ¿qué clavo clavó Pablito?",
-}
-
-func (h *Hands) trabalenguas() string {
-	return fmt.Sprintf("Repita conmigo: %s", trabalenguasLista[rand.Intn(len(trabalenguasLista))])
-}
-
-func (h *Hands) signoZodiacal() string {
-	now := time.Now()
-	dia := now.YearDay()
-	if dia <= 19 { return "Su signo es Capricornio, señor." }
-	if dia <= 49 { return "Su signo es Acuario, señor." }
-	if dia <= 79 { return "Su signo es Piscis, señor." }
-	if dia <= 110 { return "Su signo es Aries, señor." }
-	if dia <= 140 { return "Su signo es Tauro, señor." }
-	if dia <= 171 { return "Su signo es Géminis, señor." }
-	if dia <= 203 { return "Su signo es Cáncer, señor." }
-	if dia <= 234 { return "Su signo es Leo, señor." }
-	if dia <= 265 { return "Su signo es Virgo, señor." }
-	if dia <= 295 { return "Su signo es Libra, señor." }
-	if dia <= 325 { return "Su signo es Escorpio, señor." }
-	if dia <= 355 { return "Su signo es Sagitario, señor." }
-	return "Su signo es Capricornio, señor."
-}
-
-func (h *Hands) diasParaNavidad() string {
-	now := time.Now()
-	navidad := time.Date(now.Year(), time.December, 25, 0, 0, 0, 0, now.Location())
-	if now.After(navidad) {
-		navidad = time.Date(now.Year()+1, time.December, 25, 0, 0, 0, 0, now.Location())
-	}
-	dias := int(navidad.Sub(now).Hours() / 24)
-	return fmt.Sprintf("Faltan %d días para Navidad, señor.", dias)
-}
-
 // === NUEVAS VOZ / SONIDO ===
 
 func (h *Hands) volumenActual() string {
@@ -1532,18 +1397,6 @@ func (h *Hands) saludarPersonalizado() string {
 
 func (h *Hands) tomarNotaRapida() string {
 	return "Dígame qué nota quiere guardar, señor. Por ejemplo: 'recordá que tengo reunión mañana'."
-}
-
-func (h *Hands) ejercicioRespiración() string {
-	return "Inhalé profundamente por 4 segundos... sostenga 4 segundos... exhale lentamente por 6 segundos. Repita 3 veces, señor."
-}
-
-func (h *Hands) recordatorioAgua() string {
-	return "Recuerde beber agua, señor. La hidratación es importante para su salud."
-}
-
-func (h *Hands) recordatorioEstiramiento() string {
-	return "Es momento de estirarse, señor. Levántese y estire los brazos y la espalda por unos segundos."
 }
 
 func (h *Hands) buscarArchivos(cmd string) string {

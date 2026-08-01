@@ -24,15 +24,12 @@ type Config struct {
 	MaxHistorialIA      int      `json:"max_historial_ia"`
 
 	ModeloIA       string `json:"modelo_ia"`
-	ClaudeAPIKey   string `json:"claude_api_key"`
+	IAURL          string `json:"ia_url"`
+	IAAPIKey       string `json:"ia_api_key"`
 	WorkspaceRoot  string `json:"workspace_root"`
 	OpenWeatherKey string            `json:"open_weather_key"`
 	NewsAPIKey     string            `json:"news_api_key"`
 	Apps           map[string]string `json:"apps"`
-	GoogleCalendar bool              `json:"google_calendar_enabled"`
-	SpotifyEnabled bool              `json:"spotify_enabled"`
-
-	BrilloPaso int `json:"brillo_paso"`
 }
 
 func defaultConfig() *Config {
@@ -49,7 +46,8 @@ func defaultConfig() *Config {
 		TTSRate:             0,
 		MaxHistorialIA:      20,
 		ModeloIA:            "qwen2.5-coder:7b",
-		ClaudeAPIKey:        "",
+		IAURL:               "",
+		IAAPIKey:            "",
 		WorkspaceRoot:       filepath.Join(os.Getenv("USERPROFILE"), "Desktop"),
 		OpenWeatherKey:      "",
 		NewsAPIKey:          "",
@@ -58,22 +56,17 @@ func defaultConfig() *Config {
 			"calculadora":   "calc",
 			"bloc":          "notepad",
 			"chrome":        "chrome",
-			"spotify":       "spotify:",
 			"word":          "winword",
 			"excel":         "excel",
 			"powerpoint":    "powerpnt",
 			"opera":         "opera",
 			"firefox":       "firefox",
 			"edge":          "msedge",
-			"discord":       "discord",
-			"whatsapp":      "whatsapp",
-			"telegram":      "telegram",
 			"outlook":       "outlook",
 			"terminal":      "windows-terminal",
 			"cmd":           "cmd",
 			"powershell":    "powershell",
 			"paint":         "mspaint",
-			"steam":         "steam",
 			"zoom":          "zoom",
 			"teams":         "teams",
 			"vscode":        "code",
@@ -89,9 +82,6 @@ func defaultConfig() *Config {
 			"clima app":     "ms-weather:",
 			"bloc de notas": "notepad",
 		},
-		GoogleCalendar:      false,
-		SpotifyEnabled:      false,
-		BrilloPaso:          20,
 	}
 }
 
@@ -121,15 +111,13 @@ func Load() *Config {
 		TTSVoice            string  `json:"tts_voice"`
 		TTSRate             int     `json:"tts_rate"`
 		MaxHistorialIA      int     `json:"max_historial_ia"`
-		ModeloIA            string            `json:"modelo_ia"`
-		ClaudeAPIKey        string            `json:"claude_api_key"`
-		WorkspaceRoot       string            `json:"workspace_root"`
-		OpenWeatherKey      string            `json:"open_weather_key"`
-		NewsAPIKey          string            `json:"news_api_key"`
+		ModeloIA            string  `json:"modelo_ia"`
+		IAURL               string  `json:"ia_url"`
+		IAAPIKey            string  `json:"ia_api_key"`
+		WorkspaceRoot       string  `json:"workspace_root"`
+		OpenWeatherKey      string  `json:"open_weather_key"`
+		NewsAPIKey          string  `json:"news_api_key"`
 		Apps                map[string]string `json:"apps"`
-		GoogleCalendar      bool              `json:"google_calendar_enabled"`
-		SpotifyEnabled      bool              `json:"spotify_enabled"`
-		BrilloPaso          int               `json:"brillo_paso"`
 	}
 
 	var alias configAlias
@@ -150,14 +138,12 @@ func Load() *Config {
 	cfg.TTSRate = alias.TTSRate
 	if alias.MaxHistorialIA > 0 { cfg.MaxHistorialIA = alias.MaxHistorialIA }
 	if alias.ModeloIA != "" { cfg.ModeloIA = alias.ModeloIA }
-	if alias.ClaudeAPIKey != "" { cfg.ClaudeAPIKey = alias.ClaudeAPIKey }
+	if alias.IAURL != "" { cfg.IAURL = alias.IAURL }
+	if alias.IAAPIKey != "" { cfg.IAAPIKey = alias.IAAPIKey }
 	if alias.WorkspaceRoot != "" { cfg.WorkspaceRoot = alias.WorkspaceRoot }
 	if alias.OpenWeatherKey != "" { cfg.OpenWeatherKey = alias.OpenWeatherKey }
 	if alias.NewsAPIKey != "" { cfg.NewsAPIKey = alias.NewsAPIKey }
 	if alias.Apps != nil { cfg.Apps = alias.Apps }
-	cfg.GoogleCalendar = alias.GoogleCalendar
-	cfg.SpotifyEnabled = alias.SpotifyEnabled
-	if alias.BrilloPaso > 0 { cfg.BrilloPaso = alias.BrilloPaso }
 
 	return cfg
 }
@@ -176,14 +162,12 @@ func (c *Config) Save() error {
 		"tts_rate":               c.TTSRate,
 		"max_historial_ia":       c.MaxHistorialIA,
 		"modelo_ia":              c.ModeloIA,
-		"claude_api_key":         c.ClaudeAPIKey,
+		"ia_url":                 c.IAURL,
+		"ia_api_key":             c.IAAPIKey,
 		"workspace_root":         c.WorkspaceRoot,
 		"open_weather_key":       c.OpenWeatherKey,
 		"news_api_key":           c.NewsAPIKey,
 		"apps":                   c.Apps,
-		"google_calendar_enabled": c.GoogleCalendar,
-		"spotify_enabled":        c.SpotifyEnabled,
-		"brillo_paso":            c.BrilloPaso,
 	}
 
 	contenido, err := json.MarshalIndent(datos, "", "  ")

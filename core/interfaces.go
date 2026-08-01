@@ -59,6 +59,8 @@ type BrainOpciones struct {
 	IngAgente      IngAgente
 	Prefs          RegistroPreferencias
 	Skills         *SkillsManager
+	Roles          *RolesManager
+	Procedimientos *GestorProcedimientos
 	MaxHistorialIA int
 }
 

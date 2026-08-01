@@ -168,12 +168,6 @@ func NuevoClasificador() *Clasificador {
 			Handler: func(cmd string, h *Hands) string { return h.obtenerIP() },
 		},
 		{
-			Nombre: "chiste",
-			Frases: []string{"contá un chiste", "conta un chiste", "decí un chiste", "deci un chiste", "chiste", "hacerme reír", "hacerme reir", "un chiste"},
-			Palabras: []string{"chiste", "reír", "reir"},
-			Handler: func(cmd string, h *Hands) string { return h.contarChiste() },
-		},
-		{
 			Nombre: "copiar",
 			Frases: []string{"copiá", "copia", "copiar", "copiar al portapapeles"},
 			Palabras: []string{"copiar", "copiá", "copia"},
@@ -328,6 +322,18 @@ func NuevoClasificador() *Clasificador {
 			Frases: []string{"crear rutina", "creá una rutina", "ejecutar rutina", "corré la rutina", "ejecutá la rutina", "listar rutinas", "mis rutinas", "qué rutinas tengo", "que rutinas tengo", "borrar rutina", "eliminar rutina", "rutina de"},
 			Palabras: []string{"rutina", "rutinas"},
 			Handler: func(cmd string, h *Hands) string { return h.manejarRutina(cmd) },
+		},
+		{
+			Nombre: "tarea",
+			Frases: []string{"agendá una tarea", "agenda una tarea", "agendame una tarea", "agendá la tarea", "qué tareas tengo", "que tareas tengo", "tareas pendientes", "tareas me faltan", "todas las tareas", "marcar tarea", "marca la tarea", "tarea como hecha", "completé la tarea", "borrar tarea", "borrá la tarea", "eliminar tarea", "registrá una tarea", "tarea nueva", "cuántas tareas tengo", "cuantas tareas tengo"},
+			Palabras: []string{"tarea", "tareas", "agendá", "agenda", "agendame", "agendáme"},
+			Handler: func(cmd string, h *Hands) string { return h.manejarTarea(cmd) },
+		},
+		{
+			Nombre: "procedimiento",
+			Frases: []string{"aprendé a hacer", "aprende a hacer", "aprendé que para", "aprende que para", "aprendé que", "aprende que", "recordá que para", "recuerda que para", "enseñame a", "enseñáme a", "cómo hago", "como hago", "cómo se hace", "como se hace", "ejecutá el procedimiento", "ejecuta el procedimiento", "qué procedimientos sabés", "que procedimientos sabes", "qué sabés hacer", "que sabes hacer", "borrar procedimiento", "olvidate el procedimiento", "olvidá el procedimiento", "los pasos son", "los pasos"},
+			Palabras: []string{"procedimiento", "procedimientos", "aprendé", "aprende", "enseñame", "enseñáme", "cómo hago", "como hago", "los pasos"},
+			Handler: func(cmd string, h *Hands) string { return h.manejarProcedimiento(cmd) },
 		},
 		{
 			Nombre: "notificacion",

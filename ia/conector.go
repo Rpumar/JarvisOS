@@ -12,42 +12,49 @@ import (
 	"JarvisOS/core"
 )
 
-const endpointOllama = "http://localhost:11434/api/chat"
+const urlOllamaV1 = "http://localhost:11434/v1"
 
 type Conector struct {
 	httpClient *http.Client
+	baseURL    string
+	apiKey     string
 	modelo     string
-	ollama     bool
+	disponible bool
 }
 
-func NuevoConector(modelo string, timeout time.Duration) *Conector {
+func NuevoConector(modelo string, timeout time.Duration, baseURL, apiKey string) *Conector {
 	if modelo == "" {
 		modelo = "qwen2.5-coder:7b"
 	}
 	if timeout <= 0 {
 		timeout = 120 * time.Second
 	}
+	if strings.TrimSpace(baseURL) == "" {
+		baseURL = urlOllamaV1
+	}
 	c := &Conector{
 		httpClient: &http.Client{Timeout: timeout},
 		modelo:     modelo,
+		baseURL:    strings.TrimSuffix(strings.TrimSpace(baseURL), "/"),
+		apiKey:     strings.TrimSpace(apiKey),
 	}
-	pollOllama(c)
+	c.probe()
 	return c
 }
 
-func pollOllama(c *Conector) {
-	resp, err := c.httpClient.Get("http://localhost:11434/api/tags")
+func (c *Conector) probe() {
+	cliente := &http.Client{Timeout: 5 * time.Second}
+	resp, err := cliente.Get(c.baseURL + "/models")
 	if err != nil {
 		return
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode == 200 {
-		c.ollama = true
-	}
+	io.Copy(io.Discard, resp.Body)
+	c.disponible = true
 }
 
 func (c *Conector) Disponible() bool {
-	return c.ollama
+	return c.disponible
 }
 
 func (c *Conector) Modelo() string {
@@ -59,104 +66,90 @@ type mensajeChat struct {
 	Content string `json:"content"`
 }
 
-type peticionOllamaChat struct {
-	Model    string         `json:"model"`
-	Messages []mensajeChat  `json:"messages"`
-	Stream   bool           `json:"stream"`
+type peticionChat struct {
+	Model    string        `json:"model"`
+	Messages []mensajeChat `json:"messages"`
+	Stream   bool          `json:"stream"`
 }
 
-type respuestaOllamaChat struct {
-	Message mensajeChat `json:"message"`
-	Done    bool        `json:"done"`
+type respuestaChat struct {
+	Choices []struct {
+		Message mensajeChat `json:"message"`
+	} `json:"choices"`
 }
 
 func (c *Conector) Consultar(prompt string, historial []core.TurnoConversacion) (string, error) {
-	if !c.ollama {
-		return "", fmt.Errorf("no hay IA disponible (Ollama no esta corriendo)")
+	if !c.disponible {
+		return "", fmt.Errorf("no hay IA disponible (%s no responde)", c.baseURL)
 	}
-	return c.consultarOllama(prompt, historial)
+	return c.consultarIA(prompt, historial)
 }
 
 func (c *Conector) Chat(system, user string) (string, error) {
-	if !c.ollama {
-		return "", fmt.Errorf("Ollama no disponible")
+	if !c.disponible {
+		return "", fmt.Errorf("la IA no está disponible")
 	}
-
-	mensajes := []mensajeChat{
-		{Role: "system", Content: system},
-		{Role: "user", Content: user},
+	cuerpo := peticionChat{
+		Model: c.modelo,
+		Messages: []mensajeChat{
+			{Role: "system", Content: system},
+			{Role: "user", Content: user},
+		},
+		Stream: false,
 	}
-
-	cuerpo := peticionOllamaChat{
-		Model:    c.modelo,
-		Messages: mensajes,
-		Stream:   false,
-	}
-
-	datosJSON, _ := json.Marshal(cuerpo)
-	req, _ := http.NewRequest(http.MethodPost, endpointOllama, bytes.NewReader(datosJSON))
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("error al contactar Ollama: %w", err)
-	}
-	defer resp.Body.Close()
-
-	cuerpoResp, _ := io.ReadAll(resp.Body)
-	var r respuestaOllamaChat
-	if err := json.Unmarshal(cuerpoResp, &r); err != nil {
-		return "", fmt.Errorf("error al interpretar respuesta: %w", err)
-	}
-
-	if r.Message.Content == "" {
-		return "", fmt.Errorf("Ollama no devolvió contenido")
-	}
-
-	return r.Message.Content, nil
-}
-
-func (c *Conector) consultarOllama(prompt string, historial []core.TurnoConversacion) (string, error) {
-	mensajes := buildMensajes(prompt, historial)
-
-	cuerpo := peticionOllamaChat{
-		Model:    c.modelo,
-		Messages: mensajes,
-		Stream:   false,
-	}
-
 	datosJSON, err := json.Marshal(cuerpo)
 	if err != nil {
 		return "", fmt.Errorf("error al preparar la peticion: %w", err)
 	}
+	return c.enviarChat(datosJSON)
+}
 
-	peticion, err := http.NewRequest(http.MethodPost, endpointOllama, bytes.NewReader(datosJSON))
+func (c *Conector) consultarIA(prompt string, historial []core.TurnoConversacion) (string, error) {
+	cuerpo := peticionChat{
+		Model:    c.modelo,
+		Messages: buildMensajes(prompt, historial),
+		Stream:   false,
+	}
+	datosJSON, err := json.Marshal(cuerpo)
+	if err != nil {
+		return "", fmt.Errorf("error al preparar la peticion: %w", err)
+	}
+	return c.enviarChat(datosJSON)
+}
+
+func (c *Conector) enviarChat(datosJSON []byte) (string, error) {
+	req, err := http.NewRequest(http.MethodPost, c.baseURL+"/chat/completions", bytes.NewReader(datosJSON))
 	if err != nil {
 		return "", fmt.Errorf("error al construir la peticion HTTP: %w", err)
 	}
-	peticion.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+	if c.apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	}
 
-	resp, err := c.httpClient.Do(peticion)
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("error al contactar Ollama: %w", err)
+		return "", fmt.Errorf("error al contactar la IA: %w", err)
 	}
 	defer resp.Body.Close()
 
 	cuerpoResp, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("error al leer la respuesta de Ollama: %w", err)
+		return "", fmt.Errorf("error al leer la respuesta: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("la IA respondió %d: %s", resp.StatusCode, strings.TrimSpace(string(cuerpoResp)))
 	}
 
-	var respuesta respuestaOllamaChat
-	if err := json.Unmarshal(cuerpoResp, &respuesta); err != nil {
-		return "", fmt.Errorf("error al interpretar la respuesta de Ollama: %w", err)
+	var r respuestaChat
+	if err := json.Unmarshal(cuerpoResp, &r); err != nil {
+		return "", fmt.Errorf("error al interpretar la respuesta: %w", err)
+	}
+	if len(r.Choices) == 0 || r.Choices[0].Message.Content == "" {
+		return "", fmt.Errorf("la IA no devolvió contenido")
 	}
 
-	if respuesta.Message.Content == "" {
-		return "", fmt.Errorf("Ollama no devolvio contenido")
-	}
-
-	return respuesta.Message.Content, nil
+	return r.Choices[0].Message.Content, nil
 }
 
 func buildMensajes(prompt string, historial []core.TurnoConversacion) []mensajeChat {
@@ -190,8 +183,8 @@ EXPLICACION:
 <una explicación breve en español, en una o dos frases, de qué hace el script o por qué no se generó>`
 
 func (c *Conector) ConsultarCodigo(peticion string) (codigo string, explicacion string, err error) {
-	if !c.ollama {
-		return "", "", fmt.Errorf("no hay IA disponible (Ollama no esta corriendo)")
+	if !c.disponible {
+		return "", "", fmt.Errorf("no hay IA disponible (%s no responde)", c.baseURL)
 	}
 	respuesta, err := c.chatConSistema(promptSistemaCodigo, peticion)
 	if err != nil {
@@ -221,8 +214,8 @@ EXPLICACION:
 <resumen breve en español de qué hace el cambio y cómo se prueba>`
 
 func (c *Conector) ConsultarDesarrollo(peticion string) (respuesta string, explicacion string, err error) {
-	if !c.ollama {
-		return "", "", fmt.Errorf("no hay IA disponible (Ollama no esta corriendo)")
+	if !c.disponible {
+		return "", "", fmt.Errorf("no hay IA disponible (%s no responde)", c.baseURL)
 	}
 	codigo, err := c.chatConSistema(promptSistemaDesarrollo, peticion)
 	if err != nil {
@@ -240,7 +233,10 @@ func extraerExplicacionDesarrollo(texto string) string {
 }
 
 func (c *Conector) chatConSistema(system, user string) (string, error) {
-	cuerpo := peticionOllamaChat{
+	if !c.disponible {
+		return "", fmt.Errorf("la IA no está disponible")
+	}
+	cuerpo := peticionChat{
 		Model: c.modelo,
 		Messages: []mensajeChat{
 			{Role: "system", Content: system},
@@ -252,28 +248,7 @@ func (c *Conector) chatConSistema(system, user string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("error al preparar la peticion: %w", err)
 	}
-	req, err := http.NewRequest(http.MethodPost, endpointOllama, bytes.NewReader(datosJSON))
-	if err != nil {
-		return "", fmt.Errorf("error al construir la peticion HTTP: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return "", fmt.Errorf("error al contactar Ollama: %w", err)
-	}
-	defer resp.Body.Close()
-	cuerpoResp, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("error al leer la respuesta: %w", err)
-	}
-	var r respuestaOllamaChat
-	if err := json.Unmarshal(cuerpoResp, &r); err != nil {
-		return "", fmt.Errorf("error al interpretar respuesta de Ollama: %w", err)
-	}
-	if r.Message.Content == "" {
-		return "", fmt.Errorf("Ollama no devolvió contenido")
-	}
-	return r.Message.Content, nil
+	return c.enviarChat(datosJSON)
 }
 
 func parsearRespuestaCodigo(texto string) (codigo string, explicacion string, err error) {

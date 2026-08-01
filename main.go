@@ -101,15 +101,20 @@ func main() {
 
 	prefs := memoria.NuevoGestorPreferencias(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "preferencias.json"))
 	rutinas := core.NuevoRutinaManager(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "rutinas.json"))
+	tareas := core.NuevoGestorTareas(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "tareas.json"))
+	procedimientos := core.NuevoGestorProcedimientos(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "procedimientos.json"))
 
-	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout)
+	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout, cfg.IAURL, cfg.IAAPIKey)
 	gestorSkills := core.NuevoSkillsManager()
+	gestorRoles := core.NuevoRolesManager()
 	hands := core.NewHands(core.HandsOpciones{
 		Apps:            cfg.Apps,
 		ClimaKey:        cfg.OpenWeatherKey,
 		NewsKey:         cfg.NewsAPIKey,
 		Prefs:           prefs,
 		Rutinas:         rutinas,
+		Tareas:          tareas,
+		Procedimientos:  procedimientos,
 		VozActiva:       prefs.Get().VozActivada,
 		VozVoice:        cfg.TTSVoice,
 		VozRate:         cfg.TTSRate,
@@ -144,14 +149,20 @@ func main() {
 		Coder:          coderAgent,
 		Memoria:        almacen,
 		IngAgente:      ingAgente,
-		Prefs:          prefs,
-		Skills:         gestorSkills,
+		Prefs:           prefs,
+		Skills:          gestorSkills,
+		Roles:           gestorRoles,
+		Procedimientos:  procedimientos,
 		MaxHistorialIA: cfg.MaxHistorialIA,
 	})
 
 	if plan := gestorPlan.PlanPendiente(); plan != nil {
 		fmt.Printf("[PLAN] Tiene un plan pendiente: %s\n", plan.Objetivo)
 		fmt.Println("[PLAN] Diga 'continuar plan' para retomarlo o 'cancelar plan' para descartarlo.")
+	}
+
+	if pendientes := tareas.TextoPendientes(); pendientes != "" {
+		fmt.Printf("[TAREAS] %s\n", pendientes)
 	}
 
 	if conectorIA.Disponible() {
@@ -276,8 +287,11 @@ func ejecutarModoServicio() {
 	}
 
 	cfg := config.Load()
-	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout)
+	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout, cfg.IAURL, cfg.IAAPIKey)
 	gestorSkills := core.NuevoSkillsManager()
+	gestorRoles := core.NuevoRolesManager()
+	tareas := core.NuevoGestorTareas(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "tareas.json"))
+	procedimientos := core.NuevoGestorProcedimientos(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "procedimientos.json"))
 	hands := core.NewHands(core.HandsOpciones{
 		Apps:            cfg.Apps,
 		ClimaKey:        cfg.OpenWeatherKey,
@@ -287,6 +301,8 @@ func ejecutarModoServicio() {
 		WorkspaceRoot:   cfg.WorkspaceRoot,
 		DesarrolladorIA: conectorIA,
 		Skills:          gestorSkills,
+		Tareas:          tareas,
+		Procedimientos:  procedimientos,
 	})
 	coderAgent := agents.NewCoderAgent(conectorIA)
 	gestorPlan := agents.NuevoGestorPlan(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "planes"))
@@ -299,7 +315,7 @@ func ejecutarModoServicio() {
 	defer almacen.Cerrar()
 	brain := core.NewBrain(hands, core.BrainOpciones{
 		IA: conectorIA, Coder: coderAgent, Memoria: almacen, IngAgente: ingAgente,
-		Skills: gestorSkills, MaxHistorialIA: cfg.MaxHistorialIA,
+		Skills: gestorSkills, Roles: gestorRoles, Procedimientos: procedimientos, MaxHistorialIA: cfg.MaxHistorialIA,
 	})
 	oidos, err := core.NewEars(cfg.ModeloVoz)
 	if err != nil {
@@ -379,11 +395,14 @@ func ejecutarWebUI() {
 	cfg := config.Load()
 	prefs := memoria.NuevoGestorPreferencias(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "preferencias.json"))
 	rutinas := core.NuevoRutinaManager(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "rutinas.json"))
-	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout)
+	tareas := core.NuevoGestorTareas(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "tareas.json"))
+	procedimientos := core.NuevoGestorProcedimientos(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "procedimientos.json"))
+	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout, cfg.IAURL, cfg.IAAPIKey)
 	gestorSkills := core.NuevoSkillsManager()
+	gestorRoles := core.NuevoRolesManager()
 	hands := core.NewHands(core.HandsOpciones{
 		Apps: cfg.Apps, ClimaKey: cfg.OpenWeatherKey, NewsKey: cfg.NewsAPIKey,
-		Prefs: prefs, Rutinas: rutinas,
+		Prefs: prefs, Rutinas: rutinas, Tareas: tareas, Procedimientos: procedimientos,
 		VozActiva: prefs.Get().VozActivada, VozVoice: cfg.TTSVoice, VozRate: cfg.TTSRate,
 		WorkspaceRoot: cfg.WorkspaceRoot, DesarrolladorIA: conectorIA, Skills: gestorSkills,
 	})
@@ -396,8 +415,12 @@ func ejecutarWebUI() {
 	}
 	brain := core.NewBrain(hands, core.BrainOpciones{
 		IA: conectorIA, Coder: coderAgent, Memoria: almacen,
-		IngAgente: ingAgente, Prefs: prefs, Skills: gestorSkills, MaxHistorialIA: cfg.MaxHistorialIA,
+		IngAgente: ingAgente, Prefs: prefs, Skills: gestorSkills, Roles: gestorRoles,
+		Procedimientos: procedimientos, MaxHistorialIA: cfg.MaxHistorialIA,
 	})
+	if pendientes := tareas.TextoPendientes(); pendientes != "" {
+		fmt.Printf("[TAREAS] %s\n", pendientes)
+	}
 	servidor := webui.NuevoServidor(brain, 8080, webui.ServidorOpciones{
 		Estado:        hands,
 		Diagnostico:   hands,

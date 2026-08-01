@@ -11,8 +11,10 @@ type Brain struct {
 	coder AgenteDeCodigo
 	mem   MemoriaPersistente
 	ing   IngAgente
-	prefs RegistroPreferencias
+	prefs  RegistroPreferencias
 	skills *SkillsManager
+	roles  *RolesManager
+	procs  *GestorProcedimientos
 
 	ultimaApp      string
 	ultimaBusqueda string
@@ -29,7 +31,7 @@ type accionConfirmable struct {
 }
 
 func NewBrain(h EjecutorComandos, opciones BrainOpciones) *Brain {
-	b := &Brain{hands: h, ia: opciones.IA, coder: opciones.Coder, mem: opciones.Memoria, ing: opciones.IngAgente, prefs: opciones.Prefs, skills: opciones.Skills, maxHistorialIA: 5}
+	b := &Brain{hands: h, ia: opciones.IA, coder: opciones.Coder, mem: opciones.Memoria, ing: opciones.IngAgente, prefs: opciones.Prefs, skills: opciones.Skills, roles: opciones.Roles, procs: opciones.Procedimientos, maxHistorialIA: 5}
 	if opciones.MaxHistorialIA > 0 {
 		b.maxHistorialIA = opciones.MaxHistorialIA
 	}
@@ -124,6 +126,10 @@ func (b *Brain) procesarInterno(input string) string {
 		return "Puede pedirme que abra aplicaciones, busque en internet, le diga la hora, escriba scripts, recuerde cosas, y más. Mire la consola para ver todos los comandos, señor."
 	}
 
+	if respuesta, atendido := b.manejarRoles(entrada); atendido {
+		return respuesta
+	}
+
 	if contieneAlguna(entrada, frasesQueDijiste) {
 		if b.ultimaRespuesta == "" {
 			return "Todavía no dije nada en esta sesión, señor."
@@ -165,8 +171,18 @@ func (b *Brain) procesarInterno(input string) string {
 
 	if b.ia != nil && b.ia.Disponible() {
 		prompt := input
+		if b.roles != nil {
+			if texto := b.roles.TextoParaIA(input); texto != "" {
+				prompt = texto + "\n\n" + prompt
+			}
+		}
 		if b.skills != nil {
 			if texto := b.skills.TextoParaIA(input); texto != "" {
+				prompt = texto + "\n\n" + prompt
+			}
+		}
+		if b.procs != nil {
+			if texto := b.procs.TextoParaIA(input); texto != "" {
 				prompt = texto + "\n\n" + prompt
 			}
 		}
@@ -184,6 +200,10 @@ func (b *Brain) procesarInterno(input string) string {
 		if esPeticionIngenieria(entrada) {
 			return b.ing.Procesar(input)
 		}
+	}
+
+	if b.procs != nil && esPedidoDeTrabajo(entrada) {
+		return "No sé cómo hacer eso todavía, señor. Enséñeme: 'aprendé que para hacer [eso]: paso 1, paso 2' y lo incorporaré al instante."
 	}
 
 	return RespuestaConfusion()
@@ -281,6 +301,82 @@ func esPeticionDeCodigo(entrada string) bool {
 	return tieneVerbo && tieneSustantivo
 }
 
+// manejarRoles interpreta los comandos de modo: listar roles, activar un modo
+// persistente ("modo ceo", "actuá como ingeniero"), salir del modo, y devuelve
+// false si el texto no era un comando de roles.
+func (b *Brain) manejarRoles(entrada string) (string, bool) {
+	if b.roles == nil {
+		return "", false
+	}
+	norm := simplificar(entrada)
+
+	if normalizadaIguales(norm, []string{
+		"qué roles tenés", "que roles tenes", "qué roles hay", "que roles hay",
+		"qué modos tenés", "que modos tenes", "qué modos hay", "que modos hay",
+		"cuáles son tus roles", "cuales son tus roles", "roles disponibles",
+		"qué roles tienes", "que roles tienes",
+	}) {
+		roles := b.roles.Listar()
+		if len(roles) == 0 {
+			return "No tengo roles cargados, señor.", true
+		}
+		activo := ""
+		if r := b.roles.RolActivo(); r != nil {
+			activo = " Modo activo ahora: " + r.Etiqueta + "."
+		}
+		return "Puedo trabajar como: " + strings.Join(roles, ", ") + ". Diga 'modo <rol>' para activarlo." + activo, true
+	}
+
+	if normalizadaIguales(norm, []string{
+		"salir de modo", "salir del modo", "modo normal", "modo general",
+		"desactivar modo", "desactivar el modo", "desactivá el modo", "desactiva el modo",
+	}) {
+		if etiqueta := b.roles.Desactivar(); etiqueta != "" {
+			return fmt.Sprintf("Modo %s desactivado, señor. Vuelvo a mi forma general de trabajar.", quitarPrefijoModo(etiqueta)), true
+		}
+		return "", false
+	}
+
+	if strings.Contains(norm, "modo") || strings.Contains(norm, "modos") ||
+		normalizadaIguales(norm, []string{
+			"actuá como", "actua como", "trabajá como", "trabaja como",
+			"ponete como", "pone como", "convertite en", "conviértete en", "hace de ",
+		}) {
+		texto := extraerObjeto(norm, []string{"modo", "actuá como", "actua como", "trabajá como", "trabaja como", "ponete como", "pone como", "convertite en", "conviértete en", "hace de "})
+		texto = strings.Trim(strings.TrimSpace(texto), " .,")
+		if texto != "" {
+			if r := b.roles.BuscarRol(texto); r != nil {
+				b.roles.Activar(r.Nombre)
+				return fmt.Sprintf("Modo %s activado, señor. %s", quitarPrefijoModo(r.Etiqueta), r.Descripcion), true
+			}
+		}
+	}
+
+	return "", false
+}
+
+// normalizadaIguales verifica si la entrada normalizada (sin tildes ni
+// puntuación) contiene alguna de las frases, también normalizadas.
+func normalizadaIguales(entrada string, frases []string) bool {
+	for _, f := range frases {
+		if strings.Contains(entrada, simplificar(f)) {
+			return true
+		}
+	}
+	return false
+}
+
+// quitarPrefijoModo evita el "Modo Modo humano" cuando la etiqueta ya arranca
+// con "Modo", preservando el resto del nombre original.
+func quitarPrefijoModo(etiqueta string) string {
+	if strings.HasPrefix(strings.ToLower(etiqueta), "modo ") {
+		if idx := strings.Index(etiqueta, " "); idx >= 0 {
+			return strings.TrimSpace(etiqueta[idx+1:])
+		}
+	}
+	return etiqueta
+}
+
 func esPalabraExacta(entrada, palabra string) bool {
 	entrada = strings.TrimSpace(entrada)
 	if entrada == palabra {
@@ -305,7 +401,7 @@ Comandos disponibles (100+):
 
 APPS:
   abrir chrome / firefox / edge / opera / vscode / bloc / word / excel / powerpoint
-  abrir spotify / discord / whatsapp / telegram / outlook / steam / zoom / teams
+  abrir outlook / zoom / teams
   abrir calculadora / terminal / cmd / powershell / paint
   abrir calendario / cámara / fotos / música / videos / mapas / noticias / clima
   cerrar [app] / cerralo          -> "cerralo" cierra la última app abierta
@@ -422,27 +518,35 @@ SKILLS:
   qué skills tenés              -> lista las skills cargadas
   (las skills se activan solas según lo que pidas)
 
+ROLES (asistente operativo):
+  modo ingeniero                -> resuelve problemas de la PC
+  modo desarrollador            -> mente maestra: planifica, piensa y actúa
+  modo ceo                      -> asesor ejecutivo (usa perfil de empresa)
+  modo marketing                -> hace conocer el negocio (usa perfil de empresa)
+  modo humano                   -> conversación lo más natural posible
+  qué roles tenés               -> lista los roles disponibles
+  salir de modo / modo normal   -> vuelve al modo general
+
+TAREAS:
+  agendá una tarea [nombre] (para [cuándo]) -> registro una tarea
+  qué tareas tengo / tareas pendientes      -> listo lo pendiente
+  todas las tareas                          -> listo todas (incluye hechas)
+  marcar tarea [#id o nombre] como hecha    -> completo una tarea
+  borrar tarea [#id o nombre]               -> elimino una tarea
+
+APRENDIZAJE (empleado digital):
+  aprendé que para hacer [tarea]: paso 1, paso 2   -> aprendo cómo se hace
+  los pasos son: paso 1, paso 2                    -> respondo los pasos pedidos
+  cómo hago [tarea] / ejecutá el procedimiento [x] -> ejecuto lo aprendido
+  qué procedimientos sabés / qué sabés hacer       -> listo lo aprendido
+  olvidate el procedimiento [x]                    -> borro lo aprendido
+
 CLIMA / NOTICIAS (requiere API key en config.json):
   clima / qué temperatura hace   -> clima de tu ciudad (si configurado)
   noticias / últimas noticias    -> titulares de noticias (si configurado)
 
-DIVERSIÓN:
-  cuéntame un chiste / cumplido / motivación
-  moneda / cara o cruz           -> lanza una moneda
-  dado                           -> tira un dado
-  número aleatorio / random      -> número del 1 al 100
-  sí o no / decisión             -> decide por ti
-  color aleatorio                -> elige un color
-  trabalenguas                   -> un trabalenguas
-  signo zodiacal                 -> signo del día
-  días para navidad              -> días que faltan
   copiar [texto]                 -> copia al portapapeles
   captura de pantalla            -> toma captura de pantalla
-
-BIENESTAR:
-  respira / respiración          -> ejercicio de respiración
-  beber agua / hidratación       -> recordatorio de agua
-  estiramiento / estirar         -> recordatorio de estirarse
 
   apagar                         -> me apago
 Si ningún comando coincide y hay una clave de IA configurada, te responderé con IA.`

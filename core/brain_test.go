@@ -137,6 +137,70 @@ func (m *memoriaFalsa) EliminarLista(nombre string) error { return nil }
 
 // --- Tests: comportamiento general (ya existían, adaptados a BrainOpciones) ---
 
+func TestProcess_Roles_ActivarUsarYSalir(t *testing.T) {
+	manos := &manosFalsas{respuesta: ComandoNoReconocido}
+	ia := &iaFalsa{disponible: true, respuesta: "Te recomiendo recortar costos fijos, señor."}
+	roles := nuevoRolesManagerConDir(t.TempDir())
+	b := NewBrain(manos, BrainOpciones{IA: ia, Roles: roles})
+
+	got := b.Process("modo ceo")
+	if !strings.Contains(got, "CEO empresarial") {
+		t.Errorf("al activar el modo debía mencionar el rol, obtuve %q", got)
+	}
+
+	got = b.Process("analizá mis costos")
+	if got != "Te recomiendo recortar costos fijos, señor." {
+		t.Errorf("respuesta = %q, esperaba la de la IA", got)
+	}
+	if !strings.Contains(ia.consultaRecibida, "[INSTRUCCIONES DE ROL]") ||
+		!strings.Contains(ia.consultaRecibida, "CEO empresarial") {
+		t.Errorf("la IA debía recibir el rol activo, obtuvo: %q", ia.consultaRecibida)
+	}
+
+	got = b.Process("salir de modo")
+	if !strings.Contains(got, "desactivado") {
+		t.Errorf("esperaba confirmación de desactivación, obtuve %q", got)
+	}
+	if roles.RolActivo() != nil {
+		t.Error("no debería quedar rol activo")
+	}
+}
+
+func TestProcess_Roles_Listar(t *testing.T) {
+	roles := nuevoRolesManagerConDir(t.TempDir())
+	b := NewBrain(&manosFalsas{}, BrainOpciones{Roles: roles})
+
+	got := b.Process("qué roles tenés")
+	if !strings.Contains(got, "CEO empresarial") || !strings.Contains(got, "Ingeniero en sistemas") {
+		t.Errorf("esperaba listar los roles, obtuve %q", got)
+	}
+}
+
+func TestProcess_Roles_ModoOscuroNoInterfiere(t *testing.T) {
+	manos := &manosFalsas{respuesta: "Tema oscuro activado, señor."}
+	roles := nuevoRolesManagerConDir(t.TempDir())
+	b := NewBrain(manos, BrainOpciones{Roles: roles})
+
+	got := b.Process("modo oscuro")
+	if got != "Tema oscuro activado, señor." {
+		t.Errorf("'modo oscuro' no debe tratarse como rol, obtuve %q", got)
+	}
+	if roles.RolActivo() != nil {
+		t.Error("no debería haber rol activo")
+	}
+}
+
+func TestProcess_Roles_SinRolesNoRompe(t *testing.T) {
+	manos := &manosFalsas{respuesta: ComandoNoReconocido}
+	ia := &iaFalsa{disponible: true, respuesta: "Respuesta genérica."}
+	b := NewBrain(manos, BrainOpciones{IA: ia})
+
+	got := b.Process("hola")
+	if got != "Respuesta genérica." {
+		t.Errorf("sin RolesManager no debe romper, obtuve %q", got)
+	}
+}
+
 func TestProcess_EntradaVacia(t *testing.T) {
 	b := NewBrain(&manosFalsas{}, BrainOpciones{})
 	if got := b.Process("   "); got != "" {

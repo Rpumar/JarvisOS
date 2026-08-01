@@ -7,36 +7,49 @@ import (
 )
 
 func TestDisponible(t *testing.T) {
-	t.Run("sin ollama", func(t *testing.T) {
+	t.Run("sin backend", func(t *testing.T) {
 		c := &Conector{httpClient: &http.Client{Timeout: 5 * time.Second}}
 		_ = c.Disponible()
 		if c.Disponible() {
-			t.Error("Disponible() deberia ser false sin Ollama")
+			t.Error("Disponible() deberia ser false sin backend")
 		}
 	})
 
-	t.Run("con ollama activo", func(t *testing.T) {
-		c := &Conector{httpClient: &http.Client{Timeout: 5 * time.Second}, ollama: true}
+	t.Run("con backend activo", func(t *testing.T) {
+		c := &Conector{httpClient: &http.Client{Timeout: 5 * time.Second}, disponible: true}
 		if !c.Disponible() {
-			t.Error("Disponible() deberia ser true con Ollama activo")
+			t.Error("Disponible() deberia ser true con backend activo")
 		}
 	})
 }
 
 func TestNuevoConector_TimeoutPorDefecto(t *testing.T) {
-	c := NuevoConector("", 0)
+	c := NuevoConector("", 0, "", "")
 	if c.httpClient.Timeout != 120*time.Second {
 		t.Errorf("timeout por defecto = %v, esperaba 120s", c.httpClient.Timeout)
+	}
+	if c.baseURL != urlOllamaV1 {
+		t.Errorf("baseURL por defecto = %q, esperaba %q", c.baseURL, urlOllamaV1)
 	}
 }
 
 func TestNuevoConector_RespetaTimeoutProvisto(t *testing.T) {
-	c := NuevoConector("test-model", 7*time.Second)
+	c := NuevoConector("test-model", 7*time.Second, "", "")
 	if c.httpClient.Timeout != 7*time.Second {
 		t.Errorf("timeout = %v, esperaba 7s", c.httpClient.Timeout)
 	}
 	if c.modelo != "test-model" {
 		t.Errorf("modelo = %v, esperaba test-model", c.modelo)
+	}
+}
+
+func TestNuevoConector_ConfiguraBaseURLYKey(t *testing.T) {
+	c := NuevoConector("modelo-nube", 7*time.Second, "https://api.groq.com/openai/v1/", "mi-clave")
+	if c.baseURL != "https://api.groq.com/openai/v1" {
+		t.Errorf("baseURL = %q, esperaba sin barra final", c.baseURL)
+	}
+	if c.apiKey != "mi-clave" {
+		t.Errorf("apiKey = %q, esperaba mi-clave", c.apiKey)
 	}
 }
 
