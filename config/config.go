@@ -31,6 +31,10 @@ type Config struct {
 	OpenWeatherKey string            `json:"open_weather_key"`
 	NewsAPIKey     string            `json:"news_api_key"`
 	Apps           map[string]string `json:"apps"`
+
+	// ComandoTimeoutSegundos es el límite de ejecución de comandos externos
+	// (30 s por defecto).
+	ComandoTimeoutSegundos int `json:"comando_timeout_segundos"`
 }
 
 func defaultConfig() *Config {
@@ -52,6 +56,7 @@ func defaultConfig() *Config {
 		WorkspaceRoot:       filepath.Join(os.Getenv("USERPROFILE"), "Desktop"),
 		OpenWeatherKey:      "",
 		NewsAPIKey:          "",
+		ComandoTimeoutSegundos: 30,
 		Apps: map[string]string{
 			"code":          "code",
 			"calculadora":   "calc",
@@ -120,6 +125,7 @@ func Load() *Config {
 		OpenWeatherKey      string  `json:"open_weather_key"`
 		NewsAPIKey          string  `json:"news_api_key"`
 		Apps                map[string]string `json:"apps"`
+		ComandoTimeoutSegundos int   `json:"comando_timeout_segundos"`
 	}
 
 	var alias configAlias
@@ -147,6 +153,7 @@ func Load() *Config {
 	if alias.OpenWeatherKey != "" { cfg.OpenWeatherKey = alias.OpenWeatherKey }
 	if alias.NewsAPIKey != "" { cfg.NewsAPIKey = alias.NewsAPIKey }
 	if alias.Apps != nil { cfg.Apps = alias.Apps }
+	if alias.ComandoTimeoutSegundos > 0 { cfg.ComandoTimeoutSegundos = alias.ComandoTimeoutSegundos }
 
 	return cfg
 }
@@ -172,6 +179,7 @@ func (c *Config) Save() error {
 		"open_weather_key":       c.OpenWeatherKey,
 		"news_api_key":           c.NewsAPIKey,
 		"apps":                   c.Apps,
+		"comando_timeout_segundos": c.ComandoTimeoutSegundos,
 	}
 
 	contenido, err := json.MarshalIndent(datos, "", "  ")

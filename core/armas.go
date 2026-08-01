@@ -48,7 +48,7 @@ func (h *Hands) escanearRed() string {
 }
 
 func (h *Hands) limpiarDNS() string {
-	if _, err := ejecutarConTimeout("ipconfig", "/flushdns"); err != nil {
+	if _, err := h.ejecutarConTimeout("ipconfig", "/flushdns"); err != nil {
 		return "No pude limpiar el DNS, señor."
 	}
 	return "Cache DNS limpiado, señor."

@@ -69,22 +69,18 @@ func TestEsProcesoProtegido_NoDistingueMayusculas(t *testing.T) {
 }
 
 func TestEjecutarConTimeout_Aborta(t *testing.T) {
-	viejo := TiempoLimiteComando
-	TiempoLimiteComando = 300 * time.Millisecond
-	defer func() { TiempoLimiteComando = viejo }()
+	h := &Hands{LimiteComando: 300 * time.Millisecond}
 
-	_, err := ejecutarConTimeout("powershell", "-NoProfile", "-Command", "Start-Sleep -Seconds 5")
+	_, err := h.ejecutarConTimeout("powershell", "-NoProfile", "-Command", "Start-Sleep -Seconds 5")
 	if err == nil || !strings.Contains(err.Error(), "límite") {
 		t.Fatalf("un comando que no termina debe abortarse con error de tiempo límite, obtuve: %v", err)
 	}
 }
 
 func TestEjecutarConTimeout_ComandoRapidoOk(t *testing.T) {
-	viejo := TiempoLimiteComando
-	TiempoLimiteComando = 30 * time.Second
-	defer func() { TiempoLimiteComando = viejo }()
+	h := &Hands{LimiteComando: 30 * time.Second}
 
-	salida, err := ejecutarConTimeout("cmd", "/C", "echo hola")
+	salida, err := h.ejecutarConTimeout("cmd", "/C", "echo hola")
 	if err != nil {
 		t.Fatalf("un comando rápido no debe fallar: %v", err)
 	}

@@ -129,6 +129,7 @@ func main() {
 		Auditoria:       auditoria,
 		PINHash:         cfg.PINHash,
 		PINSetter:       func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
+		LimiteComando:   time.Duration(cfg.ComandoTimeoutSegundos) * time.Second,
 	})
 	coderAgent := agents.NewCoderAgent(conectorIA)
 	gestorPlan := agents.NuevoGestorPlan(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "planes"))
@@ -196,21 +197,8 @@ func main() {
 
 	fmt.Println("[JARVIS] Sistemas en línea.")
 
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		vigilarRecordatorios(almacen, hands)
-	}()
-	go func() {
-		defer wg.Done()
-		vigilarAprobaciones(hands)
-	}()
-
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-
-	escuchaActiva := cfg.ContinuousListening
 
 	apagar := make(chan struct{})
 	go func() {
@@ -220,6 +208,19 @@ func main() {
 			close(apagar)
 		case <-apagar:
 		}
+	}()
+
+	escuchaActiva := cfg.ContinuousListening
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		vigilarRecordatorios(almacen, hands, apagar)
+	}()
+	go func() {
+		defer wg.Done()
+		vigilarAprobaciones(hands, apagar)
 	}()
 
 loop:
@@ -275,6 +276,7 @@ loop:
 
 		if strings.Contains(comandoLower, "apagar") || strings.Contains(comandoLower, "adiós") {
 			hands.Hablar(brain.Despedirse())
+			close(apagar)
 			break loop
 		}
 
@@ -286,7 +288,6 @@ loop:
 	}
 
 	fmt.Println("[APAGANDO] Liberando memoria...")
-	close(apagar)
 	wg.Wait()
 	fmt.Println("[APAGANDO] Sistemas fuera. Hasta luego, señor.")
 }
@@ -327,6 +328,7 @@ func ejecutarModoServicio() {
 		Auditoria:       auditoria,
 		PINHash:         cfg.PINHash,
 		PINSetter:       func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
+		LimiteComando:   time.Duration(cfg.ComandoTimeoutSegundos) * time.Second,
 	})
 	coderAgent := agents.NewCoderAgent(conectorIA)
 	gestorPlan := agents.NuevoGestorPlan(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "planes"))
@@ -354,7 +356,7 @@ func ejecutarModoServicio() {
 		defer wg.Done()
 		vigilarRecordatoriosService(almacen, hands)
 	}()
-	go vigilarAprobaciones(hands)
+	go vigilarAprobaciones(hands, nil)
 
 	fmt.Println("[SERVICE] JarvisOS iniciado en modo servicio.")
 
@@ -434,6 +436,7 @@ func ejecutarWebUI() {
 		WorkspaceRoot: cfg.WorkspaceRoot, DesarrolladorIA: conectorIA, IA: conectorIA, Skills: gestorSkills,
 		Auditoria: auditoria, PINHash: cfg.PINHash,
 		PINSetter: func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
+		LimiteComando: time.Duration(cfg.ComandoTimeoutSegundos) * time.Second,
 	})
 	coderAgent := agents.NewCoderAgent(conectorIA)
 	gestorPlan := agents.NuevoGestorPlan(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "planes"))
@@ -454,7 +457,7 @@ func ejecutarWebUI() {
 		fmt.Printf("[ORDENES] %s\n", pendientesOrdenes)
 		fmt.Println("[ORDENES] Las órdenes no se abandonan. Diga 'retomá las órdenes' para seguir trabajándolas.")
 	}
-	go vigilarAprobaciones(hands)
+	go vigilarAprobaciones(hands, nil)
 	servidor := webui.NuevoServidor(brain, 8080, webui.ServidorOpciones{
 		Estado:        hands,
 		Diagnostico:   hands,
@@ -467,7 +470,7 @@ func ejecutarWebUI() {
 	}
 }
 
-func vigilarAprobaciones(hands *core.Hands) {
+func vigilarAprobaciones(hands *core.Hands, done <-chan struct{}) {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Printf("[ADVERTENCIA] El vigía de aprobaciones se detuvo por un error inesperado: %v\n", r)
@@ -477,12 +480,17 @@ func vigilarAprobaciones(hands *core.Hands) {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		hands.ExpirarAprobacionesAntiguas(core.TiempoMaximoAprobacion)
+	for {
+		select {
+		case <-done:
+			return
+		case <-ticker.C:
+			hands.ExpirarAprobacionesAntiguas(core.TiempoMaximoAprobacion)
+		}
 	}
 }
 
-func vigilarRecordatorios(almacen *memoria.Almacen, hands *core.Hands) {
+func vigilarRecordatorios(almacen *memoria.Almacen, hands *core.Hands, done <-chan struct{}) {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Printf("[ADVERTENCIA] El vigía de recordatorios se detuvo por un error inesperado: %v\n", r)
@@ -492,12 +500,17 @@ func vigilarRecordatorios(almacen *memoria.Almacen, hands *core.Hands) {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
-	for range ticker.C {
-		pendientes := almacen.RecordatoriosPendientes(time.Now())
-		for _, r := range pendientes {
-			hands.Hablar(fmt.Sprintf("Recordatorio, señor: %s", r.Texto))
-			if err := almacen.MarcarCumplido(r.ID); err != nil {
-				fmt.Printf("[ADVERTENCIA] No pude marcar el recordatorio como cumplido: %v\n", err)
+	for {
+		select {
+		case <-done:
+			return
+		case <-ticker.C:
+			pendientes := almacen.RecordatoriosPendientes(time.Now())
+			for _, r := range pendientes {
+				hands.Hablar(fmt.Sprintf("Recordatorio, señor: %s", r.Texto))
+				if err := almacen.MarcarCumplido(r.ID); err != nil {
+					fmt.Printf("[ADVERTENCIA] No pude marcar el recordatorio como cumplido: %v\n", err)
+				}
 			}
 		}
 	}
