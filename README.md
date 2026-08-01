@@ -66,7 +66,7 @@ go vet ./core/ ./ia/ ./config/ ./webui/ ./agents/
 go test ./core/ ./ia/ ./config/ ./webui/ ./agents/
 ```
 
-Suite verde actual: **core** (17 s, incluye el bucle del agente con una IA falsa de prueba), **ia**, **agents**; config/webui sin tests. También hay smoke tests reales por web (agendar → aprender → cumplir; persistencia tras reinicio).
+Suite verde actual: **core** (17 s, incluye el bucle del agente con una IA falsa de prueba), **ia**, **agents**, **webui** (RBAC, login, sesiones); config sin tests. También hay smoke tests reales por web (agendar → aprender → cumplir; persistencia tras reinicio).
 
 Ejemplo del bucle con IA (probado con IA falsa):
 1. Dueño: "agendá una orden preparar la presentación".
@@ -76,7 +76,7 @@ Ejemplo del bucle con IA (probado con IA falsa):
 
 ## 6. Qué sigue (plan por fases)
 
-- **F2 — Confiabilidad B2B** *(en curso)*: paquetes `security` (clasificación de riesgo) y `audit` (registro inmutable) ya separados; **aprobación por PIN/panel con reanudación automática** implementada para acciones sensibles; **timeout de aprobación de 5 min** (orden expira sola) y **rotación automática de la auditoría** a 10 MB; **timeout de ejecución de comandos externos** de 30 s (aborta con error claro en vez de colgarse); **acceso con roles** (Operador vs Admin) con **contraseña de acceso**, sesión web, **visor de auditoría** en el panel y permiso de aprobación solo para Admin. Pendiente: la IA de voz que responda la auditoría por comando (los datos ya están en `core/audit`).
+- **F2 — Confiabilidad B2B** ✅ *completa*: paquetes `security` (clasificación de riesgo) y `audit` (registro inmutable); **aprobación por PIN/panel con reanudación automática** para acciones sensibles; **timeout de aprobación de 5 min** (la orden expira sola) y **rotación automática de la auditoría** a 10 MB; **timeout de ejecución de comandos externos** de 30 s; **acceso con roles** (Operador vs Admin) con **contraseña de acceso**, sesión web, **visor de auditoría** en el panel y aprobación solo para Admin. Decisión: la auditoría se consume por pantalla, no por voz (la voz no puede autenticar quién pide el dato).
 - **F3 — Integraciones de oficina**: email (Gmail/Outlook), Office por COM (Word/Excel/PPT), calendario, PDF, redes sociales.
 - **F4 — Producto y presencia B2B**: marca corporativa, dashboard, onboarding en <15 min.
 - **F5 — Propuesta comercial**: documento de venta + demo guionizada + pilotos.
