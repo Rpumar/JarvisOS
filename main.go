@@ -13,6 +13,7 @@ import (
 	"JarvisOS/agents"
 	"JarvisOS/config"
 	"JarvisOS/core"
+	"JarvisOS/core/audit"
 	"JarvisOS/ia"
 	"JarvisOS/memoria"
 	"JarvisOS/webui"
@@ -104,6 +105,7 @@ func main() {
 	tareas := core.NuevoGestorTareas(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "tareas.json"))
 	ordenes := core.NuevoGestorOrdenes(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "ordenes.json"))
 	procedimientos := core.NuevoGestorProcedimientos(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "procedimientos.json"))
+	auditoria := audit.NuevoRegistro(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "auditoria.jsonl"))
 
 	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout, cfg.IAURL, cfg.IAAPIKey)
 	gestorSkills := core.NuevoSkillsManager()
@@ -124,6 +126,9 @@ func main() {
 		DesarrolladorIA: conectorIA,
 		IA:             conectorIA,
 		Skills:          gestorSkills,
+		Auditoria:       auditoria,
+		PINHash:         cfg.PINHash,
+		PINSetter:       func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
 	})
 	coderAgent := agents.NewCoderAgent(conectorIA)
 	gestorPlan := agents.NuevoGestorPlan(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "planes"))
@@ -301,6 +306,7 @@ func ejecutarModoServicio() {
 	tareas := core.NuevoGestorTareas(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "tareas.json"))
 	ordenes := core.NuevoGestorOrdenes(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "ordenes.json"))
 	procedimientos := core.NuevoGestorProcedimientos(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "procedimientos.json"))
+	auditoria := audit.NuevoRegistro(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "auditoria.jsonl"))
 	hands := core.NewHands(core.HandsOpciones{
 		Apps:            cfg.Apps,
 		ClimaKey:        cfg.OpenWeatherKey,
@@ -314,6 +320,9 @@ func ejecutarModoServicio() {
 		Tareas:          tareas,
 		Ordenes:         ordenes,
 		Procedimientos:  procedimientos,
+		Auditoria:       auditoria,
+		PINHash:         cfg.PINHash,
+		PINSetter:       func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
 	})
 	coderAgent := agents.NewCoderAgent(conectorIA)
 	gestorPlan := agents.NuevoGestorPlan(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "planes"))
@@ -409,6 +418,7 @@ func ejecutarWebUI() {
 	tareas := core.NuevoGestorTareas(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "tareas.json"))
 	ordenes := core.NuevoGestorOrdenes(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "ordenes.json"))
 	procedimientos := core.NuevoGestorProcedimientos(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "procedimientos.json"))
+	auditoria := audit.NuevoRegistro(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "auditoria.jsonl"))
 	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout, cfg.IAURL, cfg.IAAPIKey)
 	gestorSkills := core.NuevoSkillsManager()
 	gestorRoles := core.NuevoRolesManager()
@@ -417,6 +427,8 @@ func ejecutarWebUI() {
 		Prefs: prefs, Rutinas: rutinas, Tareas: tareas, Ordenes: ordenes, Procedimientos: procedimientos,
 		VozActiva: prefs.Get().VozActivada, VozVoice: cfg.TTSVoice, VozRate: cfg.TTSRate,
 		WorkspaceRoot: cfg.WorkspaceRoot, DesarrolladorIA: conectorIA, IA: conectorIA, Skills: gestorSkills,
+		Auditoria: auditoria, PINHash: cfg.PINHash,
+		PINSetter: func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
 	})
 	coderAgent := agents.NewCoderAgent(conectorIA)
 	gestorPlan := agents.NuevoGestorPlan(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "planes"))
@@ -440,6 +452,7 @@ func ejecutarWebUI() {
 	servidor := webui.NuevoServidor(brain, 8080, webui.ServidorOpciones{
 		Estado:        hands,
 		Diagnostico:   hands,
+		Aprobador:     hands,
 		RutaHistorial: filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "historial-web.json"),
 	})
 	if err := servidor.Iniciar(); err != nil {

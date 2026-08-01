@@ -110,11 +110,14 @@ func TestEjecutarOrdenConIA_RechazaAccionSensible(t *testing.T) {
 	o := h.ordenes.Agregar("limpiar respaldos", "dueño")
 	got := h.ejecutarOrdenConIA(o)
 	if !strings.Contains(got, "aprobación") {
-		t.Fatalf("esperaba rechazo por aprobación, obtuve: %q", got)
+		t.Fatalf("esperaba pedido de aprobación, obtuve: %q", got)
 	}
 	orden, _ := h.ordenes.Obtener(o.ID)
-	if orden.Estado != OrdenBloqueada {
-		t.Fatalf("la orden debería estar bloqueada, está: %s", orden.Estado)
+	if orden.Estado != OrdenEsperandoAprobacion {
+		t.Fatalf("la orden debería estar esperando aprobación, está: %s", orden.Estado)
+	}
+	if orden.PendienteAccion != "borrar la carpeta de respaldos" {
+		t.Fatalf("la acción pendiente no se guardó: %q", orden.PendienteAccion)
 	}
 }
 

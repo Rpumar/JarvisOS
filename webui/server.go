@@ -38,14 +38,23 @@ type DiagnosticoProvider interface {
 	Diagnostico() (*core.Diagnostico, error)
 }
 
+// Aprobador autoriza o deniega las acciones sensibles que el agente deja
+// en espera, y expone las órdenes activas para el panel del dueño.
+type Aprobador interface {
+	AprobarOrden(id int, pin string) string
+	DenegarOrden(id int) string
+	OrdenesParaPanel() []core.Orden
+}
+
 type ServidorWeb struct {
-	brain      ProcesadorChat
-	estado     EstadoProvider
+	brain       ProcesadorChat
+	estado      EstadoProvider
 	diagnostico DiagnosticoProvider
-	historial  []HistorialEntry
-	mu         sync.Mutex
-	port       int
-	rutaHist   string
+	aprobador   Aprobador
+	historial   []HistorialEntry
+	mu          sync.Mutex
+	port        int
+	rutaHist    string
 }
 
 type HistorialEntry struct {
@@ -67,6 +76,9 @@ func NuevoServidor(brain ProcesadorChat, port int, opciones ...ServidorOpciones)
 		if o.Diagnostico != nil {
 			s.diagnostico = o.Diagnostico
 		}
+		if o.Aprobador != nil {
+			s.aprobador = o.Aprobador
+		}
 		if o.RutaHistorial != "" {
 			s.rutaHist = o.RutaHistorial
 		}
@@ -78,7 +90,13 @@ func NuevoServidor(brain ProcesadorChat, port int, opciones ...ServidorOpciones)
 type ServidorOpciones struct {
 	Estado        EstadoProvider
 	Diagnostico   DiagnosticoProvider
+	Aprobador     Aprobador
 	RutaHistorial string
+}
+
+type AprobacionRequest struct {
+	OrdenID int    `json:"orden_id"`
+	PIN     string `json:"pin"`
 }
 
 func (s *ServidorWeb) Iniciar() error {
@@ -90,6 +108,9 @@ func (s *ServidorWeb) Iniciar() error {
 	mux.HandleFunc("/api/estado", s.manejarEstado)
 	mux.HandleFunc("/api/diagnostico", s.manejarDiagnostico)
 	mux.HandleFunc("/api/salud", s.manejarSalud)
+	mux.HandleFunc("/api/ordenes", s.manejarOrdenes)
+	mux.HandleFunc("/api/aprobar", s.manejarAprobar)
+	mux.HandleFunc("/api/denegar", s.manejarDenegar)
 
 	mux.Handle("/", http.FileServer(http.FS(archivosEstaticos)))
 
@@ -216,6 +237,71 @@ func (s *ServidorWeb) manejarSalud(w http.ResponseWriter, r *http.Request) {
 		"puntaje":   puntaje,
 		"problemas": problemas,
 	})
+}
+
+// OrdenPanel es la vista del panel del dueño para una orden activa.
+type OrdenPanel struct {
+	ID                   int    `json:"id"`
+	Objetivo             string `json:"objetivo"`
+	Estado               string `json:"estado"`
+	PendienteAccion      string `json:"pendiente_accion,omitempty"`
+	PendienteDescripcion string `json:"pendiente_descripcion,omitempty"`
+}
+
+func (s *ServidorWeb) manejarOrdenes(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if s.aprobador == nil {
+		json.NewEncoder(w).Encode(map[string]string{"error": "sin aprobador"})
+		return
+	}
+	ordenes := s.aprobador.OrdenesParaPanel()
+	panel := make([]OrdenPanel, 0, len(ordenes))
+	for _, o := range ordenes {
+		panel = append(panel, OrdenPanel{
+			ID:                   o.ID,
+			Objetivo:             o.Objetivo,
+			Estado:               o.Estado,
+			PendienteAccion:      o.PendienteAccion,
+			PendienteDescripcion: o.PendienteDescripcion,
+		})
+	}
+	json.NewEncoder(w).Encode(map[string]interface{}{"ordenes": panel})
+}
+
+func (s *ServidorWeb) manejarAprobar(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST required", http.StatusMethodNotAllowed)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if s.aprobador == nil {
+		json.NewEncoder(w).Encode(map[string]string{"error": "sin aprobador"})
+		return
+	}
+	var req AprobacionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		json.NewEncoder(w).Encode(map[string]string{"error": "request inválido"})
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]string{"response": s.aprobador.AprobarOrden(req.OrdenID, req.PIN)})
+}
+
+func (s *ServidorWeb) manejarDenegar(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "POST required", http.StatusMethodNotAllowed)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if s.aprobador == nil {
+		json.NewEncoder(w).Encode(map[string]string{"error": "sin aprobador"})
+		return
+	}
+	var req AprobacionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		json.NewEncoder(w).Encode(map[string]string{"error": "request inválido"})
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]string{"response": s.aprobador.DenegarOrden(req.OrdenID)})
 }
 
 func (s *ServidorWeb) manejarHistorial(w http.ResponseWriter, r *http.Request) {

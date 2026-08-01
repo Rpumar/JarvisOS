@@ -16,6 +16,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"JarvisOS/core/audit"
 )
 
 // ComandoNoReconocido es el valor centinela que RunCommand devuelve cuando
@@ -61,6 +63,13 @@ type Hands struct {
 	IA              ConectorIA
 	Skills          *SkillsManager
 
+	Auditoria *audit.Registro
+	PINHash   string
+	PINSetter func(hash string) bool
+
+	aprobacionMu      sync.Mutex
+	aprobacionPendiente *aprobacionOrden
+
 	proyectosMu sync.Mutex
 	proyectos   map[string]*ProyectoEjecutando
 
@@ -93,6 +102,10 @@ type HandsOpciones struct {
 	DesarrolladorIA GeneradorFullstackIA
 	IA              ConectorIA
 	Skills          *SkillsManager
+
+	Auditoria *audit.Registro
+	PINHash   string
+	PINSetter func(hash string) bool
 }
 
 func NewHands(opciones ...HandsOpciones) *Hands {
@@ -113,6 +126,9 @@ func NewHands(opciones ...HandsOpciones) *Hands {
 		h.DesarrolladorIA = opciones[0].DesarrolladorIA
 		h.IA = opciones[0].IA
 		h.Skills = opciones[0].Skills
+		h.Auditoria = opciones[0].Auditoria
+		h.PINHash = opciones[0].PINHash
+		h.PINSetter = opciones[0].PINSetter
 	}
 	if strings.TrimSpace(h.WorkspaceRoot) == "" {
 		h.WorkspaceRoot = carpetaEscritorio()
@@ -144,6 +160,13 @@ func (h *Hands) RunCommand(cmd string) string {
 	cmd = strings.ToLower(strings.TrimSpace(cmd))
 	if cmd == "" {
 		return ComandoNoReconocido
+	}
+
+	if strings.Contains(cmd, "pin") && (strings.Contains(cmd, "configur") || strings.Contains(cmd, "cambi") || strings.Contains(cmd, "poné") || strings.Contains(cmd, "pone")) {
+		if pin := extraerPIN(cmd); pin != "" {
+			return h.EstablecerPIN(pin)
+		}
+		return "Diga 'configurá el pin 1234' con un PIN de 4 a 6 dígitos, señor."
 	}
 
 	if h.clasif != nil {

@@ -26,6 +26,7 @@ type Config struct {
 	ModeloIA       string `json:"modelo_ia"`
 	IAURL          string `json:"ia_url"`
 	IAAPIKey       string `json:"ia_api_key"`
+	PINHash        string `json:"pin_hash"`
 	WorkspaceRoot  string `json:"workspace_root"`
 	OpenWeatherKey string            `json:"open_weather_key"`
 	NewsAPIKey     string            `json:"news_api_key"`
@@ -114,6 +115,7 @@ func Load() *Config {
 		ModeloIA            string  `json:"modelo_ia"`
 		IAURL               string  `json:"ia_url"`
 		IAAPIKey            string  `json:"ia_api_key"`
+		PINHash             string  `json:"pin_hash"`
 		WorkspaceRoot       string  `json:"workspace_root"`
 		OpenWeatherKey      string  `json:"open_weather_key"`
 		NewsAPIKey          string  `json:"news_api_key"`
@@ -140,6 +142,7 @@ func Load() *Config {
 	if alias.ModeloIA != "" { cfg.ModeloIA = alias.ModeloIA }
 	if alias.IAURL != "" { cfg.IAURL = alias.IAURL }
 	if alias.IAAPIKey != "" { cfg.IAAPIKey = alias.IAAPIKey }
+	if alias.PINHash != "" { cfg.PINHash = alias.PINHash }
 	if alias.WorkspaceRoot != "" { cfg.WorkspaceRoot = alias.WorkspaceRoot }
 	if alias.OpenWeatherKey != "" { cfg.OpenWeatherKey = alias.OpenWeatherKey }
 	if alias.NewsAPIKey != "" { cfg.NewsAPIKey = alias.NewsAPIKey }
@@ -164,6 +167,7 @@ func (c *Config) Save() error {
 		"modelo_ia":              c.ModeloIA,
 		"ia_url":                 c.IAURL,
 		"ia_api_key":             c.IAAPIKey,
+		"pin_hash":               c.PINHash,
 		"workspace_root":         c.WorkspaceRoot,
 		"open_weather_key":       c.OpenWeatherKey,
 		"news_api_key":           c.NewsAPIKey,

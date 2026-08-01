@@ -217,6 +217,18 @@
   .diag-row span:last-child { color: #c8d6e5; white-space: nowrap; }
   .problema { border-left: 3px solid #ff4444; padding: 6px 10px; margin: 6px 0; background: #1a0f14; border-radius: 4px; font-size: 13px; }
   .problema .fix { color: #7a8699; font-size: 12px; margin-top: 3px; }
+  .aprob-box { background: #1a1a2e; border: 1px solid #3a3a5e; border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; }
+  .aprob-box .t { font-size: 11px; color: #ffb300; text-transform: uppercase; letter-spacing: .5px; }
+  .aprob-box .accion { font-size: 15px; color: #fff; margin: 6px 0 2px; word-break: break-word; }
+  .aprob-box .desc { font-size: 13px; color: #9fb6c8; }
+  .aprob-pin { width: 100%; background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 10px 14px; color: #e0e0e0; font-size: 18px; letter-spacing: 6px; text-align: center; outline: none; margin: 10px 0; }
+  .aprob-pin:focus { border-color: #ffb300; }
+  .aprob-btns { display: flex; gap: 8px; }
+  .aprob-btns button { flex: 1; padding: 10px; border-radius: 8px; border: none; font-size: 14px; cursor: pointer; }
+  #btn-aprobar { background: #008a3a; color: #fff; }
+  #btn-aprobar:hover { background: #00b04c; }
+  #btn-denegar { background: #8a1a1a; color: #ffb3b3; }
+  #btn-denegar:hover { background: #b02424; }
 </style>
 </head>
 <body>
@@ -246,6 +258,26 @@
       <button class="clear-btn" onclick="cerrarDiag()">✕</button>
     </div>
     <div class="modal-body" id="diag-body"><div class="typing">Analizando el sistema, señor...</div></div>
+  </div>
+</div>
+<div id="aprob-modal" class="modal" onclick="if(event.target===this)cerrarAprob()">
+  <div class="modal-box" style="max-width:460px">
+    <div class="modal-head">
+      <h2>🔐 Aprobación requerida</h2>
+      <button class="clear-btn" onclick="cerrarAprob()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="aprob-box">
+        <div class="t">Orden #<span id="ap-orden-id"></span></div>
+        <div class="accion" id="ap-accion"></div>
+        <div class="desc" id="ap-desc"></div>
+      </div>
+      <input type="password" class="aprob-pin" id="ap-pin" maxlength="6" placeholder="PIN (4-6 dígitos)" inputmode="numeric">
+      <div class="aprob-btns">
+        <button id="btn-aprobar" onclick="aprobar()">✓ Aprobar</button>
+        <button id="btn-denegar" onclick="denegar()">✕ Denegar</button>
+      </div>
+    </div>
   </div>
 </div>
 <div id="status-bar">
@@ -288,6 +320,7 @@
   <button onclick="cmd('qué órdenes tengo')">📋 Órdenes</button>
   <button onclick="cmd('retomá las órdenes')">▶ Retomar órdenes</button>
   <button onclick="cmd('agendá una orden revisar la contabilidad')">📌 Nueva orden</button>
+  <button onclick="verificarAprobaciones(true)">🔐 Aprobaciones</button>
   <button onclick="cmd('qué hay en el portapapeles')">📎 Portapapeles</button>
   <button onclick="cmd('apagar la pc')">⏻ Apagar</button>
   <button onclick="cmd('no hables')">🔇 Silenciar voz</button>
@@ -353,6 +386,69 @@
 
   function cerrarDiag() {
     document.getElementById('diag-modal').classList.remove('abierto');
+  }
+
+  let aprobActual = null;
+
+  async function verificarAprobaciones(forzar) {
+    try {
+      const res = await fetch('/api/ordenes');
+      const data = await res.json();
+      if (data.error) return;
+      const pendiente = (data.ordenes || []).find(o => o.estado === 'esperando_aprobacion');
+      const modal = document.getElementById('aprob-modal');
+      if (pendiente) {
+        if (aprobActual !== pendiente.id || forzar) {
+          aprobActual = pendiente.id;
+          document.getElementById('ap-orden-id').textContent = pendiente.id;
+          document.getElementById('ap-accion').textContent = pendiente.pendiente_accion || '—';
+          document.getElementById('ap-desc').textContent = pendiente.pendiente_descripcion || '—';
+          document.getElementById('ap-pin').value = '';
+          modal.classList.add('abierto');
+          document.getElementById('ap-pin').focus();
+        }
+      } else {
+        aprobActual = null;
+        modal.classList.remove('abierto');
+      }
+    } catch (e) {}
+  }
+
+  function cerrarAprob() {
+    document.getElementById('aprob-modal').classList.remove('abierto');
+  }
+
+  async function aprobar() {
+    const pin = document.getElementById('ap-pin').value;
+    const id = aprobActual;
+    if (!id) return;
+    const res = await fetch('/api/aprobar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orden_id: id, pin: pin })
+    });
+    const data = await res.json();
+    cerrarAprob();
+    aprobActual = null;
+    addMsg('jarvis', data.response || 'Respuesta vacía');
+    hablar(data.response);
+    verificarAprobaciones(true);
+  }
+
+  async function denegar() {
+    const id = aprobActual;
+    if (!id) return;
+    const res = await fetch('/api/denegar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orden_id: id })
+    });
+    const data = await res.json();
+    cerrarAprob();
+    aprobActual = null;
+    addMsg('jarvis', data.response || 'Respuesta vacía');
+    hablar(data.response);
+    verificarAprobaciones(true);
   }
 
   function escColor(p) {
@@ -463,6 +559,8 @@
 
   actualizarEstado();
   setInterval(actualizarEstado, 5000);
+  verificarAprobaciones(false);
+  setInterval(() => verificarAprobaciones(false), 4000);
 
   async function enviar() {
     const msg = input.value.trim();

@@ -3,6 +3,8 @@ package core
 import (
 	"fmt"
 	"strings"
+
+	"JarvisOS/core/security"
 )
 
 type Brain struct {
@@ -209,53 +211,14 @@ func (b *Brain) procesarInterno(input string) string {
 	return RespuestaConfusion()
 }
 
-var palabrasPeligrosas = []struct {
-	frase  string
-	accion string
-}{
-	{"reiniciar", "reiniciar el equipo"},
-	{"reinicio", "reiniciar el equipo"},
-	{"restart", "reiniciar el equipo"},
-	{"suspender", "suspender el equipo"},
-	{"dormir", "suspender el equipo"},
-	{"suspensión", "suspender el equipo"},
-	{"hibernar", "hibernar el equipo"},
-	{"hibernación", "hibernar el equipo"},
-	{"cerrar sesión", "cerrar su sesión"},
-	{"cerrar sesion", "cerrar su sesión"},
-	{"logoff", "cerrar su sesión"},
-	{"vaciar papelera", "vaciar la papelera de reciclaje"},
-	{"limpiar papelera", "vaciar la papelera de reciclaje"},
-	{"formatear", "formatear un disco"},
-	{"format ", "formatear un disco"},
-	{"diskpart", "ejecutar diskpart"},
-	{"desinstalar", "desinstalar un programa"},
-	{"uninstall", "desinstalar un programa"},
-	{"instalar", "instalar un programa"},
-	{"install ", "instalar un programa"},
-	{"descargar", "descargar algo de internet"},
-	{"download", "descargar algo de internet"},
-	{"comprar", "comprar algo"},
-	{"compra ", "comprar algo"},
-	{"vender", "vender algo"},
-	{"venta ", "vender algo"},
-	{"borrar ", "borrar archivos o datos"},
-	{"eliminar ", "eliminar archivos o datos"},
-	{"suprimir ", "suprimir archivos o datos"},
-}
-
+// esAccionPeligrosa delega en el paquete security: devuelve si una acción
+// altera el equipo o los datos y requiere aprobación del dueño.
 func esAccionPeligrosa(entrada string) (string, bool) {
-	entrada = strings.TrimSpace(entrada)
-	if strings.Contains(entrada, "activar suspensión") || strings.Contains(entrada, "activar suspension") ||
-		strings.Contains(entrada, "desactivar suspensión") || strings.Contains(entrada, "desactivar suspension") {
+	clasif := security.Clasificar(entrada)
+	if clasif.Nivel == security.Segura {
 		return "", false
 	}
-	for _, p := range palabrasPeligrosas {
-		if strings.Contains(entrada, p.frase) {
-			return p.accion, true
-		}
-	}
-	return "", false
+	return clasif.Descripcion, true
 }
 
 func esConsultaSegura(entrada string) bool {

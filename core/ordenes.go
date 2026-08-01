@@ -17,12 +17,13 @@ import (
 // ============================================================
 
 const (
-	OrdenPendiente   = "pendiente"
-	OrdenEnProgreso  = "en_progreso"
-	OrdenVerificando = "verificando"
-	OrdenTerminada   = "terminada"
-	OrdenBloqueada   = "bloqueada"
-	OrdenCancelada   = "cancelada"
+	OrdenPendiente           = "pendiente"
+	OrdenEnProgreso          = "en_progreso"
+	OrdenVerificando         = "verificando"
+	OrdenEsperandoAprobacion = "esperando_aprobacion"
+	OrdenTerminada           = "terminada"
+	OrdenBloqueada           = "bloqueada"
+	OrdenCancelada           = "cancelada"
 )
 
 type AccionOrden struct {
@@ -32,13 +33,15 @@ type AccionOrden struct {
 }
 
 type Orden struct {
-	ID            int           `json:"id"`
-	Objetivo      string        `json:"objetivo"`
-	PedidoPor     string        `json:"pedido_por,omitempty"`
-	Estado        string        `json:"estado"`
-	FechaCreacion string        `json:"fecha_creacion"`
-	Historial     []AccionOrden `json:"historial"`
-	Reporte       string        `json:"reporte,omitempty"`
+	ID                 int           `json:"id"`
+	Objetivo           string        `json:"objetivo"`
+	PedidoPor          string        `json:"pedido_por,omitempty"`
+	Estado             string        `json:"estado"`
+	FechaCreacion      string        `json:"fecha_creacion"`
+	Historial          []AccionOrden `json:"historial"`
+	Reporte            string        `json:"reporte,omitempty"`
+	PendienteAccion    string        `json:"pendiente_accion,omitempty"`
+	PendienteDescripcion string      `json:"pendiente_descripcion,omitempty"`
 }
 
 type GestorOrdenes struct {
@@ -140,6 +143,70 @@ func (g *GestorOrdenes) Continuables() []Orden {
 	res := make([]Orden, 0, len(g.ordenes))
 	for _, o := range g.ordenes {
 		if o.Estado == OrdenPendiente || o.Estado == OrdenEnProgreso || o.Estado == OrdenBloqueada {
+			res = append(res, o)
+		}
+	}
+	return res
+}
+
+// SolicitarAprobacion marca una orden como esperando aprobación y guarda
+// la acción sensible que el dueño debe autorizar.
+func (g *GestorOrdenes) SolicitarAprobacion(id int, accion, descripcion string) bool {
+	g.mu.Lock()
+	for i := range g.ordenes {
+		if g.ordenes[i].ID == id {
+			g.ordenes[i].Estado = OrdenEsperandoAprobacion
+			g.ordenes[i].PendienteAccion = accion
+			g.ordenes[i].PendienteDescripcion = descripcion
+			g.mu.Unlock()
+			g.guardar()
+			return true
+		}
+	}
+	g.mu.Unlock()
+	return false
+}
+
+// LimpiarAprobacion quita la acción pendiente sin cambiar el estado.
+func (g *GestorOrdenes) LimpiarAprobacion(id int) bool {
+	g.mu.Lock()
+	for i := range g.ordenes {
+		if g.ordenes[i].ID == id {
+			g.ordenes[i].PendienteAccion = ""
+			g.ordenes[i].PendienteDescripcion = ""
+			g.mu.Unlock()
+			g.guardar()
+			return true
+		}
+	}
+	g.mu.Unlock()
+	return false
+}
+
+// DenegarAprobacion vuelve la orden a bloqueada y descarta la acción.
+func (g *GestorOrdenes) DenegarAprobacion(id int) bool {
+	g.mu.Lock()
+	for i := range g.ordenes {
+		if g.ordenes[i].ID == id {
+			g.ordenes[i].Estado = OrdenBloqueada
+			g.ordenes[i].PendienteAccion = ""
+			g.ordenes[i].PendienteDescripcion = ""
+			g.mu.Unlock()
+			g.guardar()
+			return true
+		}
+	}
+	g.mu.Unlock()
+	return false
+}
+
+// EsperandoAprobacion devuelve las órdenes que aguardan el PIN del dueño.
+func (g *GestorOrdenes) EsperandoAprobacion() []Orden {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	res := make([]Orden, 0, len(g.ordenes))
+	for _, o := range g.ordenes {
+		if o.Estado == OrdenEsperandoAprobacion {
 			res = append(res, o)
 		}
 	}
@@ -293,6 +360,22 @@ func (h *Hands) manejarOrden(cmd string) string {
 		}
 		return fmt.Sprintf("Orden #%d cancelada, señor.", id)
 
+	case strings.Contains(entrada, "aprobar la orden") || strings.Contains(entrada, "aprobar orden"):
+		id := extraerID(entrada)
+		if id == 0 {
+			return "¿Qué orden quiere aprobar, señor? Diga 'aprobar la orden #1' (y el PIN si lo configuró)."
+		}
+		return h.AprobarOrden(id, extraerPIN(entrada))
+
+	case strings.Contains(entrada, "denegar la orden") || strings.Contains(entrada, "denegar orden"),
+		strings.Contains(entrada, "rechazar la orden") || strings.Contains(entrada, "rechazar orden"),
+		strings.Contains(entrada, "rechazo la orden"):
+		id := extraerID(entrada)
+		if id == 0 {
+			return "¿Qué orden quiere rechazar, señor? Diga 'denegar la orden #1'."
+		}
+		return h.DenegarOrden(id)
+
 	case strings.Contains(entrada, "tomá la orden") || strings.Contains(entrada, "toma la orden"),
 		strings.Contains(entrada, "ejecutá la orden") || strings.Contains(entrada, "ejecuta la orden"),
 		strings.Contains(entrada, "hacé la orden") || strings.Contains(entrada, "hace la orden"):
@@ -398,6 +481,9 @@ func (h *Hands) procesarOrden(id int) string {
 	if orden.Estado == OrdenTerminada || orden.Estado == OrdenCancelada {
 		return fmt.Sprintf("La orden #%d ya está %s, señor.", id, orden.Estado)
 	}
+	if orden.Estado == OrdenEsperandoAprobacion {
+		return fmt.Sprintf("La orden #%d está esperando su aprobación, señor: %s. Apruebe desde el panel, o diga 'aprobar la orden #%d' (o 'aprobar la orden #%d PIN'). Para rechazarla, 'denegar la orden #%d'.", id, orden.PendienteDescripcion, id, id, id)
+	}
 
 	h.ordenes.CambiarEstado(id, OrdenEnProgreso)
 	h.ordenes.RegistrarAccion(id, "iniciar orden", orden.Objetivo)
@@ -419,6 +505,7 @@ func (h *Hands) procesarOrden(id int) string {
 		ejecutadas := make([]string, 0, len(p.Pasos))
 		for _, paso := range p.Pasos {
 			r := h.RunCommand(paso)
+			h.auditar(id, paso, r)
 			h.ordenes.RegistrarAccion(id, paso, r)
 			if r != ComandoNoReconocido {
 				ejecutadas = append(ejecutadas, paso)
@@ -432,6 +519,7 @@ func (h *Hands) procesarOrden(id int) string {
 	resultados := 0
 	for _, paso := range p.Pasos {
 		r := h.RunCommand(paso)
+		h.auditar(id, paso, r)
 		h.ordenes.RegistrarAccion(id, paso, r)
 		if r != ComandoNoReconocido {
 			resultados++
@@ -476,4 +564,25 @@ func extraerID(entrada string) int {
 		}
 	}
 	return 0
+}
+
+// extraerPIN toma el primer grupo de 4-6 dígitos de la entrada (el PIN
+// que el dueño dice junto al comando de aprobación).
+func extraerPIN(entrada string) string {
+	for _, campo := range strings.Fields(entrada) {
+		campo = strings.Trim(campo, ".,;")
+		if len(campo) >= 4 && len(campo) <= 6 {
+			todoDigitos := true
+			for _, c := range campo {
+				if c < '0' || c > '9' {
+					todoDigitos = false
+					break
+				}
+			}
+			if todoDigitos {
+				return campo
+			}
+		}
+	}
+	return ""
 }

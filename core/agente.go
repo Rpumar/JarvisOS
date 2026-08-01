@@ -92,12 +92,22 @@ func (h *Hands) bucleAgente(orden Orden, prompt string, ejecutadasPrevias []stri
 		}
 
 		if descripcion, peligrosa := esAccionPeligrosa(r.Accion); peligrosa {
-			h.ordenes.RegistrarAccion(orden.ID, "accion sensible rechazada", r.Accion+" ("+descripcion+")")
-			h.ordenes.CambiarEstado(orden.ID, OrdenBloqueada)
-			return fmt.Sprintf("La IA propuso una acción sensible (%s) que requiere su aprobación, señor. La orden #%d quedó en espera.", descripcion, orden.ID)
+			h.aprobacionMu.Lock()
+			h.aprobacionPendiente = &aprobacionOrden{
+				Orden:      orden,
+				Prompt:     prompt,
+				Ejecutadas: ejecutadas,
+				Accion:     r.Accion,
+			}
+			h.aprobacionMu.Unlock()
+			h.ordenes.SolicitarAprobacion(orden.ID, r.Accion, descripcion)
+			h.ordenes.RegistrarAccion(orden.ID, "accion sensible", r.Accion+" ("+descripcion+")")
+			h.auditar(orden.ID, r.Accion, "requiere aprobación del dueño ("+descripcion+")")
+			return fmt.Sprintf("La IA propuso %s (%s), señor. Eso requiere su aprobación: apruebe desde el panel, o diga 'aprobar la orden #%d' (y el PIN si lo configuró). Para rechazarla, 'denegar la orden #%d'.", r.Accion, descripcion, orden.ID, orden.ID)
 		}
 
 		resultado := h.RunCommand(r.Accion)
+		h.auditar(orden.ID, r.Accion, resultado)
 		if resultado == ComandoNoReconocido {
 			h.ordenes.RegistrarAccion(orden.ID, r.Accion, "comando no reconocido")
 			prompt += fmt.Sprintf("\n[Resultado de '%s']: comando no reconocido. Usá otro comando de la lista.", r.Accion)
