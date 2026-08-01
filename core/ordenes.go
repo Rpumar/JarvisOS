@@ -405,8 +405,28 @@ func (h *Hands) procesarOrden(id int) string {
 	p, conocido := h.procedimientos.Buscar(orden.Objetivo)
 	if !conocido {
 		h.ordenes.RegistrarAccion(id, "buscar procedimiento", "no se encontró procedimiento")
+		if h.IA != nil && h.IA.Disponible() {
+			return h.ejecutarOrdenConIA(orden)
+		}
 		h.ordenes.CambiarEstado(id, OrdenBloqueada)
 		return fmt.Sprintf("No sé cómo cumplir la orden '%s', señor. Enséñeme los pasos ('aprendé que para hacer %s: paso 1, paso 2') o active la IA.", orden.Objetivo, orden.Objetivo)
+	}
+
+	if h.IA != nil && h.IA.Disponible() {
+		// Procedimiento conocido + IA: se ejecuta y la IA verifica
+		// si la orden quedó cumplida, ajustando si hace falta.
+		prompt := construirPromptAgente(orden.Objetivo)
+		ejecutadas := make([]string, 0, len(p.Pasos))
+		for _, paso := range p.Pasos {
+			r := h.RunCommand(paso)
+			h.ordenes.RegistrarAccion(id, paso, r)
+			if r != ComandoNoReconocido {
+				ejecutadas = append(ejecutadas, paso)
+			}
+			prompt += fmt.Sprintf("\n[Ejecuté '%s']: %s", paso, r)
+		}
+		prompt += "\nRevisá si la orden quedó cumplida. Si falta algo, respondé con JSON {\"accion\":\"<comando del catálogo>\",\"razon\":\"<por qué>\"} para completarlo. Si está cumplida, respondé con JSON {\"fin\":\"<resumen del resultado>\"}."
+		return h.verificarOrdenConIA(orden, prompt, ejecutadas)
 	}
 
 	resultados := 0

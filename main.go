@@ -122,6 +122,7 @@ func main() {
 		VozRate:         cfg.TTSRate,
 		WorkspaceRoot:   cfg.WorkspaceRoot,
 		DesarrolladorIA: conectorIA,
+		IA:             conectorIA,
 		Skills:          gestorSkills,
 	})
 	coderAgent := agents.NewCoderAgent(conectorIA)
@@ -308,6 +309,7 @@ func ejecutarModoServicio() {
 		VozRate:         cfg.TTSRate,
 		WorkspaceRoot:   cfg.WorkspaceRoot,
 		DesarrolladorIA: conectorIA,
+		IA:             conectorIA,
 		Skills:          gestorSkills,
 		Tareas:          tareas,
 		Ordenes:         ordenes,
@@ -414,7 +416,7 @@ func ejecutarWebUI() {
 		Apps: cfg.Apps, ClimaKey: cfg.OpenWeatherKey, NewsKey: cfg.NewsAPIKey,
 		Prefs: prefs, Rutinas: rutinas, Tareas: tareas, Ordenes: ordenes, Procedimientos: procedimientos,
 		VozActiva: prefs.Get().VozActivada, VozVoice: cfg.TTSVoice, VozRate: cfg.TTSRate,
-		WorkspaceRoot: cfg.WorkspaceRoot, DesarrolladorIA: conectorIA, Skills: gestorSkills,
+		WorkspaceRoot: cfg.WorkspaceRoot, DesarrolladorIA: conectorIA, IA: conectorIA, Skills: gestorSkills,
 	})
 	coderAgent := agents.NewCoderAgent(conectorIA)
 	gestorPlan := agents.NuevoGestorPlan(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "planes"))

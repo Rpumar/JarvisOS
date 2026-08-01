@@ -24,6 +24,12 @@ func NuevoClasificador() *Clasificador {
 	c := &Clasificador{}
 	c.intentos = []Intento{
 		{
+			Nombre: "orden",
+			Frases: []string{"agendá una orden", "agenda una orden", "nueva orden", "registrá la orden", "registra la orden", "qué órdenes tengo", "que ordenes tengo", "órdenes pendientes", "ordenes pendientes", "todas las órdenes", "todas las ordenes", "retomá las órdenes", "retoma las ordenes", "ejecutá la orden", "ejecuta la orden", "tomá la orden", "toma la orden", "reportá la orden", "reporta la orden", "reporte de la orden", "terminá la orden", "termina la orden", "marcar la orden", "bloquear la orden", "bloqueá la orden", "bloquea la orden", "cancelar la orden", "cancela la orden", "cancelá la orden", "mis órdenes", "mis ordenes"},
+			Palabras: []string{"orden", "órdenes", "ordenes"},
+			Handler: func(cmd string, h *Hands) string { return h.manejarOrden(cmd) },
+		},
+		{
 			Nombre: "volumen_subir",
 			Frases: []string{"subir volumen", "súbele", "subile", "mas alto", "más alto", "aumenta volumen", "volumen arriba", "ponelo mas fuerte"},
 			Palabras: []string{"subir", "súbele", "subile", "aumenta"},
@@ -334,12 +340,6 @@ func NuevoClasificador() *Clasificador {
 			Frases: []string{"aprendé a hacer", "aprende a hacer", "aprendé que para", "aprende que para", "aprendé que", "aprende que", "recordá que para", "recuerda que para", "enseñame a", "enseñáme a", "cómo hago", "como hago", "cómo se hace", "como se hace", "ejecutá el procedimiento", "ejecuta el procedimiento", "qué procedimientos sabés", "que procedimientos sabes", "qué sabés hacer", "que sabes hacer", "borrar procedimiento", "olvidate el procedimiento", "olvidá el procedimiento", "los pasos son", "los pasos"},
 			Palabras: []string{"procedimiento", "procedimientos", "aprendé", "aprende", "enseñame", "enseñáme", "cómo hago", "como hago", "los pasos"},
 			Handler: func(cmd string, h *Hands) string { return h.manejarProcedimiento(cmd) },
-		},
-		{
-			Nombre: "orden",
-			Frases: []string{"agendá una orden", "agenda una orden", "nueva orden", "registrá la orden", "registra la orden", "qué órdenes tengo", "que ordenes tengo", "órdenes pendientes", "ordenes pendientes", "todas las órdenes", "todas las ordenes", "retomá las órdenes", "retoma las ordenes", "ejecutá la orden", "ejecuta la orden", "tomá la orden", "toma la orden", "reportá la orden", "reporta la orden", "reporte de la orden", "terminá la orden", "termina la orden", "marcar la orden", "bloquear la orden", "cancelar la orden", "mis órdenes", "mis ordenes"},
-			Palabras: []string{"orden", "órdenes", "ordenes"},
-			Handler: func(cmd string, h *Hands) string { return h.manejarOrden(cmd) },
 		},
 		{
 			Nombre: "notificacion",

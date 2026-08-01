@@ -93,6 +93,11 @@ func TestClasificarArmas(t *testing.T) {
 		{"qué skills tenés", "listar_skills"},
 		{"mostrame las skills", "listar_skills"},
 		{"carpeta descargas", ""},
+		{"cancelá la orden #1", "orden"},
+		{"cancela la orden #2", "orden"},
+		{"bloqueá la orden #3", "orden"},
+		{"terminá la orden #4", "orden"},
+		{"reportá la orden #5", "orden"},
 	}
 	c := NuevoClasificador()
 	for _, cso := range casos {
