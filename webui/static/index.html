@@ -229,6 +229,31 @@
   #btn-aprobar:hover { background: #00b04c; }
   #btn-denegar { background: #8a1a1a; color: #ffb3b3; }
   #btn-denegar:hover { background: #b02424; }
+  .login-box { text-align: center; padding: 10px 0; }
+  .login-box .icono { font-size: 40px; margin-bottom: 8px; }
+  .login-box .txt { color: #9fb6c8; font-size: 14px; margin-bottom: 16px; line-height: 1.5; }
+  .login-input {
+    width: 100%; background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+    padding: 12px 14px; color: #e0e0e0; font-size: 16px; outline: none; margin-bottom: 12px; text-align: center;
+  }
+  .login-input:focus { border-color: #00d4ff; }
+  .login-err { color: #ff4444; font-size: 13px; margin-bottom: 10px; display: none; }
+  .login-extra { margin-top: 14px; font-size: 13px; color: #7a8699; }
+  .login-extra a { color: #00d4ff; cursor: pointer; text-decoration: none; }
+  #btn-login { width: 100%; background: #0055aa; border: none; border-radius: 8px; color: #fff; padding: 12px; font-size: 15px; cursor: pointer; transition: background .2s; }
+  #btn-login:hover { background: #0077dd; }
+  .audit-tabla { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .audit-tabla th { text-align: left; color: #00d4ff; padding: 8px 10px; border-bottom: 1px solid #1a3a5c; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+  .audit-tabla td { padding: 8px 10px; border-bottom: 1px dashed #1a3a5c; color: #c8d6e5; vertical-align: top; }
+  .audit-tabla .momento { color: #7a8699; white-space: nowrap; }
+  .audit-tabla .cmd { font-family: Consolas, monospace; word-break: break-word; }
+  .audit-tabla .res { color: #9fb6c8; word-break: break-word; }
+  .audit-vacio { color: #7a8699; text-align: center; padding: 20px; }
+  .rol-badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; letter-spacing: 1px; border: 1px solid; }
+  .rol-admin { color: #00d4ff; border-color: #1a3a5c; }
+  .rol-operador { color: #ffb300; border-color: #3a3a1e; }
+  .aprob-bloqueado { color: #ffb300; font-size: 13px; text-align: center; padding: 8px 0; line-height: 1.5; }
+  .aprob-bloqueado a { color: #00d4ff; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -242,6 +267,10 @@
     <button class="clear-btn" id="btn-voz" onclick="toggleVozWeb()" title="Que Jarvis lea en voz alta">🔊 Voz</button>
     <button class="clear-btn" onclick="modoPresentacion()" title="Modo presentación fullscreen">🎦 Presentación</button>
     <button class="clear-btn" onclick="limpiarHistorial()">Limpiar</button>
+    <button class="clear-btn" id="btn-auditoria" onclick="abrirAuditoria()" style="display:none">📜 Auditoría</button>
+    <button class="clear-btn" id="btn-sesion" onclick="abrirLogin()" style="display:none">🔑 Iniciar sesión</button>
+    <button class="clear-btn" id="btn-logout" onclick="cerrarSesion()" style="display:none">⏻ Salir</button>
+    <span class="rol-badge rol-operador" id="rol-badge">OPERADOR</span>
   </div>
 </header>
 <div id="holo" onclick="salirPresentacion()">
@@ -272,12 +301,44 @@
         <div class="accion" id="ap-accion"></div>
         <div class="desc" id="ap-desc"></div>
       </div>
-      <input type="password" class="aprob-pin" id="ap-pin" maxlength="6" placeholder="PIN (4-6 dígitos)" inputmode="numeric">
-      <div class="aprob-btns">
-        <button id="btn-aprobar" onclick="aprobar()">✓ Aprobar</button>
-        <button id="btn-denegar" onclick="denegar()">✕ Denegar</button>
+      <div id="ap-controls">
+        <input type="password" class="aprob-pin" id="ap-pin" maxlength="6" placeholder="PIN (4-6 dígitos)" inputmode="numeric">
+        <div class="aprob-btns">
+          <button id="btn-aprobar" onclick="aprobar()">✓ Aprobar</button>
+          <button id="btn-denegar" onclick="denegar()">✕ Denegar</button>
+        </div>
+      </div>
+      <div class="aprob-bloqueado" id="ap-bloqueado" style="display:none">
+        Solo el administrador puede aprobar acciones sensibles. <a onclick="abrirLogin()">Inicie sesión</a>.
       </div>
     </div>
+  </div>
+</div>
+<div id="login-modal" class="modal" onclick="if(event.target===this)cerrarLogin()">
+  <div class="modal-box" style="max-width:380px">
+    <div class="modal-head">
+      <h2>🔑 Acceso del dueño</h2>
+      <button class="clear-btn" onclick="cerrarLogin()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="login-box">
+        <div class="icono">👤</div>
+        <div class="txt">El panel pide contraseña. Si sos el dueño, ingresá la contraseña de acceso para habilitar la administración y la auditoría.</div>
+        <input type="password" class="login-input" id="login-clave" placeholder="Contraseña de acceso" autocomplete="current-password">
+        <div class="login-err" id="login-err">Contraseña incorrecta, señor.</div>
+        <button id="btn-login" onclick="iniciarSesion()">Iniciar sesión</button>
+        <div class="login-extra"><a onclick="cerrarLogin()">Continuar como operador</a></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="audit-modal" class="modal" onclick="if(event.target===this)cerrarAuditoria()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2>📜 Auditoría</h2>
+      <button class="clear-btn" onclick="cerrarAuditoria()">✕</button>
+    </div>
+    <div class="modal-body" id="audit-body"><div class="typing">Leyendo el registro, señor...</div></div>
   </div>
 </div>
 <div id="status-bar">
@@ -343,6 +404,105 @@
   let vozWeb = false;
   let vozWebActiva = false;
 
+  let rolActual = 'operador';
+  let requiereLogin = false;
+
+  async function actualizarSesion() {
+    try {
+      const res = await fetch('/api/sesion');
+      const data = await res.json();
+      rolActual = data.rol || 'operador';
+      requiereLogin = !!data.requiere_login;
+    } catch (e) {
+      rolActual = 'operador';
+    }
+    const esAdmin = rolActual === 'admin';
+    document.getElementById('btn-auditoria').style.display = esAdmin ? '' : 'none';
+    document.getElementById('btn-login').style.display = (esAdmin || !requiereLogin) ? 'none' : '';
+    document.getElementById('btn-logout').style.display = esAdmin ? '' : 'none';
+    const badge = document.getElementById('rol-badge');
+    badge.textContent = esAdmin ? 'ADMIN' : 'OPERADOR';
+    badge.className = 'rol-badge ' + (esAdmin ? 'rol-admin' : 'rol-operador');
+    if (requiereLogin && !esAdmin && !document.getElementById('login-modal').classList.contains('abierto')) {
+      abrirLogin();
+    }
+  }
+
+  function abrirLogin() {
+    document.getElementById('login-err').style.display = 'none';
+    document.getElementById('login-clave').value = '';
+    document.getElementById('login-modal').classList.add('abierto');
+    setTimeout(() => document.getElementById('login-clave').focus(), 50);
+  }
+
+  function cerrarLogin() {
+    document.getElementById('login-modal').classList.remove('abierto');
+  }
+
+  async function iniciarSesion() {
+    const clave = document.getElementById('login-clave').value;
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clave: clave })
+    });
+    if (res.status === 200) {
+      cerrarLogin();
+      await actualizarSesion();
+      verificarAprobaciones(true);
+      addMsg('jarvis', 'Bienvenido, señor. Sesión de administrador iniciada.');
+    } else {
+      document.getElementById('login-err').style.display = 'block';
+    }
+  }
+
+  async function cerrarSesion() {
+    await fetch('/api/logout', { method: 'POST' });
+    await actualizarSesion();
+    addMsg('jarvis', 'Sesión cerrada. Volviendo al modo operador.');
+  }
+
+  function abrirAuditoria() {
+    document.getElementById('audit-modal').classList.add('abierto');
+    cargarAuditoria();
+  }
+
+  function cerrarAuditoria() {
+    document.getElementById('audit-modal').classList.remove('abierto');
+  }
+
+  async function cargarAuditoria() {
+    const body = document.getElementById('audit-body');
+    body.innerHTML = '<div class="typing">Leyendo el registro, señor...</div>';
+    try {
+      const res = await fetch('/api/auditoria');
+      const data = await res.json();
+      if (data.error || data.entradas === undefined) throw new Error(data.error || 'sin datos');
+      const entradas = data.entradas || [];
+      if (!entradas.length) {
+        body.innerHTML = '<div class="audit-vacio">El registro de auditoría está vacío, señor.</div>';
+        return;
+      }
+      let html = '<table class="audit-tabla"><thead><tr>' +
+        '<th>Momento</th><th>Usuario</th><th>Rol</th><th>Orden</th><th>Comando</th><th>Resultado</th>' +
+        '</tr></thead><tbody>';
+      for (const e of entradas) {
+        html += '<tr>' +
+          '<td class="momento">' + (e.momento || '') + '</td>' +
+          '<td>' + (e.usuario || '-') + '</td>' +
+          '<td>' + (e.rol || '-') + '</td>' +
+          '<td>' + (e.orden ? e.orden : '-') + '</td>' +
+          '<td class="cmd">' + (e.comando || '') + '</td>' +
+          '<td class="res">' + (e.resultado || '') + '</td>' +
+          '</tr>';
+      }
+      html += '</tbody></table>';
+      body.innerHTML = html;
+    } catch (e) {
+      body.innerHTML = '<div class="error">Error al leer la auditoría: ' + e.message + '</div>';
+    }
+  }
+
   function toggleVozWeb() {
     vozWeb = !vozWeb;
     document.getElementById('btn-voz').classList.toggle('activa', vozWeb);
@@ -404,8 +564,11 @@
           document.getElementById('ap-accion').textContent = pendiente.pendiente_accion || '—';
           document.getElementById('ap-desc').textContent = pendiente.pendiente_descripcion || '—';
           document.getElementById('ap-pin').value = '';
+          const esAdmin = rolActual === 'admin';
+          document.getElementById('ap-controls').style.display = esAdmin ? '' : 'none';
+          document.getElementById('ap-bloqueado').style.display = esAdmin ? 'none' : '';
           modal.classList.add('abierto');
-          document.getElementById('ap-pin').focus();
+          if (esAdmin) document.getElementById('ap-pin').focus();
         }
       } else {
         aprobActual = null;
@@ -559,6 +722,7 @@
 
   actualizarEstado();
   setInterval(actualizarEstado, 5000);
+  actualizarSesion();
   verificarAprobaciones(false);
   setInterval(() => verificarAprobaciones(false), 4000);
 

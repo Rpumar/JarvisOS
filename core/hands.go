@@ -93,6 +93,9 @@ type Hands struct {
 	PINHash   string
 	PINSetter func(hash string) bool
 
+	ContrasenaHash   string
+	ContrasenaSetter func(hash string) bool
+
 	aprobacionMu      sync.Mutex
 	aprobacionPendiente *aprobacionOrden
 
@@ -134,6 +137,9 @@ type HandsOpciones struct {
 	Auditoria *audit.Registro
 	PINHash   string
 	PINSetter func(hash string) bool
+
+	ContrasenaHash   string
+	ContrasenaSetter func(hash string) bool
 }
 
 func NewHands(opciones ...HandsOpciones) *Hands {
@@ -157,6 +163,8 @@ func NewHands(opciones ...HandsOpciones) *Hands {
 		h.Auditoria = opciones[0].Auditoria
 		h.PINHash = opciones[0].PINHash
 		h.PINSetter = opciones[0].PINSetter
+		h.ContrasenaHash = opciones[0].ContrasenaHash
+		h.ContrasenaSetter = opciones[0].ContrasenaSetter
 		h.LimiteComando = opciones[0].LimiteComando
 	}
 	if strings.TrimSpace(h.WorkspaceRoot) == "" {
@@ -196,6 +204,14 @@ func (h *Hands) RunCommand(cmd string) string {
 			return h.EstablecerPIN(pin)
 		}
 		return "Diga 'configurá el pin 1234' con un PIN de 4 a 6 dígitos, señor."
+	}
+
+	if (strings.Contains(cmd, "contraseña") || strings.Contains(cmd, "contrasena") || strings.Contains(cmd, "password")) &&
+		(strings.Contains(cmd, "configur") || strings.Contains(cmd, "cambi") || strings.Contains(cmd, "poné") || strings.Contains(cmd, "pone")) {
+		if clave := extraerContrasena(cmd); clave != "" {
+			return h.EstablecerContrasena(clave)
+		}
+		return "Diga 'configurá la contraseña de acceso miClave' con 6 a 32 caracteres, señor."
 	}
 
 	if h.clasif != nil {

@@ -29,9 +29,10 @@ La propuesta de negocio (detallada en `PLAN-EMPRESA.md`):
 3. **Bucle de agente con IA** (`core/agente.go`): la IA recibe la orden + un **catálogo de herramientas** y responde con **JSON estricto** (`{"accion":"<comando>","razon":"<por qué>"}` para ejecutar un paso, o `{"fin":"<resumen>"}` para cerrar). El bucle ejecuta, observa el resultado, ajusta (hasta 10 iteraciones) y, al cumplirse, **aprende el procedimiento** para la próxima vez. Si la IA responde JSON malformado, se le re-pide mostrando el error (hasta 3 veces) antes de bloquear la orden.
 4. **Procedimientos** (`core/empleado.go`): se aprenden en 1 o 2 turnos ("aprendé que para hacer X: paso 1, paso 2"), se ejecutan, se consultan y se inyectan en el prompt de la IA.
 5. **Acciones sensibles → aprobación (F2 inicial)**: el bucle ya no bloquea en seco. Detecta la acción sensible con el paquete `core/security`, pasa la orden a **`esperando_aprobacion`**, dispara una **alerta visual en la Web UI** y exige el **PIN del dueño** (4-6 dígitos, en `config.json`) o el botón de autorización del panel. Al aprobar, el agente **reanuda la ejecución automáticamente**; al denegar, la orden queda bloqueada. Si el dueño no responde en **5 minutos**, la orden expira sola (`expirada`, auditada como `expirado_por_timeout_aprobacion`) y se puede volver a ejecutar.
-6. **Auditoría inmutable** (`core/audit`, JSONL append-only): cada comando ejecutado se registra con usuario, rol, orden, comando y resultado exacto. Lista para alimentar SQLite y el panel de F2. Al superar **10 MB** el archivo se **rota automáticamente** (se archiva con sufijo `.YYYYMMDD_HHMMSS` y se sigue en un archivo nuevo limpio).
-7. **Escritura atómica** (temp + rename) para que un crash no corrompa órdenes/tareas/procedimientos.
-8. **Reporte por orden**: qué hizo, en qué orden, qué falló, qué necesita.
+6. **Auditoría inmutable** (`core/audit`, JSONL append-only): cada comando ejecutado se registra con usuario, rol, orden, comando y resultado exacto. Al superar **10 MB** el archivo se **rota automáticamente** (se archiva con sufijo `.YYYYMMDD_HHMMSS` y se sigue en un archivo nuevo limpio).
+7. **Acceso con roles (F2 completo)**: el panel web pide **contraseña de acceso** (en `config.json`, campo `login_password_hash`) cuando el dueño la configura. Sin sesión, el visitante entra como **Operador** (conversa y consulta, pero no autoriza ni ve auditoría); con la contraseña correcta entra como **Admin** (aprueba/deniega con PIN, ve el **visor de auditoría** del panel y cierra sesión). Se configura por voz: "configurá la contraseña de acceso miClave" (6-32 caracteres).
+8. **Escritura atómica** (temp + rename) para que un crash no corrompa órdenes/tareas/procedimientos.
+9. **Reporte por orden**: qué hizo, en qué orden, qué falló, qué necesita.
 
 ## 3. Arquitectura
 
@@ -75,7 +76,7 @@ Ejemplo del bucle con IA (probado con IA falsa):
 
 ## 6. Qué sigue (plan por fases)
 
-- **F2 — Confiabilidad B2B** *(en curso)*: paquetes `security` (clasificación de riesgo) y `audit` (registro inmutable) ya separados; **aprobación por PIN/panel con reanudación automática** implementada para acciones sensibles; **timeout de aprobación de 5 min** (orden expira sola) y **rotación automática de la auditoría** a 10 MB; **timeout de ejecución de comandos externos** de 30 s (aborta con error claro en vez de colgarse). Pendiente: roles por usuario, autenticación, panel del dueño completo.
+- **F2 — Confiabilidad B2B** *(en curso)*: paquetes `security` (clasificación de riesgo) y `audit` (registro inmutable) ya separados; **aprobación por PIN/panel con reanudación automática** implementada para acciones sensibles; **timeout de aprobación de 5 min** (orden expira sola) y **rotación automática de la auditoría** a 10 MB; **timeout de ejecución de comandos externos** de 30 s (aborta con error claro en vez de colgarse); **acceso con roles** (Operador vs Admin) con **contraseña de acceso**, sesión web, **visor de auditoría** en el panel y permiso de aprobación solo para Admin. Pendiente: la IA de voz que responda la auditoría por comando (los datos ya están en `core/audit`).
 - **F3 — Integraciones de oficina**: email (Gmail/Outlook), Office por COM (Word/Excel/PPT), calendario, PDF, redes sociales.
 - **F4 — Producto y presencia B2B**: marca corporativa, dashboard, onboarding en <15 min.
 - **F5 — Propuesta comercial**: documento de venta + demo guionizada + pilotos.
@@ -83,7 +84,7 @@ Ejemplo del bucle con IA (probado con IA falsa):
 ## 7. Puntos abiertos para una opinión externa
 
 1. **Diseño del agent loop**: ✅ migrado a **JSON estricto** (`{"accion":..., "razon":...}` / `{"fin":...}`) con reintento automático ante JSON malformado (hasta 3 veces antes de bloquear). Pendiente de evaluar: tool calling nativo de las APIs y verificación más estricta del resultado.
-2. **Seguridad**: ✅ acciones sensibles ya no bloquean en seco: pasan a **`esperando_aprobacion`**, alerta en la Web UI y aprobación por **PIN del dueño** o botón del panel, con reanudación automática del bucle. Filtro por palabras clave en `core/security`. Pendiente: PIN por acción destructiva de nivel OS ya cubierto; falta rol de administrador y doble factor más estricto.
+2. **Seguridad**: ✅ acciones sensibles ya no bloquean en seco: pasan a **`esperando_aprobacion`**, alerta en la Web UI y aprobación por **PIN del dueño** o botón del panel, con reanudación automática del bucle. ✅ **Roles**: el panel distingue **Operador** (consulta) de **Admin** (aprueba, ve auditoría) con contraseña de acceso y sesión web. Pendiente: doble factor más estricto.
 3. **Persistencia**: JSON local con escritura atómica vs SQLite para órdenes/historial con volúmenes reales.
 4. **IA agnóstica gratuita**: ¿es viable como producto B2B con modelos open-weight locales, o limita la calidad del bucle?
 5. **Precios y fases**: ¿es realista la ruta F0→F5 y la monetización por puesto/mes para un MVP?

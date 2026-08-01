@@ -129,6 +129,8 @@ func main() {
 		Auditoria:       auditoria,
 		PINHash:         cfg.PINHash,
 		PINSetter:       func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
+		ContrasenaHash:   cfg.LoginPasswordHash,
+		ContrasenaSetter: func(hash string) bool { cfg.LoginPasswordHash = hash; return cfg.Save() == nil },
 		LimiteComando:   time.Duration(cfg.ComandoTimeoutSegundos) * time.Second,
 	})
 	coderAgent := agents.NewCoderAgent(conectorIA)
@@ -328,6 +330,8 @@ func ejecutarModoServicio() {
 		Auditoria:       auditoria,
 		PINHash:         cfg.PINHash,
 		PINSetter:       func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
+		ContrasenaHash:   cfg.LoginPasswordHash,
+		ContrasenaSetter: func(hash string) bool { cfg.LoginPasswordHash = hash; return cfg.Save() == nil },
 		LimiteComando:   time.Duration(cfg.ComandoTimeoutSegundos) * time.Second,
 	})
 	coderAgent := agents.NewCoderAgent(conectorIA)
@@ -436,6 +440,8 @@ func ejecutarWebUI() {
 		WorkspaceRoot: cfg.WorkspaceRoot, DesarrolladorIA: conectorIA, IA: conectorIA, Skills: gestorSkills,
 		Auditoria: auditoria, PINHash: cfg.PINHash,
 		PINSetter: func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
+		ContrasenaHash: cfg.LoginPasswordHash,
+		ContrasenaSetter: func(hash string) bool { cfg.LoginPasswordHash = hash; return cfg.Save() == nil },
 		LimiteComando: time.Duration(cfg.ComandoTimeoutSegundos) * time.Second,
 	})
 	coderAgent := agents.NewCoderAgent(conectorIA)
@@ -462,6 +468,8 @@ func ejecutarWebUI() {
 		Estado:        hands,
 		Diagnostico:   hands,
 		Aprobador:     hands,
+		Auditor:       hands,
+		ContrasenaHash: cfg.LoginPasswordHash,
 		RutaHistorial: filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "historial-web.json"),
 	})
 	if err := servidor.Iniciar(); err != nil {

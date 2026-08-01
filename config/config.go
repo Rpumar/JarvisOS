@@ -35,6 +35,11 @@ type Config struct {
 	// ComandoTimeoutSegundos es el límite de ejecución de comandos externos
 	// (30 s por defecto).
 	ComandoTimeoutSegundos int `json:"comando_timeout_segundos"`
+
+	// LoginPasswordHash es el hash SHA-256 (hex) de la contraseña de acceso
+	// al panel web. Si está vacío, el panel está abierto (modo piloto); si
+	// está definido, exige inicio de sesión (dueño = Admin).
+	LoginPasswordHash string `json:"login_password_hash"`
 }
 
 func defaultConfig() *Config {
@@ -126,6 +131,7 @@ func Load() *Config {
 		NewsAPIKey          string  `json:"news_api_key"`
 		Apps                map[string]string `json:"apps"`
 		ComandoTimeoutSegundos int   `json:"comando_timeout_segundos"`
+		LoginPasswordHash    string `json:"login_password_hash"`
 	}
 
 	var alias configAlias
@@ -154,6 +160,7 @@ func Load() *Config {
 	if alias.NewsAPIKey != "" { cfg.NewsAPIKey = alias.NewsAPIKey }
 	if alias.Apps != nil { cfg.Apps = alias.Apps }
 	if alias.ComandoTimeoutSegundos > 0 { cfg.ComandoTimeoutSegundos = alias.ComandoTimeoutSegundos }
+	if alias.LoginPasswordHash != "" { cfg.LoginPasswordHash = alias.LoginPasswordHash }
 
 	return cfg
 }
@@ -180,6 +187,7 @@ func (c *Config) Save() error {
 		"news_api_key":           c.NewsAPIKey,
 		"apps":                   c.Apps,
 		"comando_timeout_segundos": c.ComandoTimeoutSegundos,
+		"login_password_hash":      c.LoginPasswordHash,
 	}
 
 	contenido, err := json.MarshalIndent(datos, "", "  ")

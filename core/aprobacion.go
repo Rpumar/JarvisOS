@@ -38,9 +38,16 @@ func (h *Hands) auditar(ordenID int, comando, resultado string) {
 	})
 }
 
-func hashPIN(pin string) string {
-	sum := sha256.Sum256([]byte(pin))
+// HashTexto devuelve el hash SHA-256 en hex de un texto (PIN, contraseña).
+// Es la misma función para todo secreto del sistema: nunca se guarda en
+// claro, solo su hash.
+func HashTexto(s string) string {
+	sum := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(sum[:])
+}
+
+func hashPIN(pin string) string {
+	return HashTexto(pin)
 }
 
 // pinValido: si no hay PIN configurado, la aprobación explícita del dueño
