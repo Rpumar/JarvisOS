@@ -203,5 +203,6 @@ func catalogoAgente() string {
 - ejecutá el procedimiento [nombre]
 - crear rutina [nombre] que [pasos]
 - ejecutar rutina [nombre]
-- ver clima / ver noticias`
+- ver clima / ver noticias
+- enviar email a [dirección] con asunto [asunto] y el texto [texto] (exige aprobación del dueño)`
 }

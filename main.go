@@ -131,6 +131,12 @@ func main() {
 		PINSetter:       func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
 		ContrasenaHash:   cfg.LoginPasswordHash,
 		ContrasenaSetter: func(hash string) bool { cfg.LoginPasswordHash = hash; return cfg.Save() == nil },
+		EmailEnabled:     cfg.EmailEnabled,
+		EmailSmtpHost:    cfg.EmailSmtpHost,
+		EmailSmtpPort:    cfg.EmailSmtpPort,
+		EmailUsuario:     cfg.EmailUsuario,
+		EmailPassword:    cfg.EmailPassword,
+		EmailDesde:       cfg.EmailDesde,
 		LimiteComando:   time.Duration(cfg.ComandoTimeoutSegundos) * time.Second,
 	})
 	coderAgent := agents.NewCoderAgent(conectorIA)
@@ -332,6 +338,12 @@ func ejecutarModoServicio() {
 		PINSetter:       func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
 		ContrasenaHash:   cfg.LoginPasswordHash,
 		ContrasenaSetter: func(hash string) bool { cfg.LoginPasswordHash = hash; return cfg.Save() == nil },
+		EmailEnabled:     cfg.EmailEnabled,
+		EmailSmtpHost:    cfg.EmailSmtpHost,
+		EmailSmtpPort:    cfg.EmailSmtpPort,
+		EmailUsuario:     cfg.EmailUsuario,
+		EmailPassword:    cfg.EmailPassword,
+		EmailDesde:       cfg.EmailDesde,
 		LimiteComando:   time.Duration(cfg.ComandoTimeoutSegundos) * time.Second,
 	})
 	coderAgent := agents.NewCoderAgent(conectorIA)
@@ -442,6 +454,12 @@ func ejecutarWebUI() {
 		PINSetter: func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
 		ContrasenaHash: cfg.LoginPasswordHash,
 		ContrasenaSetter: func(hash string) bool { cfg.LoginPasswordHash = hash; return cfg.Save() == nil },
+		EmailEnabled:     cfg.EmailEnabled,
+		EmailSmtpHost:    cfg.EmailSmtpHost,
+		EmailSmtpPort:    cfg.EmailSmtpPort,
+		EmailUsuario:     cfg.EmailUsuario,
+		EmailPassword:    cfg.EmailPassword,
+		EmailDesde:       cfg.EmailDesde,
 		LimiteComando: time.Duration(cfg.ComandoTimeoutSegundos) * time.Second,
 	})
 	coderAgent := agents.NewCoderAgent(conectorIA)

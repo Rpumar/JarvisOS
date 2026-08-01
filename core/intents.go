@@ -198,6 +198,12 @@ func NuevoClasificador() *Clasificador {
 			Handler: func(cmd string, h *Hands) string { return h.consultarNoticias() },
 		},
 		{
+			Nombre: "email",
+			Frases: []string{"enviar un email", "enviar un correo", "enviar un mail", "enviá un email", "enviá un correo", "enviá un mail", "envia un email", "envia un correo", "envia un mail", "mandar un email", "mandar un correo", "mandar un mail", "mandá un email", "mandá un correo", "mandá un mail", "manda un email", "manda un correo", "manda un mail", "leer mis correos", "leer mi email", "leer mi correo", "revisar mis correos", "revisar mi email", "revisar mi correo", "ver mis correos", "cuántos correos tengo", "cuantos correos tengo"},
+			Palabras: []string{"email", "correo", "mail", "correos", "mails"},
+			Handler: func(cmd string, h *Hands) string { return h.manejarEmail(cmd) },
+		},
+		{
 			Nombre: "bloquear_pantalla",
 			Frases: []string{"bloquear pantalla", "bloquear pc", "bloquear equipo", "bloquear la pantalla", "bloqueá", "bloquea", "trancar pantalla"},
 			Palabras: []string{"bloquear", "bloqueá", "bloquea", "trancar"},

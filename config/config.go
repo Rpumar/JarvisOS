@@ -40,6 +40,19 @@ type Config struct {
 	// al panel web. Si está vacío, el panel está abierto (modo piloto); si
 	// está definido, exige inicio de sesión (dueño = Admin).
 	LoginPasswordHash string `json:"login_password_hash"`
+
+	// EmailEnabled habilita el envío de correos por SMTP.
+	EmailEnabled bool `json:"email_enabled"`
+	// EmailSmtpHost es el servidor SMTP (ej. smtp.gmail.com, smtp.office365.com).
+	EmailSmtpHost string `json:"email_smtp_host"`
+	// EmailSmtpPort es el puerto SMTP (587/TLS por defecto).
+	EmailSmtpPort int `json:"email_smtp_port"`
+	// EmailUsuario es la cuenta que envía (ej. dueño@gmail.com).
+	EmailUsuario string `json:"email_usuario"`
+	// EmailPassword es la contraseña de aplicación del SMTP.
+	EmailPassword string `json:"email_password"`
+	// EmailDesde es el nombre visible del remitente (ej. "Jarvis").
+	EmailDesde string `json:"email_desde"`
 }
 
 func defaultConfig() *Config {
@@ -62,6 +75,9 @@ func defaultConfig() *Config {
 		OpenWeatherKey:      "",
 		NewsAPIKey:          "",
 		ComandoTimeoutSegundos: 30,
+		EmailEnabled:           false,
+		EmailSmtpPort:          587,
+		EmailDesde:             "Jarvis",
 		Apps: map[string]string{
 			"code":          "code",
 			"calculadora":   "calc",
@@ -132,6 +148,12 @@ func Load() *Config {
 		Apps                map[string]string `json:"apps"`
 		ComandoTimeoutSegundos int   `json:"comando_timeout_segundos"`
 		LoginPasswordHash    string `json:"login_password_hash"`
+		EmailEnabled         bool   `json:"email_enabled"`
+		EmailSmtpHost        string `json:"email_smtp_host"`
+		EmailSmtpPort        int    `json:"email_smtp_port"`
+		EmailUsuario         string `json:"email_usuario"`
+		EmailPassword        string `json:"email_password"`
+		EmailDesde           string `json:"email_desde"`
 	}
 
 	var alias configAlias
@@ -161,6 +183,12 @@ func Load() *Config {
 	if alias.Apps != nil { cfg.Apps = alias.Apps }
 	if alias.ComandoTimeoutSegundos > 0 { cfg.ComandoTimeoutSegundos = alias.ComandoTimeoutSegundos }
 	if alias.LoginPasswordHash != "" { cfg.LoginPasswordHash = alias.LoginPasswordHash }
+	cfg.EmailEnabled = alias.EmailEnabled
+	if alias.EmailSmtpHost != "" { cfg.EmailSmtpHost = alias.EmailSmtpHost }
+	if alias.EmailSmtpPort > 0 { cfg.EmailSmtpPort = alias.EmailSmtpPort }
+	if alias.EmailUsuario != "" { cfg.EmailUsuario = alias.EmailUsuario }
+	if alias.EmailPassword != "" { cfg.EmailPassword = alias.EmailPassword }
+	if alias.EmailDesde != "" { cfg.EmailDesde = alias.EmailDesde }
 
 	return cfg
 }
@@ -188,6 +216,12 @@ func (c *Config) Save() error {
 		"apps":                   c.Apps,
 		"comando_timeout_segundos": c.ComandoTimeoutSegundos,
 		"login_password_hash":      c.LoginPasswordHash,
+		"email_enabled":            c.EmailEnabled,
+		"email_smtp_host":          c.EmailSmtpHost,
+		"email_smtp_port":          c.EmailSmtpPort,
+		"email_usuario":            c.EmailUsuario,
+		"email_password":           c.EmailPassword,
+		"email_desde":              c.EmailDesde,
 	}
 
 	contenido, err := json.MarshalIndent(datos, "", "  ")

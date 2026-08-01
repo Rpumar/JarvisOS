@@ -98,6 +98,12 @@ func TestClasificarArmas(t *testing.T) {
 		{"bloqueá la orden #3", "orden"},
 		{"terminá la orden #4", "orden"},
 		{"reportá la orden #5", "orden"},
+		{"enviar un email a juan@gmail.com", "email"},
+		{"enviá un correo a ana@empresa.com", "email"},
+		{"mandar un mail de resumen", "email"},
+		{"leer mis correos", "email"},
+		{"revisar mi email", "email"},
+		{"cuántos correos tengo", "email"},
 	}
 	c := NuevoClasificador()
 	for _, cso := range casos {

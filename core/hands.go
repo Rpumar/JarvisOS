@@ -96,6 +96,13 @@ type Hands struct {
 	ContrasenaHash   string
 	ContrasenaSetter func(hash string) bool
 
+	EmailEnabled  bool
+	EmailSmtpHost string
+	EmailSmtpPort int
+	EmailUsuario  string
+	EmailPassword string
+	EmailDesde    string
+
 	aprobacionMu      sync.Mutex
 	aprobacionPendiente *aprobacionOrden
 
@@ -140,6 +147,13 @@ type HandsOpciones struct {
 
 	ContrasenaHash   string
 	ContrasenaSetter func(hash string) bool
+
+	EmailEnabled  bool
+	EmailSmtpHost string
+	EmailSmtpPort int
+	EmailUsuario  string
+	EmailPassword string
+	EmailDesde    string
 }
 
 func NewHands(opciones ...HandsOpciones) *Hands {
@@ -165,6 +179,12 @@ func NewHands(opciones ...HandsOpciones) *Hands {
 		h.PINSetter = opciones[0].PINSetter
 		h.ContrasenaHash = opciones[0].ContrasenaHash
 		h.ContrasenaSetter = opciones[0].ContrasenaSetter
+		h.EmailEnabled = opciones[0].EmailEnabled
+		h.EmailSmtpHost = opciones[0].EmailSmtpHost
+		h.EmailSmtpPort = opciones[0].EmailSmtpPort
+		h.EmailUsuario = opciones[0].EmailUsuario
+		h.EmailPassword = opciones[0].EmailPassword
+		h.EmailDesde = opciones[0].EmailDesde
 		h.LimiteComando = opciones[0].LimiteComando
 	}
 	if strings.TrimSpace(h.WorkspaceRoot) == "" {

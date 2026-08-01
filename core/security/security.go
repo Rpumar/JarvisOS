@@ -60,6 +60,16 @@ var frasesPeligrosas = []frasePeligrosa{
 	{"borrar ", "borrar archivos o datos"},
 	{"eliminar ", "eliminar archivos o datos"},
 	{"suprimir ", "suprimir archivos o datos"},
+	// Acciones externas: envían datos fuera del equipo, exigen aprobación.
+	{"enviar email", "enviar un correo electrónico"},
+	{"enviar un email", "enviar un correo electrónico"},
+	{"enviar correo", "enviar un correo electrónico"},
+	{"enviar un correo", "enviar un correo electrónico"},
+	{"enviar mail", "enviar un correo electrónico"},
+	{"enviar un mail", "enviar un correo electrónico"},
+	{"mandar un email", "enviar un correo electrónico"},
+	{"mandar un correo", "enviar un correo electrónico"},
+	{"mandar un mail", "enviar un correo electrónico"},
 }
 
 // Clasificar devuelve el riesgo de una acción y una descripción de qué

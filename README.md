@@ -31,8 +31,9 @@ La propuesta de negocio (detallada en `PLAN-EMPRESA.md`):
 5. **Acciones sensibles → aprobación (F2 inicial)**: el bucle ya no bloquea en seco. Detecta la acción sensible con el paquete `core/security`, pasa la orden a **`esperando_aprobacion`**, dispara una **alerta visual en la Web UI** y exige el **PIN del dueño** (4-6 dígitos, en `config.json`) o el botón de autorización del panel. Al aprobar, el agente **reanuda la ejecución automáticamente**; al denegar, la orden queda bloqueada. Si el dueño no responde en **5 minutos**, la orden expira sola (`expirada`, auditada como `expirado_por_timeout_aprobacion`) y se puede volver a ejecutar.
 6. **Auditoría inmutable** (`core/audit`, JSONL append-only): cada comando ejecutado se registra con usuario, rol, orden, comando y resultado exacto. Al superar **10 MB** el archivo se **rota automáticamente** (se archiva con sufijo `.YYYYMMDD_HHMMSS` y se sigue en un archivo nuevo limpio).
 7. **Acceso con roles (F2 completo)**: el panel web pide **contraseña de acceso** (en `config.json`, campo `login_password_hash`) cuando el dueño la configura. Sin sesión, el visitante entra como **Operador** (conversa y consulta, pero no autoriza ni ve auditoría); con la contraseña correcta entra como **Admin** (aprueba/deniega con PIN, ve el **visor de auditoría** del panel y cierra sesión). Se configura por voz: "configurá la contraseña de acceso miClave" (6-32 caracteres).
-8. **Escritura atómica** (temp + rename) para que un crash no corrompa órdenes/tareas/procedimientos.
-9. **Reporte por orden**: qué hizo, en qué orden, qué falló, qué necesita.
+8. **Email (F3 inicial)**: envío de correos por **SMTP con la librería estándar** (Gmail/Outlook con contraseña de aplicación; campos `email_smtp_host`, `email_smtp_port`, `email_usuario`, `email_password`, `email_desde` en `config.json`). Comando: "enviá un email a persona@dominio.com con asunto ... y el texto ...". Como es una **acción externa**, pasa por **aprobación** del dueño (PIN/panel) antes de salir, y queda registrada en la auditoría. La lectura de la bandeja (IMAP) queda pendiente para el siguiente paso de F3.
+9. **Escritura atómica** (temp + rename) para que un crash no corrompa órdenes/tareas/procedimientos.
+10. **Reporte por orden**: qué hizo, en qué orden, qué falló, qué necesita.
 
 ## 3. Arquitectura
 
@@ -77,7 +78,7 @@ Ejemplo del bucle con IA (probado con IA falsa):
 ## 6. Qué sigue (plan por fases)
 
 - **F2 — Confiabilidad B2B** ✅ *completa*: paquetes `security` (clasificación de riesgo) y `audit` (registro inmutable); **aprobación por PIN/panel con reanudación automática** para acciones sensibles; **timeout de aprobación de 5 min** (la orden expira sola) y **rotación automática de la auditoría** a 10 MB; **timeout de ejecución de comandos externos** de 30 s; **acceso con roles** (Operador vs Admin) con **contraseña de acceso**, sesión web, **visor de auditoría** en el panel y aprobación solo para Admin. Decisión: la auditoría se consume por pantalla, no por voz (la voz no puede autenticar quién pide el dato).
-- **F3 — Integraciones de oficina**: email (Gmail/Outlook), Office por COM (Word/Excel/PPT), calendario, PDF, redes sociales.
+- **F3 — Integraciones de oficina** *(en curso)*: **email de salida por SMTP implementado** (Gmail/Outlook, aprobación + auditoría). Pendiente: lectura de bandeja por IMAP, Office por COM (Word/Excel/PPT), calendario, PDF, redes sociales.
 - **F4 — Producto y presencia B2B**: marca corporativa, dashboard, onboarding en <15 min.
 - **F5 — Propuesta comercial**: documento de venta + demo guionizada + pilotos.
 
