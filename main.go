@@ -137,6 +137,9 @@ func main() {
 		EmailUsuario:     cfg.EmailUsuario,
 		EmailPassword:    cfg.EmailPassword,
 		EmailDesde:       cfg.EmailDesde,
+		EmailImapHost:    cfg.EmailImapHost,
+		EmailImapPort:    cfg.EmailImapPort,
+		EmailImapMax:     cfg.EmailImapMax,
 		LimiteComando:   time.Duration(cfg.ComandoTimeoutSegundos) * time.Second,
 	})
 	coderAgent := agents.NewCoderAgent(conectorIA)
@@ -344,6 +347,9 @@ func ejecutarModoServicio() {
 		EmailUsuario:     cfg.EmailUsuario,
 		EmailPassword:    cfg.EmailPassword,
 		EmailDesde:       cfg.EmailDesde,
+		EmailImapHost:    cfg.EmailImapHost,
+		EmailImapPort:    cfg.EmailImapPort,
+		EmailImapMax:     cfg.EmailImapMax,
 		LimiteComando:   time.Duration(cfg.ComandoTimeoutSegundos) * time.Second,
 	})
 	coderAgent := agents.NewCoderAgent(conectorIA)
@@ -460,6 +466,9 @@ func ejecutarWebUI() {
 		EmailUsuario:     cfg.EmailUsuario,
 		EmailPassword:    cfg.EmailPassword,
 		EmailDesde:       cfg.EmailDesde,
+		EmailImapHost:    cfg.EmailImapHost,
+		EmailImapPort:    cfg.EmailImapPort,
+		EmailImapMax:     cfg.EmailImapMax,
 		LimiteComando: time.Duration(cfg.ComandoTimeoutSegundos) * time.Second,
 	})
 	coderAgent := agents.NewCoderAgent(conectorIA)

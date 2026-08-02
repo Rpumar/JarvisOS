@@ -53,6 +53,12 @@ type Config struct {
 	EmailPassword string `json:"email_password"`
 	// EmailDesde es el nombre visible del remitente (ej. "Jarvis").
 	EmailDesde string `json:"email_desde"`
+	// EmailImapHost es el servidor IMAP (ej. imap.gmail.com).
+	EmailImapHost string `json:"email_imap_host"`
+	// EmailImapPort es el puerto IMAP TLS (993 por defecto).
+	EmailImapPort int `json:"email_imap_port"`
+	// EmailImapMax es cuántos correos leer de la bandeja por defecto (10).
+	EmailImapMax int `json:"email_imap_max"`
 }
 
 func defaultConfig() *Config {
@@ -78,6 +84,8 @@ func defaultConfig() *Config {
 		EmailEnabled:           false,
 		EmailSmtpPort:          587,
 		EmailDesde:             "Jarvis",
+		EmailImapPort:          993,
+		EmailImapMax:           10,
 		Apps: map[string]string{
 			"code":          "code",
 			"calculadora":   "calc",
@@ -154,6 +162,9 @@ func Load() *Config {
 		EmailUsuario         string `json:"email_usuario"`
 		EmailPassword        string `json:"email_password"`
 		EmailDesde           string `json:"email_desde"`
+		EmailImapHost        string `json:"email_imap_host"`
+		EmailImapPort        int    `json:"email_imap_port"`
+		EmailImapMax         int    `json:"email_imap_max"`
 	}
 
 	var alias configAlias
@@ -189,6 +200,9 @@ func Load() *Config {
 	if alias.EmailUsuario != "" { cfg.EmailUsuario = alias.EmailUsuario }
 	if alias.EmailPassword != "" { cfg.EmailPassword = alias.EmailPassword }
 	if alias.EmailDesde != "" { cfg.EmailDesde = alias.EmailDesde }
+	if alias.EmailImapHost != "" { cfg.EmailImapHost = alias.EmailImapHost }
+	if alias.EmailImapPort > 0 { cfg.EmailImapPort = alias.EmailImapPort }
+	if alias.EmailImapMax > 0 { cfg.EmailImapMax = alias.EmailImapMax }
 
 	return cfg
 }
@@ -222,6 +236,9 @@ func (c *Config) Save() error {
 		"email_usuario":            c.EmailUsuario,
 		"email_password":           c.EmailPassword,
 		"email_desde":              c.EmailDesde,
+		"email_imap_host":         c.EmailImapHost,
+		"email_imap_port":         c.EmailImapPort,
+		"email_imap_max":          c.EmailImapMax,
 	}
 
 	contenido, err := json.MarshalIndent(datos, "", "  ")

@@ -102,6 +102,9 @@ type Hands struct {
 	EmailUsuario  string
 	EmailPassword string
 	EmailDesde    string
+	EmailImapHost string
+	EmailImapPort int
+	EmailImapMax  int
 
 	aprobacionMu      sync.Mutex
 	aprobacionPendiente *aprobacionOrden
@@ -154,6 +157,9 @@ type HandsOpciones struct {
 	EmailUsuario  string
 	EmailPassword string
 	EmailDesde    string
+	EmailImapHost string
+	EmailImapPort int
+	EmailImapMax  int
 }
 
 func NewHands(opciones ...HandsOpciones) *Hands {
@@ -185,6 +191,9 @@ func NewHands(opciones ...HandsOpciones) *Hands {
 		h.EmailUsuario = opciones[0].EmailUsuario
 		h.EmailPassword = opciones[0].EmailPassword
 		h.EmailDesde = opciones[0].EmailDesde
+		h.EmailImapHost = opciones[0].EmailImapHost
+		h.EmailImapPort = opciones[0].EmailImapPort
+		h.EmailImapMax = opciones[0].EmailImapMax
 		h.LimiteComando = opciones[0].LimiteComando
 	}
 	if strings.TrimSpace(h.WorkspaceRoot) == "" {

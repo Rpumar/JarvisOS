@@ -104,10 +104,25 @@ func TestManejarEmailAbrirGmail(t *testing.T) {
 	}
 }
 
-func TestManejarEmailLeerPendiente(t *testing.T) {
+func TestManejarEmailLeerDesconfigurado(t *testing.T) {
 	h := &Hands{}
 	msg := h.manejarEmail("leer mis correos")
-	if !strings.Contains(msg, "leer") {
-		t.Errorf("debería explicar que la lectura está pendiente, fue: %q", msg)
+	if !strings.Contains(msg, "desactivado") {
+		t.Errorf("debería avisar que el correo está desactivado, fue: %q", msg)
+	}
+}
+
+func TestExtraerCantidad(t *testing.T) {
+	casos := map[string]int{
+		"leé los últimos 5 correos":       5,
+		"leer los ultimos 3 emails":       3,
+		"leé las últimas 10 noticias":     0,
+		"leer mis correos":                0,
+		"leé los últimos 200 correos":     0,
+	}
+	for entrada, esperada := range casos {
+		if got := extraerCantidad(entrada); got != esperada {
+			t.Errorf("extraerCantidad(%q) = %d, esperaba %d", entrada, got, esperada)
+		}
 	}
 }

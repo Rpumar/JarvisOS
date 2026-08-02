@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/smtp"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -147,7 +148,57 @@ func construirCorreo(desde, para, asunto, cuerpo string) []byte {
 	return []byte(sb.String())
 }
 
-// leerEmail informa el estado de la lectura de correos (pendiente F3).
+// leerEmail lee los últimos correos de la bandeja (IMAP).
 func (h *Hands) leerEmail(comando string) string {
-	return "Todavía no puedo leer la bandeja de entrada, señor: la lectura por IMAP requiere una librería externa y la dejo para el próximo paso de F3. El envío de correos ya funciona: diga 'enviá un email a persona@dominio.com con asunto ... y el texto ...'."
+	if !h.EmailEnabled {
+		return "El correo está desactivado, señor. Configúrelo en config.json (email_enabled: true)."
+	}
+	if h.EmailImapHost == "" || h.EmailUsuario == "" || h.EmailPassword == "" {
+		return "Falta la configuración IMAP en config.json (email_imap_host, email_usuario, email_password), señor."
+	}
+	cantidad := h.EmailImapMax
+	if n := extraerCantidad(comando); n > 0 {
+		cantidad = n
+	}
+
+	correos, err := leerBandejaIMAP(h.EmailImapHost, h.EmailImapPort, h.EmailUsuario, h.EmailPassword, cantidad)
+	if err != nil {
+		return fmt.Sprintf("No pude leer la bandeja, señor: %v", err)
+	}
+	if len(correos) == 0 {
+		return "La bandeja está vacía, señor."
+	}
+
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "Estos son los últimos %d correos, señor:", len(correos))
+	for _, c := range correos {
+		fmt.Fprintf(&sb, "\n[%d] De: %s | Asunto: %s | %s", c.Numero, c.De, c.Asunto, c.Fecha)
+	}
+	fmt.Fprintf(&sb, "\nDiga 'leé el correo %d' para ver el cuerpo completo.", correos[len(correos)-1].Numero)
+	return sb.String()
+}
+
+// extraerCantidad toma un número que sigue a "últimos / últimas" en un
+// comando de correo ("leé los últimos 5 correos" → 5). Exige que el comando
+// hable de correos para no tomar números de otra cosa.
+func extraerCantidad(comando string) int {
+	if !strings.Contains(comando, "correo") && !strings.Contains(comando, "email") &&
+		!strings.Contains(comando, "mail") && !strings.Contains(comando, "bandeja") {
+		return 0
+	}
+	for _, pref := range []string{"últimos ", "ultimos ", "últimas ", "ultimas "} {
+		if i := strings.Index(comando, pref); i >= 0 {
+			resto := strings.TrimSpace(comando[i+len(pref):])
+			for _, parte := range strings.Fields(resto) {
+				n, err := strconv.Atoi(strings.Trim(parte, ".,"))
+				if err != nil {
+					continue
+				}
+				if n > 0 && n <= 100 {
+					return n
+				}
+			}
+		}
+	}
+	return 0
 }
