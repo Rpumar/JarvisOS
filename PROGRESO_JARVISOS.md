@@ -399,8 +399,6 @@ JarvisOS/
 │   └── config.go             # configuración centralizada
 ├── ia/
 │   └── conector.go           # conector de respaldo a OpenAI (opcional)
-└── agents/
-    └── coder_agent.go        # cimiento reservado para un futuro agente de código
 ```
 
 ## Qué se hizo en esta ronda (v0.3 → v0.4)

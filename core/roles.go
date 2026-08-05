@@ -145,7 +145,7 @@ func parseRol(contenido string) (Rol, bool) {
 }
 
 // Activar activa el modo persistente de un rol. Acepta el nombre interno, la
-// etiqueta o una palabra de activación ("ceo", "ingeniero", "marketing"...).
+// etiqueta o una palabra de activación ("ceo", "marketing"...).
 func (m *RolesManager) Activar(texto string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()

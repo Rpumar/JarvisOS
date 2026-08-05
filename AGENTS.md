@@ -8,9 +8,8 @@ modificar código y respétalas siempre.
 JarvisOS es un asistente de escritorio en **Go** para Windows (módulo `JarvisOS`).
 Un `Brain` enruta la entrada del usuario a "manos" (`Hands`) que ejecutan
 acciones, o a una IA (Ollama/OpenAI-compatible) si no hay comando conocido.
-Incluye WebUI (`webui/`), memoria persistente (`memoria/`), agentes (`agents/`),
-config (`config/`) y paquetes de seguridad/auditoría (`core/security/`,
-`core/audit/`).
+Incluye WebUI (`webui/`), memoria persistente (`memoria/`), config (`config/`)
+y paquetes de seguridad/auditoría (`core/security/`, `core/audit/`).
 
 ## Dependencias
 
@@ -33,7 +32,7 @@ go test ./...
 - Nunca des una tarea por terminada si estos tres no pasan limpios.
 - No marques trabajos como completados sin haber corrido los tests reales.
 
-## Convenciones de código (ver `core/skills/estilo-go.md`)
+## Convenciones de código
 
 - Solo librería estándar: `net/http`, `encoding/json`, `sync`, `time`, `strconv`.
   Evitá dependencias externas nuevas salvo que sea estrictamente necesario.
@@ -69,23 +68,21 @@ del usuario** requiere:
   keys, tokens de redes). NUNCA lo leas completo, lo muestres, lo traslades al
   repo, ni lo subas a git. Si necesitás tocar una clave de config, editá solo
   ese campo y nunca lo imprimas.
-- Trabajá en los archivos del repo (`core/`, `agents/`, `webui/`, `config/`).
+- Trabajá en los archivos del repo (`core/`, `webui/`, `config/`).
   Para pruebas en vivo usá temporales en `%TEMP%\opencode` o un archivo `_test.go`.
 
 ## Estructura clave
 
-- `core/` — lógica del asistente (54+ archivos). `brain.go` enruta; `hands.go`
+- `core/` — lógica del asistente. `brain.go` enruta; `hands.go`
   y `armas*.go` ejecutan; `intents.go` mapa de frases; `skills/roles` embebidos
   vía `embed`. `corporativo.go` = traductor IA a comandos (whitelist).
-- `agents/` — CoderAgent, planificadores, contexto de proyecto.
 - `webui/` — servidor HTTP de la web + panel.
 - `memoria/` — almacenamiento persistente SQLite/JSON.
-- `ia/` — conectores (Ollama/OpenAI-compatible, Claude).
+- `ia/` — conectores (Ollama/OpenAI-compatible).
 - `.github/workflows/test.yml` — CI actual (solo `go test`).
 
 ## Packaging
 
 - `build.ps1 -Config release` produce `JarvisOS.exe` (con `-ldflags="-s -w"`).
-- `instalar.ps1` instala; modelo IA default `qwen2.5-coder:7b` (en la máquina
-  real puede estar `mistral:latest`). No cambies el modelo por defecto en
-  `config/config.go` sin pedir confirmación.
+- `instalar.ps1` instala; modelo IA default `mistral:latest`. No cambies el
+  modelo por defecto en `config/config.go` sin pedir confirmación.

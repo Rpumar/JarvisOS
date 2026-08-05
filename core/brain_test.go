@@ -35,23 +35,6 @@ func (i *iaFalsa) Consultar(prompt string, historial []TurnoConversacion) (strin
 	return i.respuesta, i.err
 }
 
-type coderFalso struct {
-	pendiente          bool
-	respuestaProponer  string
-	errProponer        error
-	respuestaConfirmar string
-	respuestaCancelar  string
-	peticionRecibida   string
-}
-
-func (c *coderFalso) Proponer(peticion string) (string, error) {
-	c.peticionRecibida = peticion
-	return c.respuestaProponer, c.errProponer
-}
-func (c *coderFalso) Confirmar() string             { return c.respuestaConfirmar }
-func (c *coderFalso) Cancelar() string              { return c.respuestaCancelar }
-func (c *coderFalso) TienePropuestaPendiente() bool { return c.pendiente }
-
 type memoriaFalsa struct {
 	hechos          map[string]string
 	notas           []string
@@ -169,7 +152,7 @@ func TestProcess_Roles_Listar(t *testing.T) {
 	b := NewBrain(&manosFalsas{}, BrainOpciones{Roles: roles})
 
 	got := b.Process("qué roles tenés")
-	if !strings.Contains(got, "CEO empresarial") || !strings.Contains(got, "Ingeniero en sistemas") {
+	if !strings.Contains(got, "CEO empresarial") || !strings.Contains(got, "Asistente corporativo") {
 		t.Errorf("esperaba listar los roles, obtuve %q", got)
 	}
 }
@@ -289,72 +272,6 @@ func TestProcess_IA_AcumulaHistorialEntreTurnos(t *testing.T) {
 	}
 }
 
-func TestProcess_PeticionDeCodigo_SeRuteaACoderAgent(t *testing.T) {
-	manos := &manosFalsas{respuesta: ComandoNoReconocido}
-	coder := &coderFalso{respuestaProponer: "¿Confirmo, señor?"}
-	b := NewBrain(manos, BrainOpciones{Coder: coder})
-
-	got := b.Process("escribime un script que organice mis descargas")
-
-	if got != "¿Confirmo, señor?" {
-		t.Errorf("respuesta = %q, esperaba la propuesta del CoderAgent", got)
-	}
-	if coder.peticionRecibida == "" {
-		t.Error("se esperaba que se llamara a Proponer, pero no se llamó")
-	}
-	if manos.comandoRecibido != "" {
-		t.Error("no debería haber llegado a Hands.RunCommand: la petición de código se intercepta antes")
-	}
-}
-
-func TestProcess_BuscarScriptDePython_NoSeConfundeConPeticionDeCodigo(t *testing.T) {
-	manos := &manosFalsas{respuesta: "Buscando script de python en Google, señor."}
-	coder := &coderFalso{respuestaProponer: "no debería llegar acá"}
-	b := NewBrain(manos, BrainOpciones{Coder: coder})
-
-	got := b.Process("buscar script de python")
-
-	if got != "Buscando script de python en Google, señor." {
-		t.Errorf("respuesta = %q; se esperaba que fuera a Hands, no a CoderAgent", got)
-	}
-	if coder.peticionRecibida != "" {
-		t.Error("no debería haberse llamado a CoderAgent.Proponer")
-	}
-}
-
-func TestProcess_PropuestaPendiente_Confirmar(t *testing.T) {
-	coder := &coderFalso{pendiente: true, respuestaConfirmar: "Listo, señor."}
-	b := NewBrain(&manosFalsas{}, BrainOpciones{Coder: coder})
-
-	if got := b.Process("confirmar"); got != "Listo, señor." {
-		t.Errorf("respuesta = %q, esperaba la confirmación", got)
-	}
-}
-
-func TestProcess_PropuestaPendiente_Cancelar(t *testing.T) {
-	coder := &coderFalso{pendiente: true, respuestaCancelar: "Descartado, señor."}
-	b := NewBrain(&manosFalsas{}, BrainOpciones{Coder: coder})
-
-	if got := b.Process("cancelar"); got != "Descartado, señor." {
-		t.Errorf("respuesta = %q, esperaba la cancelación", got)
-	}
-}
-
-func TestProcess_PropuestaPendiente_BloqueaComandosNormales(t *testing.T) {
-	coder := &coderFalso{pendiente: true}
-	manos := &manosFalsas{respuesta: "no debería usarse"}
-	b := NewBrain(manos, BrainOpciones{Coder: coder})
-
-	got := b.Process("abrir chrome")
-
-	if got == "no debería usarse" {
-		t.Error("con una propuesta pendiente, no debería procesarse un comando normal")
-	}
-	if manos.comandoRecibido != "" {
-		t.Error("no debería haber llegado a Hands.RunCommand mientras hay una propuesta pendiente")
-	}
-}
-
 func TestEsAccionPeligrosa_SuspensionExcepciones(t *testing.T) {
 	casos := []struct {
 		entrada  string
@@ -369,29 +286,6 @@ func TestEsAccionPeligrosa_SuspensionExcepciones(t *testing.T) {
 		desc, peligroso := esAccionPeligrosa(c.entrada)
 		if peligroso != c.peligroso {
 			t.Errorf("esAccionPeligrosa(%q) peligroso=%v (%q), esperaba %v", c.entrada, peligroso, desc, c.peligroso)
-		}
-	}
-}
-
-func TestEsPeticionDeCodigo(t *testing.T) {
-	casos := []struct {
-		entrada  string
-		esperado bool
-	}{
-		{"escribe un script que borre archivos temporales", true},
-		{"escribime un script para organizar mis descargas", true},
-		{"crea un script que cuente archivos", true},
-		{"generame un código para esto", true},
-		{"hazme un script rápido", true},
-		{"buscar script de python", false},
-		{"abrir chrome", false},
-		{"cuéntame un chiste", false},
-		{"", false},
-	}
-
-	for _, c := range casos {
-		if got := esPeticionDeCodigo(c.entrada); got != c.esperado {
-			t.Errorf("esPeticionDeCodigo(%q) = %v, esperaba %v", c.entrada, got, c.esperado)
 		}
 	}
 }
@@ -529,19 +423,15 @@ func TestProcess_ComandoDeMemoria_SinMemoriaConfigurada(t *testing.T) {
 	}
 }
 
-func TestProcess_ComandoDeMemoria_NoLlegaAHandsNiACoder(t *testing.T) {
+func TestProcess_ComandoDeMemoria_NoLlegaAHands(t *testing.T) {
 	manos := &manosFalsas{respuesta: "no debería usarse"}
-	coder := &coderFalso{respuestaProponer: "no debería usarse"}
 	mem := nuevaMemoriaFalsa()
-	b := NewBrain(manos, BrainOpciones{Coder: coder, Memoria: mem})
+	b := NewBrain(manos, BrainOpciones{Memoria: mem})
 
 	b.Process("recordá que me llamo Juan")
 
 	if manos.comandoRecibido != "" {
 		t.Error("un comando de memoria no debería llegar a Hands.RunCommand")
-	}
-	if coder.peticionRecibida != "" {
-		t.Error("un comando de memoria no debería llegar a CoderAgent.Proponer")
 	}
 }
 
@@ -857,26 +747,10 @@ func TestEsConsultaSegura(t *testing.T) {
 	}
 }
 
-func TestEsPeticionIngenieria(t *testing.T) {
-	casos := map[string]bool{
-		"escribe un script de python":  true,
-		"creá una función en go":       true,
-		"refactorizá la clase usuario": true,
-		"cual es la capital de Francia": false,
-		"contame un chiste":            false,
-		"cómo está el clima":           false,
-	}
-	for entrada, esperado := range casos {
-		if got := esPeticionIngenieria(entrada); got != esperado {
-			t.Errorf("esPeticionIngenieria(%q) = %v, esperaba %v", entrada, got, esperado)
-		}
-	}
-}
-
 func TestQuitarPrefijoModo(t *testing.T) {
 	casos := map[string]string{
 		"Modo Humano":    "Humano",
-		"modo ingeniero": "ingeniero",
+		"modo marketing": "marketing",
 		"Humano":         "Humano",
 		"Modo":           "Modo",
 		"Modo CEO de la empresa": "CEO de la empresa",

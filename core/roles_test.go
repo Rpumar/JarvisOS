@@ -44,12 +44,10 @@ Sos un CEO experto en negocios.
 func TestNuevoRolesManagerDefaults(t *testing.T) {
 	m := nuevoRolesManagerConDir(t.TempDir())
 	etiquetas := m.Listar()
-	if len(etiquetas) != 6 {
-		t.Fatalf("se esperaban 6 roles embebidos, obtuve %d: %v", len(etiquetas), etiquetas)
+	if len(etiquetas) != 4 {
+		t.Fatalf("se esperaban 4 roles embebidos, obtuve %d: %v", len(etiquetas), etiquetas)
 	}
 	esperados := []string{
-		"Ingeniero en sistemas",
-		"Desarrollador fullstack senior",
 		"CEO empresarial",
 		"Licenciado en marketing",
 		"Modo humano",
@@ -74,10 +72,8 @@ func TestBuscarRolPorModo(t *testing.T) {
 		{"CEO", "ceo_empresarial"},
 		{"modo ceo", "ceo_empresarial"},
 		{"modo ceo empresarial", "ceo_empresarial"},
-		{"ingeniero", "ingeniero_sistemas"},
 		{"marketing", "licenciado_marketing"},
 		{"humano", "humano"},
-		{"desarrollador", "desarrollador_fullstack"},
 		{"algo raro", ""},
 	}
 	for _, c := range casos {
@@ -100,11 +96,10 @@ func TestSugerirRolesPorPalabras(t *testing.T) {
 		entrada  string
 		esperado string
 	}{
-		{"la pc anda muy lenta", "ingeniero_sistemas"},
+		{"la pc anda muy lenta", ""},
 		{"escribime un post para instagram", "licenciado_marketing"},
 		{"cómo hago crecer mi negocio", "ceo_empresarial"},
 		{"quiero conversar un rato", "humano"},
-		{"desarrollame una función en go", "desarrollador_fullstack"},
 		{"qué hora es", ""},
 	}
 	for _, c := range casos {

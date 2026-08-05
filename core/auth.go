@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"strings"
 
 	"JarvisOS/core/audit"
@@ -43,6 +44,27 @@ func (h *Hands) AuditoriaPanel() []audit.Entrada {
 		return nil
 	}
 	return h.Auditoria.Recientes(200)
+}
+
+// mostrarAuditoria resume por voz las entradas más recientes del registro
+// inmutable, para los comandos "mostrame la auditoría" / "qué hiciste hoy".
+func (h *Hands) mostrarAuditoria() string {
+	entradas := h.AuditoriaPanel()
+	if len(entradas) == 0 {
+		return "El registro de auditoría está vacío por ahora, señor."
+	}
+	n := len(entradas)
+	ultima := entradas[n-1]
+	resumen := fmt.Sprintf("Tengo %d entradas en el registro de auditoría. La última: %s, rol %s, comando '%s', resultado '%s'.", n, ultima.Momento, ultima.Rol, ultima.Comando, ultima.Resultado)
+	fmt.Println("Últimas entradas de auditoría:")
+	for i := n - 5; i < n; i++ {
+		if i < 0 {
+			continue
+		}
+		e := entradas[i]
+		fmt.Printf(" - %s [%s] %s -> %s\n", e.Momento, e.Rol, e.Comando, e.Resultado)
+	}
+	return resumen
 }
 
 // extraerContrasena toma el texto que sigue a "de acceso / acceso /

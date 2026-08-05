@@ -596,85 +596,6 @@ func NuevoClasificador() *Clasificador {
 			Handler: func(cmd string, h *Hands) string { return h.ejecutarPlan() },
 		},
 		{
-			Nombre: "crear_proyecto",
-			Frases: []string{
-				"crear proyecto web", "crear un proyecto web", "crear un proyecto", "crear proyecto",
-				"crea un proyecto web", "crea un proyecto", "crea proyecto web", "crea una web",
-				"crea una app web", "crea una aplicacion web",
-				"hace un proyecto web", "hace un proyecto", "hace una web", "hace una app web",
-				"nueva app web", "nuevo proyecto web", "nuevo proyecto", "scaffold",
-				"armar proyecto web", "arma un proyecto", "hacer un proyecto", "hacer proyecto web",
-			},
-			Palabras: []string{"scaffold"},
-			Handler:  func(cmd string, h *Hands) string { return h.crearProyectoWeb(cmd) },
-		},
-		{
-			Nombre: "listar_proyectos",
-			Frases: []string{
-				"que proyectos tengo", "mis proyectos", "lista de proyectos", "listar proyectos",
-				"que proyectos hay", "cuales proyectos tengo", "lista de mis proyectos",
-				"mostrame mis proyectos", "proyectos creados",
-			},
-			Palabras: []string{"proyectos"},
-			Handler:  func(cmd string, h *Hands) string { return h.listarProyectos() },
-		},
-		{
-			Nombre: "compilar_proyecto",
-			Frases: []string{
-				"compilar proyecto", "compilar el proyecto", "compila el proyecto", "compila proyecto",
-				"compilar la app", "compilar la aplicacion", "build del proyecto",
-			},
-			Palabras: []string{},
-			Handler:  func(cmd string, h *Hands) string { return h.compilarProyecto(cmd) },
-		},
-		{
-			Nombre: "ejecutar_proyecto",
-			Frases: []string{
-				"ejecutar proyecto", "ejecutar el proyecto", "ejecuta el proyecto", "ejecuta proyecto",
-				"correr el proyecto", "corre el proyecto", "correr proyecto",
-				"levantar el proyecto", "levanta el proyecto", "levantar proyecto",
-				"iniciar el proyecto", "inicia el proyecto", "iniciar proyecto",
-				"abrir el proyecto", "abre el proyecto", "abrir proyecto",
-			},
-			Palabras: []string{},
-			Handler:  func(cmd string, h *Hands) string { return h.ejecutarProyecto(cmd) },
-		},
-		{
-			Nombre: "detener_proyecto",
-			Frases: []string{
-				"detener proyecto", "detener el proyecto", "detener la app", "detener la aplicacion",
-				"parar el proyecto", "para el proyecto", "parar proyecto",
-				"cerrar el proyecto", "cierra el proyecto", "cerra el proyecto", "cerrar proyecto",
-				"apagar el proyecto", "apaga el proyecto", "apagar proyecto",
-				"matar el proyecto", "mata el proyecto", "matar proyecto",
-			},
-			Palabras: []string{},
-			Handler:  func(cmd string, h *Hands) string { return h.detenerProyecto(cmd) },
-		},
-		{
-			Nombre: "estado_proyecto",
-			Frases: []string{
-				"estado del proyecto", "esta corriendo el proyecto", "esta activo el proyecto",
-				"sigue andando el proyecto", "sigue corriendo el proyecto", "esta levantado el proyecto",
-				"estado de los proyectos", "que proyectos estan corriendo",
-			},
-			Palabras: []string{},
-			Handler:  func(cmd string, h *Hands) string { return h.estadoProyecto(cmd) },
-		},
-		{
-			Nombre: "mejorar_proyecto",
-			Frases: []string{
-				"mejorar proyecto", "mejorar el proyecto", "mejorar la app", "mejorar la aplicacion",
-				"agregar al proyecto", "agregar algo al proyecto", "agregar una feature al proyecto",
-				"agrega una feature al proyecto", "agregar feature al proyecto",
-				"agregar una funcion al proyecto", "agregar una funcion a la app",
-				"agregar algo a la app", "agregar un boton a la app", "agregar un boton al proyecto",
-				"agregar una seccion a la app", "agregar una seccion al proyecto",
-			},
-			Palabras: []string{"feature"},
-			Handler:  func(cmd string, h *Hands) string { return h.mejorarProyecto(cmd) },
-		},
-		{
 			Nombre: "listar_skills",
 			Frases: []string{
 				"qué skills tenés", "que skills tenes", "lista de skills", "listar skills",
@@ -704,6 +625,18 @@ func NuevoClasificador() *Clasificador {
 				fmt.Println(textoAyuda)
 				return "Puede pedirme que abra aplicaciones, busque en internet, le diga la hora, escriba scripts, recuerde cosas, y más. Mire la consola para ver todos los comandos, señor."
 			},
+		},
+		{
+			Nombre: "auditoria",
+			Frases: []string{
+				"mostrame la auditoría", "mostrame la auditoria", "mostrar la auditoría", "mostrar la auditoria",
+				"ver la auditoría", "ver la auditoria", "muestra la auditoría", "muestra la auditoria",
+				"mostrame el registro de auditoría", "mostrame el registro de auditoria",
+				"qué hiciste hoy", "que hiciste hoy", "qué hiciste", "que hiciste",
+				"últimas acciones", "ultimas acciones", "actividad reciente", "historial de actividad",
+			},
+			Palabras: []string{"auditoría", "auditoria", "registro de actividad", "actividad reciente"},
+			Handler:  func(cmd string, h *Hands) string { return h.mostrarAuditoria() },
 		},
 	}
 	return c

@@ -76,7 +76,6 @@ type Hands struct {
 	clasif   *Clasificador
 
 	WorkspaceRoot   string
-	DesarrolladorIA GeneradorFullstackIA
 	IA              ConectorIA
 	Skills          *SkillsManager
 
@@ -111,9 +110,6 @@ type Hands struct {
 	aprobacionMu      sync.Mutex
 	aprobacionPendiente *aprobacionOrden
 
-	proyectosMu sync.Mutex
-	proyectos   map[string]*ProyectoEjecutando
-
 	vigilanciaMu      sync.Mutex
 	vigilanciaStop    chan struct{}
 	vigilanciaActiva  bool
@@ -137,7 +133,6 @@ type HandsOpciones struct {
 	Procedimientos *GestorProcedimientos
 
 	WorkspaceRoot   string
-	DesarrolladorIA GeneradorFullstackIA
 	IA              ConectorIA
 	Skills          *SkillsManager
 
@@ -169,7 +164,7 @@ type HandsOpciones struct {
 }
 
 func NewHands(opciones ...HandsOpciones) *Hands {
-	h := &Hands{cache: make(map[string]cacheEntry), clasif: NuevoClasificador(), proyectos: make(map[string]*ProyectoEjecutando)}
+	h := &Hands{cache: make(map[string]cacheEntry), clasif: NuevoClasificador()}
 	if len(opciones) > 0 {
 		h.Apps = opciones[0].Apps
 		h.ClimaKey = opciones[0].ClimaKey
@@ -181,7 +176,6 @@ func NewHands(opciones ...HandsOpciones) *Hands {
 		h.ordenes = opciones[0].Ordenes
 		h.procedimientos = opciones[0].Procedimientos
 		h.WorkspaceRoot = opciones[0].WorkspaceRoot
-		h.DesarrolladorIA = opciones[0].DesarrolladorIA
 		h.IA = opciones[0].IA
 		h.Skills = opciones[0].Skills
 		h.Auditoria = opciones[0].Auditoria
@@ -1514,4 +1508,27 @@ func (h *Hands) noticiasFallback() string {
 		fmt.Printf(" %d. %s\n", i+1, t)
 	}
 	return fmt.Sprintf("Últimas %d noticias, señor. Mire la consola.", len(titulares))
+}
+
+func (h *Hands) listarSkills() string {
+	if h.Skills == nil {
+		return "No tengo skills cargadas, señor."
+	}
+	detalles := h.Skills.ListarDetallado()
+	if len(detalles) == 0 {
+		return "No tengo skills cargadas, señor."
+	}
+	var b strings.Builder
+	b.WriteString("Tengo estas skills, señor:")
+	for i, s := range detalles {
+		b.WriteString("\n- " + s.Nombre)
+		if s.Descripcion != "" {
+			b.WriteString(": " + s.Descripcion)
+		}
+		if i == 0 && s.Nombre == "seguridad" {
+			b.WriteString(" (la más importante)")
+		}
+	}
+	b.WriteString("\nSe activan solas según lo que pida, señor.")
+	return b.String()
 }

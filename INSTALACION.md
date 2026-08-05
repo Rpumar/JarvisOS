@@ -138,12 +138,12 @@ lado.
 Debería decir "Sistemas en línea" e imprimir "Di 'Jarvis' para
 activarme...". Probá con el micrófono.
 
-**Opcional — respaldo de IA y CoderAgent:**
+**Opcional — respaldo de IA:**
 ```powershell
 setx OPENAI_API_KEY "sk-tu-clave-real"
 ```
 (nueva terminal después de esto también). Sin esto, JarvisOS funciona
-igual, solo que sin el respaldo conversacional ni CoderAgent.
+igual, solo que sin el respaldo conversacional.
 
 ---
 

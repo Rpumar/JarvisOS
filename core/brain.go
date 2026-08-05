@@ -10,9 +10,7 @@ import (
 type Brain struct {
 	hands EjecutorComandos
 	ia    ConectorIA
-	coder AgenteDeCodigo
 	mem   MemoriaPersistente
-	ing   IngAgente
 	prefs  RegistroPreferencias
 	skills *SkillsManager
 	roles  *RolesManager
@@ -33,7 +31,7 @@ type accionConfirmable struct {
 }
 
 func NewBrain(h EjecutorComandos, opciones BrainOpciones) *Brain {
-	b := &Brain{hands: h, ia: opciones.IA, coder: opciones.Coder, mem: opciones.Memoria, ing: opciones.IngAgente, prefs: opciones.Prefs, skills: opciones.Skills, roles: opciones.Roles, procs: opciones.Procedimientos, maxHistorialIA: 5}
+	b := &Brain{hands: h, ia: opciones.IA, mem: opciones.Memoria, prefs: opciones.Prefs, skills: opciones.Skills, roles: opciones.Roles, procs: opciones.Procedimientos, maxHistorialIA: 5}
 	if opciones.MaxHistorialIA > 0 {
 		b.maxHistorialIA = opciones.MaxHistorialIA
 	}
@@ -87,28 +85,6 @@ func (b *Brain) procesarInterno(input string) string {
 		return ""
 	}
 
-	if b.ing != nil && b.ing.TieneTareaPendiente() {
-		if strings.Contains(entrada, "continuar") || strings.Contains(entrada, "seguir") || strings.Contains(entrada, "retomar") {
-			return b.ing.ContinuarPlan()
-		}
-		if strings.Contains(entrada, "cancelar") && strings.Contains(entrada, "plan") {
-			b.ing.Reset()
-			return "Plan cancelado, señor."
-		}
-	}
-
-	if b.coder != nil && b.coder.TienePropuestaPendiente() {
-		switch {
-		case strings.Contains(entrada, "confirmar"), strings.Contains(entrada, "confirmo"),
-			strings.Contains(entrada, "ejecutar"), strings.Contains(entrada, "dale"):
-			return b.coder.Confirmar()
-		case strings.Contains(entrada, "cancelar"), strings.Contains(entrada, "cancelo"):
-			return b.coder.Cancelar()
-		default:
-			return "Tiene una propuesta de script esperando, señor. Diga 'confirmar' para ejecutarla o 'cancelar' para descartarla."
-		}
-	}
-
 	if b.confirmacionPendiente != nil {
 		switch {
 		case esPalabraExacta(entrada, "sí") || esPalabraExacta(entrada, "si") || entrada == "confirmar" || entrada == "confirmo" || entrada == "dale":
@@ -142,14 +118,6 @@ func (b *Brain) procesarInterno(input string) string {
 	entrada = b.resolverPronombres(entrada)
 
 	if respuesta, atendido := b.procesarMemoria(original); atendido {
-		return respuesta
-	}
-
-	if b.coder != nil && esPeticionDeCodigo(entrada) {
-		respuesta, err := b.coder.Proponer(input)
-		if err != nil {
-			return fmt.Sprintf("No pude generar el script: %v", err)
-		}
 		return respuesta
 	}
 
@@ -199,12 +167,6 @@ func (b *Brain) procesarInterno(input string) string {
 				b.historialIA = b.historialIA[len(b.historialIA)-b.maxHistorialIA:]
 			}
 			return respuestaIA
-		}
-	}
-
-	if b.ing != nil && b.ing.Disponible() {
-		if esPeticionIngenieria(entrada) {
-			return b.ing.Procesar(input)
 		}
 	}
 
@@ -280,29 +242,8 @@ func esConsultaSegura(entrada string) bool {
 		strings.HasPrefix(entrada, "anota ")
 }
 
-func esPeticionIngenieria(entrada string) bool {
-	tieneAccion := contieneAlguna(entrada, []string{
-		"programa", "codigo", "código", "script", "implementa", "implementá",
-		"crea", "creá", "hace", "hacé", "modifica", "modificá", "cambia",
-		"cambiá", "agrega", "agregá", "refactoriza", "refactoreá",
-		"arregla", "arreglá", "repara", "repará", "proyecto", "archivo",
-		"funcion", "función", "clase", "estructura", "test", "prueba",
-	})
-	return tieneAccion
-}
-
-func esPeticionDeCodigo(entrada string) bool {
-	tieneVerbo := strings.Contains(entrada, "escribe") || strings.Contains(entrada, "escribime") ||
-		strings.Contains(entrada, "crea") || strings.Contains(entrada, "generame") ||
-		strings.Contains(entrada, "genera") || strings.Contains(entrada, "hazme") ||
-		strings.Contains(entrada, "haceme")
-	tieneSustantivo := strings.Contains(entrada, "script") || strings.Contains(entrada, "código") ||
-		strings.Contains(entrada, "codigo")
-	return tieneVerbo && tieneSustantivo
-}
-
 // manejarRoles interpreta los comandos de modo: listar roles, activar un modo
-// persistente ("modo ceo", "actuá como ingeniero"), salir del modo, y devuelve
+// persistente ("modo ceo", "actuá como asistente corporativo"), salir del modo, y devuelve
 // false si el texto no era un comando de roles.
 func (b *Brain) manejarRoles(entrada string) (string, bool) {
 	if b.roles == nil {
@@ -504,23 +445,11 @@ CÓDIGO / IA:
   escribe un script que [tarea]  -> genera script con IA
   confirmar / cancelar           -> confirma o cancela script propuesto
 
-DESARROLLADOR FULLSTACK:
-  crear proyecto web [nombre]    -> genera app Go + frontend y la compila
-  mis proyectos                 -> lista los proyectos creados
-  compilar el proyecto [nombre] -> compila un proyecto
-  ejecutar proyecto [nombre]    -> lo levanta y lo abre en el navegador
-  detener proyecto [nombre]     -> detiene la app en ejecución
-  estado del proyecto [nombre]  -> si está corriendo y en qué puerto
-  mejorar el proyecto [nombre]  -> mejora con IA: edita, verifica y corrige
-  agregá [feature] al proyecto [nombre] -> agrega funcionalidad con IA
-
 SKILLS:
   qué skills tenés              -> lista las skills cargadas
   (las skills se activan solas según lo que pidas)
 
 ROLES (asistente operativo):
-  modo ingeniero                -> resuelve problemas de la PC
-  modo desarrollador            -> mente maestra: planifica, piensa y actúa
   modo ceo                      -> asesor ejecutivo (usa perfil de empresa)
   modo marketing                -> hace conocer el negocio (usa perfil de empresa)
   modo humano                   -> conversación lo más natural posible

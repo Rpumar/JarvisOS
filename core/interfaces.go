@@ -16,13 +16,6 @@ type ConectorIA interface {
 	Consultar(prompt string, historial []TurnoConversacion) (string, error)
 }
 
-type AgenteDeCodigo interface {
-	Proponer(peticion string) (string, error)
-	Confirmar() string
-	Cancelar() string
-	TienePropuestaPendiente() bool
-}
-
 type MemoriaPersistente interface {
 	GuardarHecho(clave, valor string) error
 	ObtenerHecho(clave string) (valor string, existe bool)
@@ -52,22 +45,10 @@ type RegistroPreferencias interface {
 
 type BrainOpciones struct {
 	IA             ConectorIA
-	Coder          AgenteDeCodigo
 	Memoria        MemoriaPersistente
-	IngAgente      IngAgente
 	Prefs          RegistroPreferencias
 	Skills         *SkillsManager
 	Roles          *RolesManager
 	Procedimientos *GestorProcedimientos
 	MaxHistorialIA int
-}
-
-type IngAgente interface {
-	Disponible() bool
-	Procesar(peticion string) string
-	SetRespuestaUsuario(respuesta string)
-	Reset()
-	TieneTareaPendiente() bool
-	PlanPendienteDescripcion() string
-	ContinuarPlan() string
 }

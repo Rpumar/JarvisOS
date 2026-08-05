@@ -64,68 +64,6 @@ func TestConsultar_SinDisponibilidad(t *testing.T) {
 	}
 }
 
-func TestConsultarCodigo_SinDisponibilidad(t *testing.T) {
-	c := &Conector{httpClient: &http.Client{Timeout: 5 * time.Second}}
-
-	if _, _, err := c.ConsultarCodigo("algo"); err == nil {
-		t.Error("se esperaba un error sin disponibilidad")
-	}
-}
-
-func TestParsearRespuestaCodigo(t *testing.T) {
-	casos := []struct {
-		nombre              string
-		entrada             string
-		codigoEsperado      string
-		explicacionEsperada string
-	}{
-		{
-			nombre:              "formato bien formado",
-			entrada:             "CODIGO:\nGet-Date\nEXPLICACION:\nMuestra la fecha actual.",
-			codigoEsperado:      "Get-Date",
-			explicacionEsperada: "Muestra la fecha actual.",
-		},
-		{
-			nombre:              "codigo vacio por peticion riesgosa",
-			entrada:             "CODIGO:\n\nEXPLICACION:\nNo genero scripts que borren carpetas del sistema.",
-			codigoEsperado:      "",
-			explicacionEsperada: "No genero scripts que borren carpetas del sistema.",
-		},
-		{
-			nombre:              "sin marcadores: se descarta el codigo por seguridad",
-			entrada:             "Claro, aca tenes un script: Get-Date",
-			codigoEsperado:      "",
-			explicacionEsperada: "Claro, aca tenes un script: Get-Date",
-		},
-		{
-			nombre:         "marcadores en orden invertido: se descarta por seguridad",
-			entrada:        "EXPLICACION:\nAlgo\nCODIGO:\nGet-Date",
-			codigoEsperado: "",
-		},
-		{
-			nombre:              "codigo multilinea",
-			entrada:             "CODIGO:\nGet-ChildItem\nSort-Object Length\nEXPLICACION:\nLista archivos ordenados.",
-			codigoEsperado:      "Get-ChildItem\nSort-Object Length",
-			explicacionEsperada: "Lista archivos ordenados.",
-		},
-	}
-
-	for _, c := range casos {
-		t.Run(c.nombre, func(t *testing.T) {
-			codigo, explicacion, err := parsearRespuestaCodigo(c.entrada)
-			if err != nil {
-				t.Fatalf("no se esperaba error: %v", err)
-			}
-			if codigo != c.codigoEsperado {
-				t.Errorf("codigo = %q, esperaba %q", codigo, c.codigoEsperado)
-			}
-			if c.explicacionEsperada != "" && explicacion != c.explicacionEsperada {
-				t.Errorf("explicacion = %q, esperaba %q", explicacion, c.explicacionEsperada)
-			}
-		})
-	}
-}
-
 func TestBuildMensajes(t *testing.T) {
 	m := buildMensajes("decime la hora", nil)
 	if len(m) != 2 {
@@ -154,19 +92,5 @@ func TestBuildMensajesConHistorial(t *testing.T) {
 	}
 	if m[len(m)-1].Content != "gracias" {
 		t.Errorf("ultimo mensaje = %q", m[len(m)-1].Content)
-	}
-}
-
-func TestExtraerExplicacionDesarrollo(t *testing.T) {
-	casos := map[string]string{
-		"CODIGO:\npackage main\nEXPLICACION:\nHola mundo":                 "Hola mundo",
-		"todo sin marcadores":                                             "todo sin marcadores",
-		"EXPLICACION:\nUna mejora.\nARCHIVO: main.go\nCONTENIDO:\nx":       "Una mejora.\nARCHIVO: main.go\nCONTENIDO:\nx",
-		"  EXPLICACION:  con espacios  ":                                  "con espacios",
-	}
-	for entrada, esperado := range casos {
-		if got := extraerExplicacionDesarrollo(entrada); got != esperado {
-			t.Errorf("extraerExplicacionDesarrollo(%q) = %q, esperaba %q", entrada, got, esperado)
-		}
 	}
 }

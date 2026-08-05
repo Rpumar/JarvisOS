@@ -76,7 +76,7 @@ func TestBuscarPuntajeYPrioridad(t *testing.T) {
 	if skills[0].Nombre != "seguridad" {
 		t.Errorf("con varias coincidencias la más puntuada debería ir primero, obtuve %v", skills[0].Nombre)
 	}
-	// Orden por prioridad cuando el puntaje empata: seguridad (100) > rest-api (50).
+	// Orden por prioridad cuando el puntaje empata: seguridad (100) > asistente-corporativo (60).
 	porPalabras := m.Buscar("borrá el registro")
 	if len(porPalabras) == 0 || porPalabras[0].Nombre != "seguridad" {
 		t.Errorf("seguridad debería ganar por prioridad, obtuve %v", porPalabras)
@@ -85,12 +85,12 @@ func TestBuscarPuntajeYPrioridad(t *testing.T) {
 
 func TestTextoParaIA(t *testing.T) {
 	m := NuevoSkillsManager()
-	texto := m.TextoParaIA("agregá un endpoint nuevo a la api")
+	texto := m.TextoParaIA("un cliente pidió coordinar una reunión para el martes")
 	if !strings.Contains(texto, "[INSTRUCCIONES DE SKILL]") {
 		t.Error("debería envolver las instrucciones en el bloque esperado")
 	}
-	if !strings.Contains(texto, "## rest-api") {
-		t.Error("debería incluir la skill rest-api")
+	if !strings.Contains(texto, "## asistente-corporativo") {
+		t.Error("debería incluir la skill asistente-corporativo")
 	}
 	if m.TextoParaIA("hola señor") != "" {
 		t.Error("debería devolver vacío cuando ninguna skill aplica")
@@ -100,7 +100,7 @@ func TestTextoParaIA(t *testing.T) {
 func TestNuevoSkillsManagerDefaults(t *testing.T) {
 	m := NuevoSkillsManager()
 	names := m.Listar()
-	deseadas := map[string]bool{"seguridad": false, "estilo-go": false, "rest-api": false, "frontend-panel": false, "proyecto-nuevo": false, "asistente-corporativo": false}
+	deseadas := map[string]bool{"seguridad": false, "asistente-corporativo": false}
 	for _, n := range names {
 		if _, ok := deseadas[n]; ok {
 			deseadas[n] = true
@@ -116,8 +116,8 @@ func TestNuevoSkillsManagerDefaults(t *testing.T) {
 func TestListarDetalladoOrdenado(t *testing.T) {
 	m := NuevoSkillsManager()
 	detalles := m.ListarDetallado()
-	if len(detalles) != 6 {
-		t.Fatalf("se esperaban 6 skills detalladas, obtuve %d", len(detalles))
+	if len(detalles) != 2 {
+		t.Fatalf("se esperaban 2 skills detalladas, obtuve %d", len(detalles))
 	}
 	// Ordenada por prioridad descendente: seguridad primero.
 	if detalles[0].Nombre != "seguridad" {

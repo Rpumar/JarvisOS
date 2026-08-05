@@ -12,7 +12,6 @@ import (
 	"syscall"
 	"time"
 
-	"JarvisOS/agents"
 	"JarvisOS/config"
 	"JarvisOS/core"
 	"JarvisOS/core/audit"
@@ -89,7 +88,6 @@ func main() {
 		Ordenes:         ordenes,
 		Procedimientos:  procedimientos,
 		WorkspaceRoot:   cfg.WorkspaceRoot,
-		DesarrolladorIA: conectorIA,
 		IA:             conectorIA,
 		Skills:          gestorSkills,
 		Auditoria:       auditoria,
@@ -114,9 +112,6 @@ func main() {
 		LinkedInAuthor:   cfg.LinkedInAuthor,
 		LimiteComando:   time.Duration(cfg.ComandoTimeoutSegundos) * time.Second,
 	})
-	coderAgent := agents.NewCoderAgent(conectorIA)
-	gestorPlan := agents.NuevoGestorPlan(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "planes"))
-	ingAgente := agents.NuevoAgenteProyecto(conectorIA, cfg.WorkspaceRoot, gestorPlan)
 
 	almacen, err := memoria.NuevoAlmacen(cfg.RutaMemoria)
 	if err != nil {
@@ -138,20 +133,13 @@ func main() {
 
 	brain := core.NewBrain(hands, core.BrainOpciones{
 		IA:             conectorIA,
-		Coder:          coderAgent,
 		Memoria:        almacen,
-		IngAgente:      ingAgente,
 		Prefs:           prefs,
 		Skills:          gestorSkills,
 		Roles:           gestorRoles,
 		Procedimientos:  procedimientos,
 		MaxHistorialIA: cfg.MaxHistorialIA,
 	})
-
-	if plan := gestorPlan.PlanPendiente(); plan != nil {
-		fmt.Printf("[PLAN] Tiene un plan pendiente: %s\n", plan.Objetivo)
-		fmt.Println("[PLAN] Diga 'continuar plan' para retomarlo o 'cancelar plan' para descartarlo.")
-	}
 
 	if pendientes := tareas.TextoPendientes(); pendientes != "" {
 		fmt.Printf("[TAREAS] %s\n", pendientes)
@@ -270,7 +258,6 @@ func ejecutarModoServicio() {
 		ClimaKey:        cfg.OpenWeatherKey,
 		NewsKey:         cfg.NewsAPIKey,
 		WorkspaceRoot:   cfg.WorkspaceRoot,
-		DesarrolladorIA: conectorIA,
 		IA:             conectorIA,
 		Skills:          gestorSkills,
 		Tareas:          tareas,
@@ -299,9 +286,6 @@ func ejecutarModoServicio() {
 		LinkedInAuthor:   cfg.LinkedInAuthor,
 		LimiteComando:   time.Duration(cfg.ComandoTimeoutSegundos) * time.Second,
 	})
-	coderAgent := agents.NewCoderAgent(conectorIA)
-	gestorPlan := agents.NuevoGestorPlan(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "planes"))
-	ingAgente := agents.NuevoAgenteProyecto(conectorIA, cfg.WorkspaceRoot, gestorPlan)
 	almacen, err := memoria.NuevoAlmacen(cfg.RutaMemoria)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[SERVICE] Error fatal: %v\n", err)
@@ -309,7 +293,7 @@ func ejecutarModoServicio() {
 	}
 	defer func() { _ = almacen.Cerrar() }()
 	brain := core.NewBrain(hands, core.BrainOpciones{
-		IA: conectorIA, Coder: coderAgent, Memoria: almacen, IngAgente: ingAgente,
+		IA: conectorIA, Memoria: almacen,
 		Skills: gestorSkills, Roles: gestorRoles, Procedimientos: procedimientos, MaxHistorialIA: cfg.MaxHistorialIA,
 	})
 	oidos, err := core.NewEars("")
@@ -384,7 +368,7 @@ func ejecutarWebUI() {
 	hands := core.NewHands(core.HandsOpciones{
 		Apps: cfg.Apps, ClimaKey: cfg.OpenWeatherKey, NewsKey: cfg.NewsAPIKey,
 		Prefs: prefs, Rutinas: rutinas, Tareas: tareas, Agenda: agenda, Ordenes: ordenes, Procedimientos: procedimientos,
-		WorkspaceRoot: cfg.WorkspaceRoot, DesarrolladorIA: conectorIA, IA: conectorIA, Skills: gestorSkills,
+		WorkspaceRoot: cfg.WorkspaceRoot, IA: conectorIA, Skills: gestorSkills,
 		Auditoria: auditoria, PINHash: cfg.PINHash,
 		PINSetter: func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
 		ContrasenaHash: cfg.LoginPasswordHash,
@@ -406,16 +390,13 @@ func ejecutarWebUI() {
 		LinkedInAuthor:   cfg.LinkedInAuthor,
 		LimiteComando: time.Duration(cfg.ComandoTimeoutSegundos) * time.Second,
 	})
-	coderAgent := agents.NewCoderAgent(conectorIA)
-	gestorPlan := agents.NuevoGestorPlan(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "planes"))
-	ingAgente := agents.NuevoAgenteProyecto(conectorIA, cfg.WorkspaceRoot, gestorPlan)
 	almacen, _ := memoria.NuevoAlmacen(cfg.RutaMemoria)
 	if almacen != nil {
 		defer func() { _ = almacen.Cerrar() }()
 	}
 	brain := core.NewBrain(hands, core.BrainOpciones{
-		IA: conectorIA, Coder: coderAgent, Memoria: almacen,
-		IngAgente: ingAgente, Prefs: prefs, Skills: gestorSkills, Roles: gestorRoles,
+		IA: conectorIA, Memoria: almacen,
+		Prefs: prefs, Skills: gestorSkills, Roles: gestorRoles,
 		Procedimientos: procedimientos, MaxHistorialIA: cfg.MaxHistorialIA,
 	})
 	if pendientes := tareas.TextoPendientes(); pendientes != "" {

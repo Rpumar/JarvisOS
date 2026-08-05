@@ -42,7 +42,7 @@ Ya disponible y verificado:
 - Control real de la PC: apps, archivos, red, diagnóstico, mantenimiento, capturas, voz.
 - Memoria persistente, notas, recordatorios, listas, rutinas.
 - Tareas (agendar/listar/marcar/borrar), procedimientos aprendidos con consulta cuando no sabe.
-- 5 roles (ingeniero, desarrollador, CEO, marketing, humano) + contexto de empresa.
+- 4 roles (CEO, marketing, humano, asistente corporativo) + contexto de empresa.
 - IA agnóstica y gratis: Ollama, Groq, OpenRouter, LM Studio.
 - Web UI con chat, TTS, diagnóstico y botones rápidos.
 - Suite de tests verde, build/vet limpios, commit base `60c9d17`.
@@ -107,7 +107,7 @@ Objetivo: que el empleado haga el trabajo de oficina real.
 1. **Marca**: "Jarvis — su empleado digital. Cumple, no descansa, rinde cuentas." Eliminar la estética de asistente personal.
 2. **Web UI corporativa**: dashboard del dueño (órdenes, pendientes, actividad, aprobaciones), onboarding guiado (primera configuración: perfil de empresa, dueño, aprobaciones).
 3. **Perfil de empresa ampliado**: la `empresa.md` actual pasa a ser un perfil estructurado (rubro, productos, clientes, tono, redes, datos de contacto).
-4. **Aislar el módulo dev**: desarrollador/proyectos/vigilante quedan como paquete opcional, fuera del perfil oficina (lite).
+4. **Vigilante**: el modo de vigilancia de la PC queda como paquete opcional, fuera del perfil oficina (lite).
 
 **Criterio de salida:** una empresa nueva puede instalar, configurar a su dueño y dar su primera orden en menos de 15 minutos.
 
