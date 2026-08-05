@@ -171,6 +171,10 @@ func (b *Brain) procesarInterno(input string) string {
 		return respuesta
 	}
 
+	if respuesta, atendido := b.manejarInstruccionCorporativa(input, entrada); atendido {
+		return respuesta
+	}
+
 	if b.ia != nil && b.ia.Disponible() {
 		prompt := input
 		if b.roles != nil {
@@ -487,6 +491,7 @@ ROLES (asistente operativo):
   modo ceo                      -> asesor ejecutivo (usa perfil de empresa)
   modo marketing                -> hace conocer el negocio (usa perfil de empresa)
   modo humano                   -> conversación lo más natural posible
+  modo asistente corporativo    -> interpreta pedidos de clientes y los convierte en acciones
   qué roles tenés               -> lista los roles disponibles
   salir de modo / modo normal   -> vuelve al modo general
 

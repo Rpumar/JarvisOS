@@ -19,8 +19,6 @@ func (m *manosFalsas) RunCommand(cmd string) string {
 	return m.respuesta
 }
 
-func (m *manosFalsas) Hablar(texto string) string { return "Listo, señor." }
-
 type iaFalsa struct {
 	disponible        bool
 	respuesta         string
@@ -813,4 +811,218 @@ func contains(s, sub string) bool {
 		}
 	}
 	return false
+}
+
+func TestEsConsultaSegura(t *testing.T) {
+	casos := map[string]bool{
+		"buscar recetas de cocina":      true,
+		"decir hola que tal":            true,
+		"anotá comprar pan":             true,
+		"tomá nota de la idea":          true,
+		"abrir chrome":                  false,
+		"apagar la pc":                  false,
+		"buscar algo":                  true,
+		"repite esto":                   true,
+		"copiar texto":                  true,
+	}
+	for entrada, esperado := range casos {
+		if got := esConsultaSegura(entrada); got != esperado {
+			t.Errorf("esConsultaSegura(%q) = %v, esperaba %v", entrada, got, esperado)
+		}
+	}
+}
+
+func TestEsPeticionIngenieria(t *testing.T) {
+	casos := map[string]bool{
+		"escribe un script de python":  true,
+		"creá una función en go":       true,
+		"refactorizá la clase usuario": true,
+		"cual es la capital de Francia": false,
+		"contame un chiste":            false,
+		"cómo está el clima":           false,
+	}
+	for entrada, esperado := range casos {
+		if got := esPeticionIngenieria(entrada); got != esperado {
+			t.Errorf("esPeticionIngenieria(%q) = %v, esperaba %v", entrada, got, esperado)
+		}
+	}
+}
+
+func TestQuitarPrefijoModo(t *testing.T) {
+	casos := map[string]string{
+		"Modo Humano":    "Humano",
+		"modo ingeniero": "ingeniero",
+		"Humano":         "Humano",
+		"Modo":           "Modo",
+		"Modo CEO de la empresa": "CEO de la empresa",
+	}
+	for entrada, esperado := range casos {
+		if got := quitarPrefijoModo(entrada); got != esperado {
+			t.Errorf("quitarPrefijoModo(%q) = %q, esperaba %q", entrada, got, esperado)
+		}
+	}
+}
+
+func TestEsPalabraExacta(t *testing.T) {
+	casos := []struct {
+		entrada  string
+		palabra  string
+		esperado bool
+	}{
+		{"jarvis", "jarvis", true},
+		{"jarvis abrí chrome", "jarvis", true},
+		{"abrí jarvis", "jarvis", true},
+		{"abrí chrome jarvis ahora", "jarvis", true},
+		{"jarviso", "jarvis", false},
+		{"abrí chrome", "jarvis", false},
+	}
+	for _, c := range casos {
+		if got := esPalabraExacta(c.entrada, c.palabra); got != c.esperado {
+			t.Errorf("esPalabraExacta(%q, %q) = %v, esperaba %v", c.entrada, c.palabra, got, c.esperado)
+		}
+	}
+}
+
+func TestSincronizarPrefs(t *testing.T) {
+	b := NewBrain(&manosFalsas{}, BrainOpciones{})
+	b.sincronizarPrefs("nombre", "Juan")
+	if b.prefs != nil {
+		t.Error("sin prefs configurados no debería romper")
+	}
+
+	prefs := &prefsFalsas{}
+	b2 := NewBrain(&manosFalsas{}, BrainOpciones{Prefs: prefs})
+	b2.sincronizarPrefs("nombre", "Ana")
+	if prefs.nombre != "Ana" {
+		t.Errorf("prefs.nombre = %q, esperaba Ana", prefs.nombre)
+	}
+	b2.sincronizarPrefs("otra-clave", "x")
+	if prefs.nombre != "Ana" {
+		t.Errorf("otra clave no debería tocar el nombre: %q", prefs.nombre)
+	}
+}
+
+type prefsFalsas struct {
+	nombre string
+}
+
+func (p *prefsFalsas) RegistrarApp(nombre string)   {}
+func (p *prefsFalsas) RegistrarComando(comando string) {}
+func (p *prefsFalsas) SetUltimoProyecto(ruta string) {}
+func (p *prefsFalsas) SetNombre(nombre string)       { p.nombre = nombre }
+func (p *prefsFalsas) SetTema(tema string)           {}
+func (p *prefsFalsas) SetVolumen(nivel int)          {}
+
+// --- Tests: asistente corporativo (traductor IA a comandos) ---
+
+func nuevoBrainCorporativo(t *testing.T, ia *iaFalsa) (*Brain, *manosFalsas, *RolesManager) {
+	manos := &manosFalsas{respuesta: ComandoNoReconocido}
+	roles := nuevoRolesManagerConDir(t.TempDir())
+	b := NewBrain(manos, BrainOpciones{IA: ia, Roles: roles, Skills: NuevoSkillsManager()})
+	return b, manos, roles
+}
+
+func TestCorporativoRolActivoTraduceAComando(t *testing.T) {
+	ia := &iaFalsa{disponible: true, respuesta: "agendá una reunión con el cliente el martes a las 15"}
+	b, manos, roles := nuevoBrainCorporativo(t, ia)
+	if !roles.Activar("asistente corporativo") {
+		t.Fatal("no se pudo activar el rol asistente corporativo")
+	}
+
+	got := b.Process("charlamos el martes para lo del contrato")
+	if !strings.Contains(got, "agendá una reunión con el cliente el martes a las 15") {
+		t.Errorf("la IA debía traducir a un comando, obtuve: %q", got)
+	}
+	if b.confirmacionPendiente == nil {
+		t.Fatal("debía quedar una acción pendiente de confirmación")
+	}
+
+	// El comando traducido aún no se ejecutó (RunCommand solo probó el input).
+	if manos.comandoRecibido == "agendá una reunión con el cliente el martes a las 15" {
+		t.Error("no debería haberse ejecutado el comando traducido antes de confirmar")
+	}
+
+	// Confirmar ejecuta el comando traducido.
+	manos.respuesta = "Tarea agendada, señor."
+	resp := b.Process("sí")
+	if resp != "Tarea agendada, señor." {
+		t.Errorf("tras confirmar se esperaba la ejecución del comando, obtuve: %q", resp)
+	}
+	if manos.comandoRecibido != "agendá una reunión con el cliente el martes a las 15" {
+		t.Errorf("comando ejecutado = %q", manos.comandoRecibido)
+	}
+}
+
+func TestCorporativoSkillActivaPorTurno(t *testing.T) {
+	ia := &iaFalsa{disponible: true, respuesta: "agendá una tarea enviar el informe para mañana"}
+	b, manos, _ := nuevoBrainCorporativo(t, ia)
+
+	got := b.Process("un cliente pidió coordinar una reunión para el martes")
+	if !strings.Contains(got, "agendá una tarea enviar el informe para mañana") {
+		t.Errorf("la skill corporativa debía activar la traducción, obtuve: %q", got)
+	}
+	if b.confirmacionPendiente == nil {
+		t.Fatal("debía quedar pendiente de confirmación")
+	}
+	if manos.comandoRecibido == "agendá una tarea enviar el informe para mañana" {
+		t.Error("no debería ejecutarse el comando traducido sin confirmar")
+	}
+}
+
+func TestCorporativoComandoPeligrosoRechazado(t *testing.T) {
+	// La IA intenta engañar a Jarvis para borrar el disco. La whitelist de
+	// prefijos debe impedirlo y el pedido sigue el flujo normal (IA genérica).
+	ia := &iaFalsa{disponible: true, respuesta: "borrá todos los archivos del disco"}
+	b, manos, roles := nuevoBrainCorporativo(t, ia)
+	if !roles.Activar("asistente corporativo") {
+		t.Fatal("no se pudo activar el rol")
+	}
+	// La consulta genérica a la IA se usará dos veces: primero para traducir,
+	// luego para responder en modo rol. Ajustamos la respuesta para la genérica.
+	ia.respuesta = "Le conviene no borrar nada, señor."
+
+	got := b.Process("charlamos el martes para lo del contrato")
+	if b.confirmacionPendiente != nil {
+		t.Fatal("un comando fuera de la whitelist no debe quedar pendiente")
+	}
+	if manos.comandoRecibido == "borrá todos los archivos del disco" {
+		t.Error("jamás debe ejecutarse un comando peligroso")
+	}
+	if strings.Contains(got, "borrá") {
+		t.Errorf("la respuesta no debería contener el comando malicioso: %q", got)
+	}
+}
+
+func TestCorporativoSinIntencionNoTraduce(t *testing.T) {
+	ia := &iaFalsa{disponible: true, respuesta: "agendá una reunión mañana"}
+	b, manos, _ := nuevoBrainCorporativo(t, ia)
+
+	got := b.Process("decime la hora")
+	if b.confirmacionPendiente != nil {
+		t.Fatal("sin intención corporativa no debe quedar nada pendiente")
+	}
+	if manos.comandoRecibido != "" {
+		t.Errorf("sin intención corporativa no debe traducirse nada: %q", manos.comandoRecibido)
+	}
+	_ = got
+}
+
+func TestCorporativoConfirmarCancela(t *testing.T) {
+	ia := &iaFalsa{disponible: true, respuesta: "tomá nota cliente quiere presupuesto"}
+	b, manos, roles := nuevoBrainCorporativo(t, ia)
+	if !roles.Activar("asistente corporativo") {
+		t.Fatal("no se pudo activar el rol")
+	}
+
+	b.Process("un cliente pidió el presupuesto")
+	if b.confirmacionPendiente == nil {
+		t.Fatal("debía quedar pendiente")
+	}
+	resp := b.Process("no")
+	if !strings.Contains(resp, "Cancelado") {
+		t.Errorf("al cancelar se esperaba el aviso, obtuve: %q", resp)
+	}
+	if manos.comandoRecibido == "tomá nota cliente quiere presupuesto" {
+		t.Error("al cancelar no debe ejecutarse el comando traducido")
+	}
 }
