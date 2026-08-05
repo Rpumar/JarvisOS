@@ -1,4 +1,4 @@
-param(
+﻿param(
     [switch]$NoBuild
 )
 
@@ -39,17 +39,17 @@ if (-not $ollama) {
 
 if ($ollama) {
     Write-Host "  Ollama encontrado." -ForegroundColor Green
-    Write-Host "  Verificando modelo qwen2.5-coder:7b..."
+    Write-Host "  Verificando modelo mistral:latest..."
     $modelos = & ollama list 2>&1
-    if ($modelos -match "qwen2.5-coder") {
-        Write-Host "  Modelo qwen2.5-coder:7b presente." -ForegroundColor Green
+    if ($modelos -match "mistral") {
+        Write-Host "  Modelo mistral:latest presente." -ForegroundColor Green
     } else {
-        Write-Host "  Descargando modelo qwen2.5-coder:7b (esto lleva varios minutos)..."
-        & ollama pull qwen2.5-coder:7b
+        Write-Host "  Descargando modelo mistral:latest (esto lleva varios minutos)..."
+        & ollama pull mistral:latest
         if ($LASTEXITCODE -eq 0) {
             Write-Host "  Modelo descargado." -ForegroundColor Green
         } else {
-            Write-Host "  [ERROR] No se pudo descargar el modelo. Corre manualmente: ollama pull qwen2.5-coder:7b" -ForegroundColor Red
+            Write-Host "  [ERROR] No se pudo descargar el modelo. Corre manualmente: ollama pull mistral:latest" -ForegroundColor Red
         }
     }
 } else {
