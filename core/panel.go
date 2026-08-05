@@ -85,7 +85,7 @@ func (h *Hands) panelProcesos() string {
 
 func rutaDatosJarvis() string {
 	dir := filepath.Join(userProfileDir(), "JarvisOS-datos")
-	os.MkdirAll(dir, 0o700)
+	_ = os.MkdirAll(dir, 0o700)
 	return dir
 }
 

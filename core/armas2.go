@@ -51,7 +51,9 @@ func (h *Hands) grabarPantalla() string {
 		return "Necesito ffmpeg instalado para grabar la pantalla, señor. ¿Quiere que le explique cómo instalarlo?"
 	}
 	dir := filepath.Join(os.Getenv("USERPROFILE"), "Videos")
-	os.MkdirAll(dir, 0o755)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Sprintf("No pude crear la carpeta de grabación, señor: %v", err)
+	}
 	archivo := fmt.Sprintf("jarvis-captura-%s.mp4", time.Now().Format("20060102-150405"))
 	destino := filepath.Join(dir, archivo)
 	cmd := exec.Command("cmd", "/C", "start", "", "ffmpeg", "-y", "-f", "gdigrab", "-framerate", "30", "-i", "desktop", "-t", "30", destino)

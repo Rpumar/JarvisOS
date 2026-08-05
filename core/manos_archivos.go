@@ -61,7 +61,7 @@ func buscarEnUsuario(nombre string, limite int) []string {
 		if info, err := os.Stat(raiz); err != nil || !info.IsDir() {
 			continue
 		}
-		filepath.Walk(raiz, func(ruta string, info os.FileInfo, err error) error {
+		_ = filepath.Walk(raiz, func(ruta string, info os.FileInfo, err error) error {
 			if err != nil {
 				return nil
 			}

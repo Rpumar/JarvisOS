@@ -49,7 +49,9 @@ func (c *Conector) probe() {
 		return
 	}
 	defer resp.Body.Close()
-	io.Copy(io.Discard, resp.Body)
+	if _, err := io.Copy(io.Discard, resp.Body); err != nil {
+		return
+	}
 	c.disponible = true
 }
 

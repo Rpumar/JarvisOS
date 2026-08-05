@@ -15,7 +15,6 @@ type Preferencias struct {
 	UltimoProyecto string         `json:"ultimo_proyecto"`
 	UltimoComando string          `json:"ultimo_comando"`
 	Tema         string            `json:"tema"`
-	VozActivada  bool              `json:"voz_activada"`
 	Volumen      int               `json:"volumen"`
 	Brillo       int               `json:"brillo"`
 	UltimaSesion string            `json:"ultima_sesion"`
@@ -34,7 +33,6 @@ func NuevoGestorPreferencias(ruta string) *GestorPreferencias {
 	g.pref = Preferencias{
 		AppFrecuente:       make(map[string]int),
 		ComandosFrecuentes: make(map[string]int),
-		VozActivada:        true,
 		Volumen:            50,
 		Brillo:             50,
 	}
@@ -67,7 +65,9 @@ func (g *GestorPreferencias) guardar() {
 		return
 	}
 	datos, _ := json.MarshalIndent(g.pref, "", "  ")
-	os.WriteFile(g.ruta, datos, 0o600)
+	if err := os.WriteFile(g.ruta, datos, 0o600); err != nil {
+		return
+	}
 }
 
 func (g *GestorPreferencias) Get() Preferencias {
@@ -121,13 +121,6 @@ func (g *GestorPreferencias) RegistrarComando(comando string) {
 func (g *GestorPreferencias) SetTema(tema string) {
 	g.mu.Lock()
 	g.pref.Tema = tema
-	g.mu.Unlock()
-	g.guardar()
-}
-
-func (g *GestorPreferencias) SetVoz(activada bool) {
-	g.mu.Lock()
-	g.pref.VozActivada = activada
 	g.mu.Unlock()
 	g.guardar()
 }

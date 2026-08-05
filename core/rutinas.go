@@ -44,14 +44,18 @@ func (m *RutinaManager) cargar() {
 func (m *RutinaManager) guardar() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	os.MkdirAll(filepath.Dir(m.ruta), 0o700)
+	if err := os.MkdirAll(filepath.Dir(m.ruta), 0o700); err != nil {
+		return
+	}
 	listas := make([]Rutina, 0, len(m.rutinas))
 	for nombre, pasos := range m.rutinas {
 		listas = append(listas, Rutina{Nombre: nombre, Pasos: pasos})
 	}
 	sort.Slice(listas, func(i, j int) bool { return listas[i].Nombre < listas[j].Nombre })
 	datos, _ := json.MarshalIndent(listas, "", "  ")
-	os.WriteFile(m.ruta, datos, 0o600)
+	if err := os.WriteFile(m.ruta, datos, 0o600); err != nil {
+		return
+	}
 }
 
 func (m *RutinaManager) Crear(nombre string, pasos []string) {
@@ -105,7 +109,11 @@ func (h *Hands) manejarRutina(cmd string) string {
 	case strings.Contains(entrada, "borrar rutina"), strings.Contains(entrada, "borra rutina"),
 		strings.Contains(entrada, "borrá rutina"), strings.Contains(entrada, "eliminar rutina"),
 		strings.Contains(entrada, "eliminá rutina"):
-		nombre := strings.TrimSpace(strings.TrimLeft(entrada, "borrar rutina borra borrá eliminar eliminá "))
+		nombre := strings.TrimSpace(strings.TrimPrefix(entrada, "borrar rutina"))
+		nombre = strings.TrimSpace(strings.TrimPrefix(nombre, "borra rutina"))
+		nombre = strings.TrimSpace(strings.TrimPrefix(nombre, "borrá rutina"))
+		nombre = strings.TrimSpace(strings.TrimPrefix(nombre, "eliminar rutina"))
+		nombre = strings.TrimSpace(strings.TrimPrefix(nombre, "eliminá rutina"))
 		nombre = strings.ReplaceAll(nombre, "la rutina ", "")
 		nombre = strings.TrimSpace(nombre)
 		if nombre == "" {

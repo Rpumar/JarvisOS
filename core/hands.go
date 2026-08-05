@@ -11,8 +11,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -71,14 +69,11 @@ type Hands struct {
 	Prefs    RegistroPreferencias
 	rutinas  *RutinaManager
 	tareas   *GestorTareas
+	agenda   *GestorAgenda
 	ordenes  *GestorOrdenes
 	procedimientos *GestorProcedimientos
 	procedimientoPendiente string
 	clasif   *Clasificador
-
-	VozActiva bool
-	VozVoice  string
-	VozRate   int
 
 	WorkspaceRoot   string
 	DesarrolladorIA GeneradorFullstackIA
@@ -106,6 +101,13 @@ type Hands struct {
 	EmailImapPort int
 	EmailImapMax  int
 
+	XApiKey        string
+	XApiSecret     string
+	XAccessToken   string
+	XAccessSecret  string
+	LinkedInToken  string
+	LinkedInAuthor string
+
 	aprobacionMu      sync.Mutex
 	aprobacionPendiente *aprobacionOrden
 
@@ -130,12 +132,9 @@ type HandsOpciones struct {
 	Prefs    RegistroPreferencias
 	Rutinas  *RutinaManager
 	Tareas   *GestorTareas
+	Agenda   *GestorAgenda
 	Ordenes  *GestorOrdenes
 	Procedimientos *GestorProcedimientos
-
-	VozActiva bool
-	VozVoice  string
-	VozRate   int
 
 	WorkspaceRoot   string
 	DesarrolladorIA GeneradorFullstackIA
@@ -160,22 +159,27 @@ type HandsOpciones struct {
 	EmailImapHost string
 	EmailImapPort int
 	EmailImapMax  int
+
+	XApiKey        string
+	XApiSecret     string
+	XAccessToken   string
+	XAccessSecret  string
+	LinkedInToken  string
+	LinkedInAuthor string
 }
 
 func NewHands(opciones ...HandsOpciones) *Hands {
-	h := &Hands{cache: make(map[string]cacheEntry), clasif: NuevoClasificador(), VozActiva: true, proyectos: make(map[string]*ProyectoEjecutando)}
+	h := &Hands{cache: make(map[string]cacheEntry), clasif: NuevoClasificador(), proyectos: make(map[string]*ProyectoEjecutando)}
 	if len(opciones) > 0 {
 		h.Apps = opciones[0].Apps
 		h.ClimaKey = opciones[0].ClimaKey
 		h.NewsKey = opciones[0].NewsKey
 		h.Prefs = opciones[0].Prefs
-		h.rutinas = opciones[0].Rutinas
-		h.tareas = opciones[0].Tareas
+	h.rutinas = opciones[0].Rutinas
+	h.tareas = opciones[0].Tareas
+	h.agenda = opciones[0].Agenda
 		h.ordenes = opciones[0].Ordenes
 		h.procedimientos = opciones[0].Procedimientos
-		h.VozActiva = opciones[0].VozActiva
-		h.VozVoice = opciones[0].VozVoice
-		h.VozRate = opciones[0].VozRate
 		h.WorkspaceRoot = opciones[0].WorkspaceRoot
 		h.DesarrolladorIA = opciones[0].DesarrolladorIA
 		h.IA = opciones[0].IA
@@ -194,6 +198,12 @@ func NewHands(opciones ...HandsOpciones) *Hands {
 		h.EmailImapHost = opciones[0].EmailImapHost
 		h.EmailImapPort = opciones[0].EmailImapPort
 		h.EmailImapMax = opciones[0].EmailImapMax
+		h.XApiKey = opciones[0].XApiKey
+		h.XApiSecret = opciones[0].XApiSecret
+		h.XAccessToken = opciones[0].XAccessToken
+		h.XAccessSecret = opciones[0].XAccessSecret
+		h.LinkedInToken = opciones[0].LinkedInToken
+		h.LinkedInAuthor = opciones[0].LinkedInAuthor
 		h.LimiteComando = opciones[0].LimiteComando
 	}
 	if strings.TrimSpace(h.WorkspaceRoot) == "" {
@@ -548,45 +558,6 @@ func esProcesoProtegido(proceso string) bool {
 	return false
 }
 
-var (
-	patronURLSegura = regexp.MustCompile(`^[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,}(/[a-zA-Z0-9\-\._~:/?#\[\]@!$&'()*+,;=]*)?$`)
-)
-
-func argumentoUsuarioSeguro(arg string) bool {
-	if len(arg) > 256 {
-		return false
-	}
-	for _, r := range arg {
-		if r < 32 || r > 126 {
-			return false
-		}
-		if strings.ContainsRune("&|;`$<>(){}[]#!'\""+"\\\n\r\t", r) {
-			return false
-		}
-	}
-	return true
-}
-
-func urlSegura(sitio string) bool {
-	if len(sitio) > 512 {
-		return false
-	}
-	sitio = strings.TrimPrefix(sitio, "https://")
-	sitio = strings.TrimPrefix(sitio, "http://")
-	sitio = strings.TrimPrefix(sitio, "www.")
-	return patronURLSegura.MatchString(sitio)
-}
-
-func validarArgumentoPowerShell(argumento string) string {
-	return strings.NewReplacer(
-		"`", "``",
-		"'", "''",
-		"$", "`$",
-		"\n", " ",
-		"\r", " ",
-	).Replace(argumento)
-}
-
 type limitadorSensible struct {
 	mu        sync.Mutex
 	ultimaAcc time.Time
@@ -632,22 +603,6 @@ func (h *Hands) buscarAppDirecto(cmd string) string {
 		}
 	}
 
-	return ""
-}
-
-func (h *Hands) buscarAppEnComando(cmd string) string {
-	nombres := make([]string, 0, len(h.Apps))
-	for n := range h.Apps {
-		nombres = append(nombres, n)
-	}
-	sort.Slice(nombres, func(i, j int) bool {
-		return len(nombres[i]) > len(nombres[j])
-	})
-	for _, nombre := range nombres {
-		if strings.Contains(cmd, nombre) {
-			return h.Apps[nombre]
-		}
-	}
 	return ""
 }
 
@@ -913,76 +868,6 @@ func (h *Hands) abrirConfiguracion() string {
 	return "Abriendo configuración de Windows, señor."
 }
 
-// Hablar reproduce texto en voz alta usando la síntesis de voz nativa de
-// Windows (SAPI) a través de PowerShell. No requiere ninguna dependencia
-// externa de Go. Respeta la configuración de voz (TTSVoice, TTSRate) y el
-// toggle VozActiva.
-func (h *Hands) Hablar(texto string) string {
-	texto = strings.TrimSpace(texto)
-	if texto == "" || !h.VozActiva {
-		return ""
-	}
-	fmt.Printf("[JARVIS HABLANDO]: %s\n", texto)
-
-	textoEscapado := strings.ReplaceAll(texto, "'", "''")
-	configuracionVoz := ""
-	if h.VozVoice != "" {
-		vozEscapada := strings.ReplaceAll(h.VozVoice, "'", "''")
-		configuracionVoz += fmt.Sprintf(`$speak.SelectVoice('%s'); `, vozEscapada)
-	} else {
-		configuracionVoz += `try { $speak.SelectVoiceByHints([System.Speech.Synthesis.VoiceGender]::NotSet,[System.Speech.Synthesis.VoiceAge]::NotSet,0,[System.Globalization.CultureInfo]::GetCultureInfo('es-AR')) } catch {} `
-	}
-	if h.VozRate != 0 {
-		configuracionVoz += fmt.Sprintf(`$speak.Rate = %d; `, h.VozRate)
-	}
-	ps := fmt.Sprintf(`Add-Type -AssemblyName System.Speech; `+
-		`$speak = New-Object System.Speech.Synthesis.SpeechSynthesizer; `+
-		configuracionVoz+
-		`$speak.Speak('%s')`, textoEscapado)
-
-	if err := exec.Command("powershell", "-Command", ps).Run(); err != nil {
-		fmt.Printf("[ADVERTENCIA] No se pudo reproducir voz: %v\n", err)
-	}
-	return "Listo, señor."
-}
-
-func (h *Hands) activarVoz() string {
-	h.VozActiva = true
-	if h.Prefs != nil {
-		h.Prefs.SetVoz(true)
-	}
-	return "Voz activada, señor. Volveré a responderle por audio."
-}
-
-func (h *Hands) desactivarVoz() string {
-	h.VozActiva = false
-	if h.Prefs != nil {
-		h.Prefs.SetVoz(false)
-	}
-	return "Voz desactivada, señor. Escribiré las respuestas en pantalla."
-}
-
-func (h *Hands) listarVoces() string {
-	out, err := ejecutarPS(`Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).GetInstalledVoices() | ForEach-Object { $_.VoiceInfo.Name }`)
-	if err != nil || out == "" {
-		return "No encontré voces instaladas, señor."
-	}
-	lineas := filtrarLineas(out)
-	fmt.Println("Voces instaladas:")
-	for _, l := range lineas {
-		fmt.Println(" -", l)
-	}
-	return fmt.Sprintf("%d voces instaladas, señor. Mire la consola para verlas.", len(lineas))
-}
-
-func (h *Hands) ListarVocesTexto() string {
-	out, err := ejecutarPS(`Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).GetInstalledVoices() | ForEach-Object { $_.VoiceInfo.Name }`)
-	if err != nil || out == "" {
-		return "No se encontraron voces instaladas."
-	}
-	return "Voces instaladas:\n  " + strings.Join(filtrarLineas(out), "\n  ")
-}
-
 // === NUEVOS SISTEMA / INFORMACIÓN ===
 
 func (h *Hands) infoCPU() string {
@@ -1092,9 +977,10 @@ func (h *Hands) infoNucleos() string {
 		lineas := strings.Split(nucleos, "\n")
 		total := 0
 		for _, l := range lineas {
-			n := 0
-			fmt.Sscanf(l, "%d", &n)
-			total += n
+			var n int
+			if _, err := fmt.Sscanf(l, "%d", &n); err == nil {
+				total += n
+			}
 		}
 		return fmt.Sprintf("Tiene %d núcleos de procesamiento, señor.", total)
 	})
@@ -1282,7 +1168,7 @@ func (h *Hands) apagarMonitor() string {
 }
 
 func (h *Hands) brillo(accion string) string {
-	nivel := 50
+	var nivel int
 	if accion == "up" {
 		actual := h.obtenerBrillo()
 		nivel = actual + 20
@@ -1316,14 +1202,16 @@ func (h *Hands) obtenerBrillo() int {
 		return 50
 	}
 	nivel := 50
-	fmt.Sscanf(strings.TrimSpace(string(salida)), "%d", &nivel)
+	if _, err := fmt.Sscanf(strings.TrimSpace(string(salida)), "%d", &nivel); err != nil {
+		return 50
+	}
 	return nivel
 }
 
 func (h *Hands) establecerBrillo(nivel int) string {
 	ps := fmt.Sprintf("(Get-WmiObject -Namespace root\\wmi -Class WmiMonitorBrightnessMethods).WmiSetBrightness(1, %d)", nivel)
 	if err := exec.Command("powershell", "-Command", ps).Run(); err != nil {
-		return fmt.Sprintf("No pude establecer el brillo, señor.")
+		return "No pude establecer el brillo, señor."
 	}
 	return fmt.Sprintf("Brillo al %d%%, señor.", nivel)
 }
@@ -1368,14 +1256,6 @@ func (h *Hands) cambiarVentana() string {
 		return "No pude cambiar de ventana, señor."
 	}
 	return "Cambiando de ventana, señor."
-}
-
-func (h *Hands) mostrarEscritorio() string {
-	ps := "(New-Object -ComObject Shell.Application).ToggleDesktop()"
-	if err := exec.Command("powershell", "-Command", ps).Run(); err != nil {
-		return "No pude mostrar el escritorio, señor."
-	}
-	return "Mostrando el escritorio, señor."
 }
 
 func (h *Hands) organizarVentanas() string {
@@ -1484,16 +1364,13 @@ func (h *Hands) fechaCompleta() string {
 
 func (h *Hands) saludarPersonalizado() string {
 	now := time.Now()
-	msg := "Hola, señor."
 	hora := now.Hour()
 	if hora < 12 {
-		msg = "Buenos días, señor."
+		return "Buenos días, señor."
 	} else if hora < 18 {
-		msg = "Buenas tardes, señor."
-	} else {
-		msg = "Buenas noches, señor."
+		return "Buenas tardes, señor."
 	}
-	return msg
+	return "Buenas noches, señor."
 }
 
 // === NUEVAS MISC ===

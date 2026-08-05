@@ -55,41 +55,6 @@ func main() {
 		case "--web":
 			ejecutarWebUI()
 			return
-		case "--voces":
-			hands := core.NewHands()
-			fmt.Println(hands.ListarVocesTexto())
-			return
-		case "--voz":
-			if len(os.Args) < 3 {
-				fmt.Fprintln(os.Stderr, "Uso: JarvisOS.exe --voz <nombre de la voz>")
-				os.Exit(1)
-			}
-			cfg := config.Load()
-			cfg.TTSVoice = strings.Join(os.Args[2:], " ")
-			if err := cfg.Save(); err != nil {
-				fmt.Fprintf(os.Stderr, "Error guardando config: %v\n", err)
-				os.Exit(1)
-			}
-			fmt.Printf("Voz configurada: %s\n", cfg.TTSVoice)
-			return
-		case "--velocidad-voz":
-			if len(os.Args) < 3 {
-				fmt.Fprintln(os.Stderr, "Uso: JarvisOS.exe --velocidad-voz <numero entre -10 y 10>")
-				os.Exit(1)
-			}
-			cfg := config.Load()
-			var n int
-			if _, err := fmt.Sscanf(os.Args[2], "%d", &n); err != nil || n < -10 || n > 10 {
-				fmt.Fprintln(os.Stderr, "La velocidad debe ser un número entre -10 y 10.")
-				os.Exit(1)
-			}
-			cfg.TTSRate = n
-			if err := cfg.Save(); err != nil {
-				fmt.Fprintf(os.Stderr, "Error guardando config: %v\n", err)
-				os.Exit(1)
-			}
-			fmt.Printf("Velocidad de voz configurada: %d\n", cfg.TTSRate)
-			return
 		}
 	}
 
@@ -103,6 +68,7 @@ func main() {
 	prefs := memoria.NuevoGestorPreferencias(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "preferencias.json"))
 	rutinas := core.NuevoRutinaManager(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "rutinas.json"))
 	tareas := core.NuevoGestorTareas(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "tareas.json"))
+	agenda := core.NuevoGestorAgenda(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "agenda.json"))
 	ordenes := core.NuevoGestorOrdenes(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "ordenes.json"))
 	procedimientos := core.NuevoGestorProcedimientos(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "procedimientos.json"))
 	auditoria := audit.NuevoRegistro(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "auditoria.jsonl"))
@@ -117,11 +83,9 @@ func main() {
 		Prefs:           prefs,
 		Rutinas:         rutinas,
 		Tareas:          tareas,
+		Agenda:          agenda,
 		Ordenes:         ordenes,
 		Procedimientos:  procedimientos,
-		VozActiva:       prefs.Get().VozActivada,
-		VozVoice:        cfg.TTSVoice,
-		VozRate:         cfg.TTSRate,
 		WorkspaceRoot:   cfg.WorkspaceRoot,
 		DesarrolladorIA: conectorIA,
 		IA:             conectorIA,
@@ -140,6 +104,12 @@ func main() {
 		EmailImapHost:    cfg.EmailImapHost,
 		EmailImapPort:    cfg.EmailImapPort,
 		EmailImapMax:     cfg.EmailImapMax,
+		XApiKey:          cfg.XApiKey,
+		XApiSecret:       cfg.XApiSecret,
+		XAccessToken:     cfg.XAccessToken,
+		XAccessSecret:    cfg.XAccessSecret,
+		LinkedInToken:    cfg.LinkedInToken,
+		LinkedInAuthor:   cfg.LinkedInAuthor,
 		LimiteComando:   time.Duration(cfg.ComandoTimeoutSegundos) * time.Second,
 	})
 	coderAgent := agents.NewCoderAgent(conectorIA)
@@ -151,7 +121,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "[ERROR FATAL] No se pudo inicializar la memoria persistente: %v\n", err)
 		os.Exit(1)
 	}
-	defer almacen.Cerrar()
+	defer func() { _ = almacen.Cerrar() }()
 
 	if cfg.WorkspaceRoot != "" {
 		prefs.SetUltimoProyecto(cfg.WorkspaceRoot)
@@ -196,12 +166,10 @@ func main() {
 		fmt.Println("[IA] Sin Ollama. Solo comandos locales.")
 	}
 	fmt.Printf("[MEMORIA] Datos persistentes en: %s\n", cfg.RutaMemoria)
-	fmt.Printf("[CONFIG] Escucha continua: %v | Palabras de activación: %v\n", cfg.ContinuousListening, cfg.WakeWords)
 
-	oidos, err := core.NewEars(cfg.ModeloVoz)
+	oidos, err := core.NewEars("")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "[ERROR FATAL] No se pudo inicializar el micrófono: %v\n", err)
-		fmt.Fprintf(os.Stderr, "Verifica que exista el modelo de voz en '%s' y que haya un micrófono conectado.\n", cfg.ModeloVoz)
+		fmt.Fprintf(os.Stderr, "[ERROR FATAL] No se pudo inicializar la entrada de texto: %v\n", err)
 		os.Exit(1)
 	}
 	defer oidos.Cerrar()
@@ -220,8 +188,6 @@ func main() {
 		case <-apagar:
 		}
 	}()
-
-	escuchaActiva := cfg.ContinuousListening
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -242,30 +208,6 @@ loop:
 		default:
 		}
 
-		if escuchaActiva {
-			fmt.Print("\n[VOZ] Diga su comando... ")
-			comando, err := oidos.Escuchar()
-			if err != nil {
-				fmt.Printf("[ADVERTENCIA] %v\n", err)
-			}
-			escuchaActiva = false
-			if comando == "" {
-				continue
-			}
-			comandoLower := strings.ToLower(comando)
-			if esPalabraDeActivacion(comandoLower, cfg.WakeWords) {
-				hands.Hablar(brain.Saludar())
-				escuchaActiva = true
-				continue
-			}
-			respuesta := brain.Process(comando)
-			if respuesta != "" {
-				fmt.Printf("[JARVIS] %s\n", respuesta)
-				hands.Hablar(respuesta)
-			}
-			continue
-		}
-
 		fmt.Print("\n> ")
 		comando, err := oidos.EscucharTexto()
 		if err != nil {
@@ -279,14 +221,8 @@ loop:
 
 		comandoLower := strings.ToLower(comando)
 
-		if esPalabraDeActivacion(comandoLower, cfg.WakeWords) {
-			escuchaActiva = true
-			hands.Hablar(brain.Saludar())
-			continue
-		}
-
 		if strings.Contains(comandoLower, "apagar") || strings.Contains(comandoLower, "adiós") {
-			hands.Hablar(brain.Despedirse())
+			fmt.Println(brain.Despedirse())
 			close(apagar)
 			break loop
 		}
@@ -294,7 +230,6 @@ loop:
 		respuesta := brain.Process(comando)
 		if respuesta != "" {
 			fmt.Printf("[JARVIS] %s\n", respuesta)
-			hands.Hablar(respuesta)
 		}
 	}
 
@@ -320,6 +255,7 @@ func ejecutarModoServicio() {
 	gestorSkills := core.NuevoSkillsManager()
 	gestorRoles := core.NuevoRolesManager()
 	tareas := core.NuevoGestorTareas(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "tareas.json"))
+	agenda := core.NuevoGestorAgenda(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "agenda.json"))
 	ordenes := core.NuevoGestorOrdenes(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "ordenes.json"))
 	procedimientos := core.NuevoGestorProcedimientos(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "procedimientos.json"))
 	auditoria := audit.NuevoRegistro(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "auditoria.jsonl"))
@@ -327,13 +263,12 @@ func ejecutarModoServicio() {
 		Apps:            cfg.Apps,
 		ClimaKey:        cfg.OpenWeatherKey,
 		NewsKey:         cfg.NewsAPIKey,
-		VozVoice:        cfg.TTSVoice,
-		VozRate:         cfg.TTSRate,
 		WorkspaceRoot:   cfg.WorkspaceRoot,
 		DesarrolladorIA: conectorIA,
 		IA:             conectorIA,
 		Skills:          gestorSkills,
 		Tareas:          tareas,
+		Agenda:          agenda,
 		Ordenes:         ordenes,
 		Procedimientos:  procedimientos,
 		Auditoria:       auditoria,
@@ -350,6 +285,12 @@ func ejecutarModoServicio() {
 		EmailImapHost:    cfg.EmailImapHost,
 		EmailImapPort:    cfg.EmailImapPort,
 		EmailImapMax:     cfg.EmailImapMax,
+		XApiKey:          cfg.XApiKey,
+		XApiSecret:       cfg.XApiSecret,
+		XAccessToken:     cfg.XAccessToken,
+		XAccessSecret:    cfg.XAccessSecret,
+		LinkedInToken:    cfg.LinkedInToken,
+		LinkedInAuthor:   cfg.LinkedInAuthor,
 		LimiteComando:   time.Duration(cfg.ComandoTimeoutSegundos) * time.Second,
 	})
 	coderAgent := agents.NewCoderAgent(conectorIA)
@@ -360,14 +301,14 @@ func ejecutarModoServicio() {
 		fmt.Fprintf(os.Stderr, "[SERVICE] Error fatal: %v\n", err)
 		os.Exit(1)
 	}
-	defer almacen.Cerrar()
+	defer func() { _ = almacen.Cerrar() }()
 	brain := core.NewBrain(hands, core.BrainOpciones{
 		IA: conectorIA, Coder: coderAgent, Memoria: almacen, IngAgente: ingAgente,
 		Skills: gestorSkills, Roles: gestorRoles, Procedimientos: procedimientos, MaxHistorialIA: cfg.MaxHistorialIA,
 	})
-	oidos, err := core.NewEars(cfg.ModeloVoz)
+	oidos, err := core.NewEars("")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "[SERVICE] Error voz: %v\n", err)
+		fmt.Fprintf(os.Stderr, "[SERVICE] Error entrada de texto: %v\n", err)
 		os.Exit(1)
 	}
 	defer oidos.Cerrar()
@@ -392,22 +333,9 @@ func ejecutarModoServicio() {
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
-		comandoLower := strings.ToLower(comando)
-		if esPalabraDeActivacion(comandoLower, cfg.WakeWords) {
-			escuchaActiva := true
-			for escuchaActiva {
-				comando, err := oidos.Escuchar()
-				if err != nil || comando == "" {
-					escuchaActiva = false
-					continue
-				}
-				respuesta := brain.Process(comando)
-				if respuesta != "" {
-					fmt.Printf("[SERVICE] %s\n", respuesta)
-					hands.Hablar(respuesta)
-				}
-				escuchaActiva = false
-			}
+		respuesta := brain.Process(comando)
+		if respuesta != "" {
+			fmt.Printf("[SERVICE] %s\n", respuesta)
 		}
 	}
 }
@@ -423,7 +351,7 @@ func vigilarRecordatoriosService(almacen *memoria.Almacen, hands *core.Hands) {
 	for range ticker.C {
 		pendientes := almacen.RecordatoriosPendientes(time.Now())
 		for _, r := range pendientes {
-			hands.Hablar(fmt.Sprintf("Recordatorio, señor: %s", r.Texto))
+			fmt.Printf("[SERVICE] Recordatorio, señor: %s\n", r.Texto)
 			if err := almacen.MarcarCumplido(r.ID); err != nil {
 				fmt.Printf("[SERVICE] Error marcando recordatorio: %v\n", err)
 			}
@@ -431,20 +359,12 @@ func vigilarRecordatoriosService(almacen *memoria.Almacen, hands *core.Hands) {
 	}
 }
 
-func esPalabraDeActivacion(comandoLower string, wakeWords []string) bool {
-	for _, w := range wakeWords {
-		if strings.Contains(comandoLower, strings.ToLower(w)) {
-			return true
-		}
-	}
-	return false
-}
-
 func ejecutarWebUI() {
 	cfg := config.Load()
 	prefs := memoria.NuevoGestorPreferencias(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "preferencias.json"))
 	rutinas := core.NuevoRutinaManager(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "rutinas.json"))
 	tareas := core.NuevoGestorTareas(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "tareas.json"))
+	agenda := core.NuevoGestorAgenda(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "agenda.json"))
 	ordenes := core.NuevoGestorOrdenes(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "ordenes.json"))
 	procedimientos := core.NuevoGestorProcedimientos(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "procedimientos.json"))
 	auditoria := audit.NuevoRegistro(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "auditoria.jsonl"))
@@ -453,8 +373,7 @@ func ejecutarWebUI() {
 	gestorRoles := core.NuevoRolesManager()
 	hands := core.NewHands(core.HandsOpciones{
 		Apps: cfg.Apps, ClimaKey: cfg.OpenWeatherKey, NewsKey: cfg.NewsAPIKey,
-		Prefs: prefs, Rutinas: rutinas, Tareas: tareas, Ordenes: ordenes, Procedimientos: procedimientos,
-		VozActiva: prefs.Get().VozActivada, VozVoice: cfg.TTSVoice, VozRate: cfg.TTSRate,
+		Prefs: prefs, Rutinas: rutinas, Tareas: tareas, Agenda: agenda, Ordenes: ordenes, Procedimientos: procedimientos,
 		WorkspaceRoot: cfg.WorkspaceRoot, DesarrolladorIA: conectorIA, IA: conectorIA, Skills: gestorSkills,
 		Auditoria: auditoria, PINHash: cfg.PINHash,
 		PINSetter: func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
@@ -469,6 +388,12 @@ func ejecutarWebUI() {
 		EmailImapHost:    cfg.EmailImapHost,
 		EmailImapPort:    cfg.EmailImapPort,
 		EmailImapMax:     cfg.EmailImapMax,
+		XApiKey:          cfg.XApiKey,
+		XApiSecret:       cfg.XApiSecret,
+		XAccessToken:     cfg.XAccessToken,
+		XAccessSecret:    cfg.XAccessSecret,
+		LinkedInToken:    cfg.LinkedInToken,
+		LinkedInAuthor:   cfg.LinkedInAuthor,
 		LimiteComando: time.Duration(cfg.ComandoTimeoutSegundos) * time.Second,
 	})
 	coderAgent := agents.NewCoderAgent(conectorIA)
@@ -476,7 +401,7 @@ func ejecutarWebUI() {
 	ingAgente := agents.NuevoAgenteProyecto(conectorIA, cfg.WorkspaceRoot, gestorPlan)
 	almacen, _ := memoria.NuevoAlmacen(cfg.RutaMemoria)
 	if almacen != nil {
-		defer almacen.Cerrar()
+		defer func() { _ = almacen.Cerrar() }()
 	}
 	brain := core.NewBrain(hands, core.BrainOpciones{
 		IA: conectorIA, Coder: coderAgent, Memoria: almacen,
@@ -496,6 +421,8 @@ func ejecutarWebUI() {
 		Diagnostico:   hands,
 		Aprobador:     hands,
 		Auditor:       hands,
+		Skills:        gestorSkills,
+		Roles:         gestorRoles,
 		ContrasenaHash: cfg.LoginPasswordHash,
 		RutaHistorial: filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "historial-web.json"),
 	})
@@ -542,7 +469,7 @@ func vigilarRecordatorios(almacen *memoria.Almacen, hands *core.Hands, done <-ch
 		case <-ticker.C:
 			pendientes := almacen.RecordatoriosPendientes(time.Now())
 			for _, r := range pendientes {
-				hands.Hablar(fmt.Sprintf("Recordatorio, señor: %s", r.Texto))
+				fmt.Printf("[RECORDATORIO] %s\n", r.Texto)
 				if err := almacen.MarcarCumplido(r.ID); err != nil {
 					fmt.Printf("[ADVERTENCIA] No pude marcar el recordatorio como cumplido: %v\n", err)
 				}

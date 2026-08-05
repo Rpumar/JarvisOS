@@ -110,7 +110,7 @@ func (g *GestorPlan) MarcarPaso(plan *PlanTrabajo, idx int, estado EstadoPaso, r
 	plan.Pasos[idx].Estado = estado
 	plan.Pasos[idx].Resultado = resultado
 	plan.Pasos[idx].Error = errMsg
-	g.Guardar(plan)
+	_ = g.Guardar(plan)
 }
 
 func (g *GestorPlan) SiguientePaso(plan *PlanTrabajo) (int, *PasoPlan) {
@@ -129,12 +129,12 @@ func (g *GestorPlan) RegistrarArchivo(plan *PlanTrabajo, archivo string) {
 		}
 	}
 	plan.ArchivosTocados = append(plan.ArchivosTocados, archivo)
-	g.Guardar(plan)
+	_ = g.Guardar(plan)
 }
 
 func (g *GestorPlan) Completar(plan *PlanTrabajo) {
 	plan.Completado = true
-	g.Guardar(plan)
+	_ = g.Guardar(plan)
 }
 
 func (g *GestorPlan) PlanPendiente() *PlanTrabajo {
@@ -166,7 +166,7 @@ func EsPeticionProgramacion(entrada string) bool {
 	claves := []string{
 		"programa", "codigo", "código", "implementa", "implementá",
 		"crea", "creá", "hace", "hacé", "modifica", "modificá",
-		"agrega", "agregá", "refactoriza", "refactoreá",
+		"agrega", "agregá", "refactoriza", "refactoreá", "refactorizá",
 		"arregla", "arreglá", "repara", "repará",
 		"escribe", "escribí", "genera", "generá",
 		"funcion", "función", "clase", "test",

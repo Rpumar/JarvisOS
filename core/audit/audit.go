@@ -76,7 +76,9 @@ func (r *Registro) Registrar(e Entrada) {
 	if r.ruta == "" {
 		return
 	}
-	os.MkdirAll(filepath.Dir(r.ruta), 0o700)
+	if err := os.MkdirAll(filepath.Dir(r.ruta), 0o700); err != nil {
+		return
+	}
 
 	if r.superaMaximo() {
 		r.rotar()
@@ -88,7 +90,9 @@ func (r *Registro) Registrar(e Entrada) {
 	}
 	defer f.Close()
 	linea, _ := json.Marshal(e)
-	f.Write(append(linea, '\n'))
+	if _, err := f.Write(append(linea, '\n')); err != nil {
+		return
+	}
 }
 
 // superaMaximo indica si el archivo activo ya alcanzó el límite de bytes.

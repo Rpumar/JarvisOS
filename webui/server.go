@@ -56,6 +56,22 @@ type Auditor interface {
 	AuditoriaPanel() []audit.Entrada
 }
 
+// GestorSkills habilita el CRUD de skills desde la WebUI.
+type GestorSkills interface {
+	ListarDetallado() []core.SkillInfo
+	Obtener(nombre string) (core.Skill, bool)
+	CrearOActualizar(core.Skill) error
+	Eliminar(nombre string) error
+}
+
+// GestorRoles habilita el CRUD de roles desde la WebUI.
+type GestorRoles interface {
+	ListarDetallado() []core.RolInfo
+	Obtener(nombre string) (core.Rol, bool)
+	CrearOActualizar(core.Rol) error
+	Eliminar(nombre string) error
+}
+
 // nombreCookieSesion identifica la cookie de sesión del panel.
 const nombreCookieSesion = "jarvis_sesion"
 
@@ -68,6 +84,8 @@ type ServidorWeb struct {
 	diagnostico DiagnosticoProvider
 	aprobador   Aprobador
 	auditor     Auditor
+	skills      GestorSkills
+	roles       GestorRoles
 	historial   []HistorialEntry
 	mu          sync.Mutex
 	port        int
@@ -104,6 +122,12 @@ func NuevoServidor(brain ProcesadorChat, port int, opciones ...ServidorOpciones)
 		if o.Auditor != nil {
 			s.auditor = o.Auditor
 		}
+		if o.Skills != nil {
+			s.skills = o.Skills
+		}
+		if o.Roles != nil {
+			s.roles = o.Roles
+		}
 		if o.RutaHistorial != "" {
 			s.rutaHist = o.RutaHistorial
 		}
@@ -116,11 +140,13 @@ func NuevoServidor(brain ProcesadorChat, port int, opciones ...ServidorOpciones)
 }
 
 type ServidorOpciones struct {
-	Estado        EstadoProvider
-	Diagnostico   DiagnosticoProvider
-	Aprobador     Aprobador
-	Auditor       Auditor
-	RutaHistorial string
+	Estado         EstadoProvider
+	Diagnostico    DiagnosticoProvider
+	Aprobador      Aprobador
+	Auditor        Auditor
+	Skills         GestorSkills
+	Roles          GestorRoles
+	RutaHistorial  string
 	ContrasenaHash string
 }
 
@@ -145,6 +171,8 @@ func (s *ServidorWeb) Iniciar() error {
 	mux.HandleFunc("/api/login", s.manejarLogin)
 	mux.HandleFunc("/api/logout", s.manejarLogout)
 	mux.HandleFunc("/api/auditoria", s.manejarAuditoria)
+	mux.HandleFunc("/api/skills", s.manejarSkills)
+	mux.HandleFunc("/api/roles", s.manejarRoles)
 
 	mux.Handle("/", http.FileServer(http.FS(archivosEstaticos)))
 
@@ -177,7 +205,7 @@ func (s *ServidorWeb) conRecuperacion(h http.Handler) http.Handler {
 			if rec := recover(); rec != nil {
 				fmt.Printf("[WEBUI] Error interno en %s: %v\n", r.URL.Path, rec)
 				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(map[string]string{"error": "error interno del servidor"})
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": "error interno del servidor"})
 			}
 		}()
 		h.ServeHTTP(w, r)
@@ -189,11 +217,11 @@ func (s *ServidorWeb) abrirNavegador(addr string) {
 	url := fmt.Sprintf("http://%s", addr)
 	switch runtime.GOOS {
 	case "windows":
-		exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+		_ = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
 	case "darwin":
-		exec.Command("open", url).Start()
+		_ = exec.Command("open", url).Start()
 	default:
-		exec.Command("xdg-open", url).Start()
+		_ = exec.Command("xdg-open", url).Start()
 	}
 }
 
@@ -210,7 +238,7 @@ func (s *ServidorWeb) manejarChat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.Message == "" {
-		json.NewEncoder(w).Encode(ChatResponse{Response: ""})
+		_ = json.NewEncoder(w).Encode(ChatResponse{Response: ""})
 		return
 	}
 
@@ -229,45 +257,45 @@ func (s *ServidorWeb) manejarChat(w http.ResponseWriter, r *http.Request) {
 	s.guardarHistorial()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(ChatResponse{Response: respuesta})
+	_ = json.NewEncoder(w).Encode(ChatResponse{Response: respuesta})
 }
 
 func (s *ServidorWeb) manejarEstado(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if s.estado == nil {
-		json.NewEncoder(w).Encode(map[string]string{"error": "sin estado"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "sin estado"})
 		return
 	}
-	json.NewEncoder(w).Encode(s.estado.EstadoPanel())
+	_ = json.NewEncoder(w).Encode(s.estado.EstadoPanel())
 }
 
 func (s *ServidorWeb) manejarDiagnostico(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if s.diagnostico == nil {
-		json.NewEncoder(w).Encode(map[string]string{"error": "sin diagnostico"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "sin diagnostico"})
 		return
 	}
 	d, err := s.diagnostico.Diagnostico()
 	if err != nil {
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
-	json.NewEncoder(w).Encode(d)
+	_ = json.NewEncoder(w).Encode(d)
 }
 
 func (s *ServidorWeb) manejarSalud(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if s.diagnostico == nil {
-		json.NewEncoder(w).Encode(map[string]string{"error": "sin diagnostico"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "sin diagnostico"})
 		return
 	}
 	d, err := s.diagnostico.Diagnostico()
 	if err != nil {
-		json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 		return
 	}
 	puntaje, problemas := core.AnalizarSalud(d)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"puntaje":   puntaje,
 		"problemas": problemas,
 	})
@@ -285,7 +313,7 @@ type OrdenPanel struct {
 func (s *ServidorWeb) manejarOrdenes(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if s.aprobador == nil {
-		json.NewEncoder(w).Encode(map[string]string{"error": "sin aprobador"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "sin aprobador"})
 		return
 	}
 	ordenes := s.aprobador.OrdenesParaPanel()
@@ -299,7 +327,7 @@ func (s *ServidorWeb) manejarOrdenes(w http.ResponseWriter, r *http.Request) {
 			PendienteDescripcion: o.PendienteDescripcion,
 		})
 	}
-	json.NewEncoder(w).Encode(map[string]interface{}{"ordenes": panel})
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"ordenes": panel})
 }
 
 func (s *ServidorWeb) manejarAprobar(w http.ResponseWriter, r *http.Request) {
@@ -312,15 +340,15 @@ func (s *ServidorWeb) manejarAprobar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.aprobador == nil {
-		json.NewEncoder(w).Encode(map[string]string{"error": "sin aprobador"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "sin aprobador"})
 		return
 	}
 	var req AprobacionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		json.NewEncoder(w).Encode(map[string]string{"error": "request inválido"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "request inválido"})
 		return
 	}
-	json.NewEncoder(w).Encode(map[string]string{"response": s.aprobador.AprobarOrden(req.OrdenID, req.PIN)})
+	_ = json.NewEncoder(w).Encode(map[string]string{"response": s.aprobador.AprobarOrden(req.OrdenID, req.PIN)})
 }
 
 func (s *ServidorWeb) manejarDenegar(w http.ResponseWriter, r *http.Request) {
@@ -333,15 +361,15 @@ func (s *ServidorWeb) manejarDenegar(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.aprobador == nil {
-		json.NewEncoder(w).Encode(map[string]string{"error": "sin aprobador"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "sin aprobador"})
 		return
 	}
 	var req AprobacionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		json.NewEncoder(w).Encode(map[string]string{"error": "request inválido"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "request inválido"})
 		return
 	}
-	json.NewEncoder(w).Encode(map[string]string{"response": s.aprobador.DenegarOrden(req.OrdenID)})
+	_ = json.NewEncoder(w).Encode(map[string]string{"response": s.aprobador.DenegarOrden(req.OrdenID)})
 }
 
 // === SESIÓN Y ROLES (RBAC F2) ===
@@ -354,7 +382,7 @@ type LoginRequest struct {
 func (s *ServidorWeb) manejarSesion(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	rol := s.rolActual(r)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"autenticado":   rol == security.RolAdmin,
 		"rol":           rol,
 		"requiere_login": s.contrasenaHash != "",
@@ -370,12 +398,12 @@ func (s *ServidorWeb) manejarLogin(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		json.NewEncoder(w).Encode(map[string]string{"error": "request inválido"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "request inválido"})
 		return
 	}
 	if s.contrasenaHash != "" && core.HashTexto(normalizarClave(req.Clave)) != s.contrasenaHash {
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]string{"error": "contraseña incorrecta"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "contraseña incorrecta"})
 		return
 	}
 	token := nuevoTokenSesion()
@@ -387,7 +415,7 @@ func (s *ServidorWeb) manejarLogin(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true, SameSite: http.SameSiteLaxMode,
 		MaxAge: int(duracionSesion.Seconds()),
 	})
-	json.NewEncoder(w).Encode(map[string]string{"rol": string(security.RolAdmin)})
+	_ = json.NewEncoder(w).Encode(map[string]string{"rol": string(security.RolAdmin)})
 }
 
 // manejarLogout cierra la sesión actual.
@@ -415,10 +443,108 @@ func (s *ServidorWeb) manejarAuditoria(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.auditor == nil {
-		json.NewEncoder(w).Encode(map[string]string{"error": "sin auditor"})
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "sin auditor"})
 		return
 	}
-	json.NewEncoder(w).Encode(map[string]interface{}{"entradas": s.auditor.AuditoriaPanel()})
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{"entradas": s.auditor.AuditoriaPanel()})
+}
+
+// === CRUD DE SKILLS Y ROLES ===
+
+// manejarSkills lista las skills (GET) o crea/actualiza una (POST). La
+// escritura es solo para Admin.
+func (s *ServidorWeb) manejarSkills(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if s.skills == nil {
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "sin gestor de skills"})
+		return
+	}
+	switch r.Method {
+	case http.MethodGet:
+		if nombre := r.URL.Query().Get("nombre"); nombre != "" {
+			if sk, ok := s.skills.Obtener(nombre); ok {
+				_ = json.NewEncoder(w).Encode(sk)
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "skill no encontrada"})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"skills": s.skills.ListarDetallado()})
+	case http.MethodPost:
+		if !s.exigePermiso(r, w, security.PermisoAprobar) {
+			return
+		}
+		var sk core.Skill
+		if err := json.NewDecoder(r.Body).Decode(&sk); err != nil {
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "request inválido"})
+			return
+		}
+		if err := s.skills.CrearOActualizar(sk); err != nil {
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]string{"ok": "skill guardada", "nombre": sk.Nombre})
+	case http.MethodDelete:
+		if !s.exigePermiso(r, w, security.PermisoAprobar) {
+			return
+		}
+		nombre := r.URL.Query().Get("nombre")
+		if err := s.skills.Eliminar(nombre); err != nil {
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]string{"ok": "skill eliminada"})
+	default:
+		http.Error(w, "método no permitido", http.StatusMethodNotAllowed)
+	}
+}
+
+// manejarRoles lista los roles (GET) o crea/actualiza uno (POST). La escritura
+// es solo para Admin.
+func (s *ServidorWeb) manejarRoles(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if s.roles == nil {
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "sin gestor de roles"})
+		return
+	}
+	switch r.Method {
+	case http.MethodGet:
+		if nombre := r.URL.Query().Get("nombre"); nombre != "" {
+			if rol, ok := s.roles.Obtener(nombre); ok {
+				_ = json.NewEncoder(w).Encode(rol)
+				return
+			}
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "rol no encontrado"})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"roles": s.roles.ListarDetallado()})
+	case http.MethodPost:
+		if !s.exigePermiso(r, w, security.PermisoAprobar) {
+			return
+		}
+		var rol core.Rol
+		if err := json.NewDecoder(r.Body).Decode(&rol); err != nil {
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "request inválido"})
+			return
+		}
+		if err := s.roles.CrearOActualizar(rol); err != nil {
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]string{"ok": "rol guardado", "nombre": rol.Nombre})
+	case http.MethodDelete:
+		if !s.exigePermiso(r, w, security.PermisoAprobar) {
+			return
+		}
+		nombre := r.URL.Query().Get("nombre")
+		if err := s.roles.Eliminar(nombre); err != nil {
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]string{"ok": "rol eliminado"})
+	default:
+		http.Error(w, "método no permitido", http.StatusMethodNotAllowed)
+	}
 }
 
 // rolActual resuelve el rol del pedido: Admin si tiene una sesión válida (o
@@ -447,7 +573,7 @@ func (s *ServidorWeb) exigePermiso(r *http.Request, w http.ResponseWriter, permi
 		return true
 	}
 	w.WriteHeader(http.StatusForbidden)
-	json.NewEncoder(w).Encode(map[string]string{"error": "acceso denegado: solo administrador"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": "acceso denegado: solo administrador"})
 	return false
 }
 
@@ -465,7 +591,7 @@ func (s *ServidorWeb) manejarHistorial(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(s.historial)
+	_ = json.NewEncoder(w).Encode(s.historial)
 }
 
 func (s *ServidorWeb) manejarLimpiar(w http.ResponseWriter, r *http.Request) {
@@ -500,8 +626,10 @@ func (s *ServidorWeb) guardarHistorial() {
 	s.mu.Lock()
 	datos, _ := json.MarshalIndent(s.historial, "", "  ")
 	s.mu.Unlock()
-	os.MkdirAll(filepath.Dir(s.rutaHist), 0o700)
-	os.WriteFile(s.rutaHist, datos, 0o600)
+	if err := os.MkdirAll(filepath.Dir(s.rutaHist), 0o700); err != nil {
+		return
+	}
+	_ = os.WriteFile(s.rutaHist, datos, 0o600)
 }
 
 //go:embed static

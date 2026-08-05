@@ -28,16 +28,17 @@ func InstalarServicio() error {
 		return fmt.Errorf("error al crear servicio: %v\n%s", err, string(salida))
 	}
 
-	exec.Command("sc", "failure", nombreServicio, "reset=", "86400",
-		"actions=", "restart/5000/restart/10000/restart/15000").Run()
+	if _, err := exec.Command("sc", "failure", nombreServicio, "reset=", "86400",
+		"actions=", "restart/5000/restart/10000/restart/15000").Output(); err != nil {
+		return fmt.Errorf("error al configurar reintentos del servicio: %v", err)
+	}
 
 	fmt.Printf("Servicio '%s' instalado exitosamente.\n", nombreServicio)
 	return nil
 }
 
 func DesinstalarServicio() error {
-	exec.Command("sc", "stop", nombreServicio).Run()
-
+	_ = exec.Command("sc", "stop", nombreServicio).Run()
 	cmd := exec.Command("sc", "delete", nombreServicio)
 	salida, err := cmd.CombinedOutput()
 	if err != nil {

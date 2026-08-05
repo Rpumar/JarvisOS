@@ -70,7 +70,9 @@ func (h *Hands) descomprimirArchivo(cmd string) string {
 		}
 	}
 	destino := strings.TrimSuffix(archivo, ".zip")
-	exec.Command("cmd", "/C", "mkdir", destino).Run()
+	if err := exec.Command("cmd", "/C", "mkdir", destino).Run(); err != nil {
+		return fmt.Sprintf("No pude crear la carpeta de destino, señor: %v", err)
+	}
 	out, err := ejecutarPS(fmt.Sprintf("Expand-Archive -Path '%s' -DestinationPath '%s' -Force", archivo, destino))
 	if err != nil && out == "" {
 		return fmt.Sprintf("No pude descomprimir, señor: %v", err)

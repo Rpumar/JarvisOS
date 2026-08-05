@@ -306,10 +306,7 @@ func detectarAgregarALista(entrada string) (*itemCompleto, bool) {
 				return nil, false
 			}
 			item := strings.TrimSpace(resto[:idx])
-			nombreLista := strings.TrimSpace(resto[idx+len(" a la lista "):])
-			if strings.HasPrefix(nombreLista, "de ") {
-				nombreLista = strings.TrimPrefix(nombreLista, "de ")
-			}
+			nombreLista := strings.TrimPrefix(strings.TrimSpace(resto[idx+len(" a la lista "):]), "de ")
 			if item == "" || nombreLista == "" {
 				return nil, false
 			}
@@ -335,10 +332,7 @@ func detectarMarcarHecho(entrada string) (*itemCompleto, bool) {
 				return nil, false
 			}
 			item := strings.TrimSpace(resto[:idx])
-			nombreLista := strings.TrimSpace(resto[idx+len(" en la lista "):])
-			if strings.HasPrefix(nombreLista, "de ") {
-				nombreLista = strings.TrimPrefix(nombreLista, "de ")
-			}
+			nombreLista := strings.TrimPrefix(strings.TrimSpace(resto[idx+len(" en la lista "):]), "de ")
 			if item == "" || nombreLista == "" {
 				return nil, false
 			}

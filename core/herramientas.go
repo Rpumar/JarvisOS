@@ -35,7 +35,9 @@ func ParsearHerramientas(texto string) []LlamadaHerramienta {
 				h.Nombre = strings.TrimPrefix(l, "HERRAMIENTA|")
 			} else if strings.HasPrefix(l, "ARGUMENTOS|") {
 				jsonStr := strings.TrimPrefix(l, "ARGUMENTOS|")
-				json.Unmarshal([]byte(jsonStr), &h.Argumentos)
+				if err := json.Unmarshal([]byte(jsonStr), &h.Argumentos); err != nil {
+					continue
+				}
 			}
 			if i == len(lineas)-1 && h.Nombre != "" {
 				herramientas = append(herramientas, h)
@@ -239,11 +241,9 @@ func (e *EjecutorHerramientas) leerDirectorio(args map[string]string) ResultadoH
 	}
 	var lista []string
 	for _, entry := range entries {
-		prefijo := "  "
+		prefijo := "  📄"
 		if entry.IsDir() {
 			prefijo = "  📁"
-		} else {
-			prefijo = "  📄"
 		}
 		lista = append(lista, fmt.Sprintf("%s %s", prefijo, entry.Name()))
 	}

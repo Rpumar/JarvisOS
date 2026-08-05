@@ -58,9 +58,13 @@ func (g *GestorTareas) cargar() {
 func (g *GestorTareas) guardar() {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	os.MkdirAll(filepath.Dir(g.ruta), 0o700)
+	if err := os.MkdirAll(filepath.Dir(g.ruta), 0o700); err != nil {
+		return
+	}
 	datos, _ := json.MarshalIndent(g.tareas, "", "  ")
-	os.WriteFile(g.ruta, datos, 0o600)
+	if err := os.WriteFile(g.ruta, datos, 0o600); err != nil {
+		return
+	}
 }
 
 func (g *GestorTareas) Agregar(nombre, detalle, fecha string) Tarea {
@@ -221,14 +225,18 @@ func (m *GestorProcedimientos) cargar() {
 func (m *GestorProcedimientos) guardar() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	os.MkdirAll(filepath.Dir(m.ruta), 0o700)
+	if err := os.MkdirAll(filepath.Dir(m.ruta), 0o700); err != nil {
+		return
+	}
 	lista := make([]Procedimiento, 0, len(m.procs))
 	for _, p := range m.procs {
 		lista = append(lista, *p)
 	}
 	sort.Slice(lista, func(i, j int) bool { return lista[i].Nombre < lista[j].Nombre })
 	datos, _ := json.MarshalIndent(lista, "", "  ")
-	os.WriteFile(m.ruta, datos, 0o600)
+	if err := os.WriteFile(m.ruta, datos, 0o600); err != nil {
+		return
+	}
 }
 
 func (m *GestorProcedimientos) Crear(nombre string, pasos []string) {
@@ -622,12 +630,8 @@ func (h *Hands) ejecutarProcedimiento(nombre string) string {
 		}
 		return fmt.Sprintf("No tengo un procedimiento llamado '%s', señor. Sé hacer: %s.", nombre, strings.Join(nombres, ", "))
 	}
-	resultados := make([]string, 0, len(p.Pasos))
 	for _, paso := range p.Pasos {
-		r := h.RunCommand(paso)
-		if r != ComandoNoReconocido {
-			resultados = append(resultados, r)
-		}
+		_ = h.RunCommand(paso)
 	}
 	return fmt.Sprintf("Procedimiento '%s' ejecutado con %d pasos, señor.", nombre, len(p.Pasos))
 }

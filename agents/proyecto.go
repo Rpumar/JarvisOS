@@ -55,7 +55,7 @@ func (a *AgenteProyecto) Procesar(peticion string) string {
 		return fmt.Sprintf("No pude generar un plan: %v", err)
 	}
 
-	a.gestorPlan.Guardar(plan)
+	_ = a.gestorPlan.Guardar(plan)
 	fmt.Printf("[PLAN] Objetivo: %s\n", plan.Objetivo)
 	fmt.Printf("[PLAN] %d pasos planificados.\n", len(plan.Pasos))
 	return a.ejecutarPlan(plan, nil)
@@ -129,7 +129,7 @@ func (a *AgenteProyecto) ejecutarPlan(plan *PlanTrabajo, pasoInicial *int) strin
 		}
 
 		plan.ActualizadoEl = time.Now().Format(time.RFC3339)
-		a.gestorPlan.Guardar(plan)
+		_ = a.gestorPlan.Guardar(plan)
 		iteraciones++
 	}
 }

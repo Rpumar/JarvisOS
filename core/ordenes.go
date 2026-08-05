@@ -79,7 +79,10 @@ func (g *GestorOrdenes) cargar() {
 func (g *GestorOrdenes) guardar() {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	os.MkdirAll(filepath.Dir(g.ruta), 0o700)
+	if err := os.MkdirAll(filepath.Dir(g.ruta), 0o700); err != nil {
+		fmt.Printf("[ORDENES] No se pudo crear el directorio: %v\n", err)
+		return
+	}
 	datos, _ := json.MarshalIndent(g.ordenes, "", "  ")
 	if err := escribirJSONAtomico(g.ruta, datos); err != nil {
 		fmt.Printf("[ORDENES] No se pudo guardar: %v\n", err)
@@ -311,7 +314,9 @@ func (g *GestorOrdenes) TextoPendientes() string {	activas := g.Activas()
 // escribirJSONAtomico evita corrupción si el proceso se corta a mitad de
 // escritura: escribe a un temporal y renombra al final.
 func escribirJSONAtomico(ruta string, datos []byte) error {
-	os.MkdirAll(filepath.Dir(ruta), 0o700)
+	if err := os.MkdirAll(filepath.Dir(ruta), 0o700); err != nil {
+		return err
+	}
 	tmp := ruta + ".tmp"
 	if err := os.WriteFile(tmp, datos, 0o600); err != nil {
 		return err

@@ -1,15 +1,9 @@
-# github.com/alphacep/vosk-api/go v0.3.50 => ./vndr/github.com/alphacep/vosk-api/go
-## explicit; go 1.22
-github.com/alphacep/vosk-api/go
 # github.com/dustin/go-humanize v1.0.1
 ## explicit; go 1.16
 github.com/dustin/go-humanize
 # github.com/google/uuid v1.6.0
 ## explicit
 github.com/google/uuid
-# github.com/gordonklaus/portaudio v0.0.0-20260203164431-765aa7dfa631
-## explicit; go 1.18
-github.com/gordonklaus/portaudio
 # github.com/mattn/go-isatty v0.0.20
 ## explicit; go 1.15
 github.com/mattn/go-isatty
@@ -62,4 +56,3 @@ modernc.org/memory
 modernc.org/sqlite
 modernc.org/sqlite/lib
 modernc.org/sqlite/vtab
-# github.com/alphacep/vosk-api/go => ./vndr/github.com/alphacep/vosk-api/go

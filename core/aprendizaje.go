@@ -35,13 +35,19 @@ func (r *RegistroAprendizaje) cargar() {
 		r.comandos = []ComandoAprendido{}
 		return
 	}
-	json.Unmarshal(contenido, &r.comandos)
+	if err := json.Unmarshal(contenido, &r.comandos); err != nil {
+		r.comandos = []ComandoAprendido{}
+	}
 }
 
 func (r *RegistroAprendizaje) guardar() {
-	os.MkdirAll(filepath.Dir(r.ruta), 0o700)
+	if err := os.MkdirAll(filepath.Dir(r.ruta), 0o700); err != nil {
+		return
+	}
 	datos, _ := json.MarshalIndent(r.comandos, "", "  ")
-	os.WriteFile(r.ruta, datos, 0o600)
+	if err := os.WriteFile(r.ruta, datos, 0o600); err != nil {
+		return
+	}
 }
 
 func (r *RegistroAprendizaje) Aprender(frases []string, comando string) {

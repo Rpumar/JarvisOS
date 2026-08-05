@@ -430,7 +430,7 @@ func (h *Hands) carpetasGrandes() string {
 
 func tamanoCarpeta(raiz string) int64 {
 	var total int64
-	filepath.Walk(raiz, func(_ string, info os.FileInfo, err error) error {
+	if err := filepath.Walk(raiz, func(_ string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}
@@ -438,10 +438,11 @@ func tamanoCarpeta(raiz string) int64 {
 			total += info.Size()
 		}
 		return nil
-	})
+	}); err != nil {
+		return 0
+	}
 	return total
 }
-
 // === PLAN DE ACCIÓN ===
 
 type Accion struct {

@@ -143,7 +143,7 @@ IMPORTANTE: No uses el formato de herramienta para responder normalmente. Solo u
 func (c *ClienteClaude) Charla(system string, historial []TurnoClaude) (string, error) {
 	mensajes := make([]mensajeClaude, 0, len(historial))
 	for _, t := range historial {
-		mensajes = append(mensajes, mensajeClaude{Role: t.Role, Content: t.Content})
+		mensajes = append(mensajes, mensajeClaude(t))
 	}
 	return c.Consultar(system, mensajes)
 }

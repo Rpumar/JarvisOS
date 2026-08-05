@@ -38,7 +38,9 @@ func (h *Hands) bluetoothActivar() string {
 	if err := cmd.Run(); err != nil {
 		fallback := exec.Command("powershell", "-NoProfile", "-Command",
 			`(New-Object -ComObject Shell.Application).ToggleDesktop(); Start-Process ms-settings:bluetooth`)
-		fallback.Run()
+		if err := fallback.Run(); err != nil {
+			return "No pude activar el Bluetooth, señor."
+		}
 	}
 	return "Bluetooth activado, señor."
 }
@@ -47,6 +49,7 @@ func (h *Hands) bluetoothDesactivar() string {
 	cmd := exec.Command("powershell", "-NoProfile", "-Command",
 		`$radio=[Windows.Devices.Radios.Radio,Windows.System.Devices,ContentType=WindowsRuntime]::GetRadiosAsync().GetAwaiter().GetResult() | Where-Object {$_.Kind -eq 'Bluetooth'}; if($radio){[Windows.Devices.Radios.RadioAccessStatus]$radio[0].SetStateAsync([Windows.Devices.Radios.RadioState]::Off).GetAwaiter().GetResult()}`)
 	if err := cmd.Run(); err != nil {
+		return "No pude desactivar el Bluetooth, señor."
 	}
 	return "Bluetooth desactivado, señor."
 }
@@ -61,23 +64,6 @@ func (h *Hands) listarProcesos() string {
 	fmt.Println("Procesos activos (top 15 por CPU):")
 	fmt.Println(texto)
 	return "Mostrando los 15 procesos con más uso de CPU, señor."
-}
-
-func (h *Hands) matarProceso(nombre string) string {
-	if !esRutaSegura(nombre) {
-		return fmt.Sprintf("No puedo matar '%s', señor: nombre no válido.", nombre)
-	}
-	proceso := nombre
-	if !strings.HasSuffix(proceso, ".exe") {
-		proceso += ".exe"
-	}
-	if esProcesoProtegido(proceso) {
-		return fmt.Sprintf("No voy a matar %s, señor: es un proceso del sistema.", nombre)
-	}
-	if err := exec.Command("taskkill", "/IM", proceso, "/F").Run(); err != nil {
-		return fmt.Sprintf("No pude matar %s. ¿Está ejecutándose?", nombre)
-	}
-	return fmt.Sprintf("%s terminado, señor.", nombre)
 }
 
 func (h *Hands) listarUSB() string {
