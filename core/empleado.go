@@ -381,6 +381,8 @@ func (h *Hands) manejarTarea(cmd string) string {
 		strings.Contains(entrada, "agendame"), strings.Contains(entrada, "agendáme"),
 		strings.Contains(entrada, "registrá la tarea"), strings.Contains(entrada, "registra la tarea"),
 		strings.Contains(entrada, "registrá una tarea"), strings.Contains(entrada, "registra una tarea"),
+		strings.Contains(entrada, "creá una tarea"), strings.Contains(entrada, "crea una tarea"),
+		strings.Contains(entrada, "creame una tarea"),
 		strings.Contains(entrada, "tarea nueva"), strings.Contains(entrada, "nueva tarea"),
 		strings.Contains(entrada, "añadí la tarea"), strings.Contains(entrada, "añadi la tarea"):
 		return h.agendarTarea(entrada, cmd)
@@ -396,6 +398,7 @@ func (h *Hands) agendarTarea(entrada, original string) string {
 		"agendame una tarea", "agendáme una tarea", "agendame la tarea", "agendáme la tarea",
 		"agendame", "agendáme", "agendá", "agenda",
 		"registrá la tarea", "registra la tarea", "registrá una tarea", "registra una tarea",
+		"creá una tarea", "crea una tarea", "creame una tarea",
 		"tarea nueva", "nueva tarea", "añadí la tarea", "añadi la tarea",
 	}
 	resto := extraerBusquedaTarea(entrada, prefijos)

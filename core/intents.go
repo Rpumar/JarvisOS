@@ -340,7 +340,7 @@ func NuevoClasificador() *Clasificador {
 		},
 		{
 			Nombre: "tarea",
-			Frases: []string{"agendá una tarea", "agenda una tarea", "agendame una tarea", "agendá la tarea", "qué tareas tengo", "que tareas tengo", "mis tareas", "tareas pendientes", "tareas me faltan", "todas las tareas", "todas mis tareas", "marcar tarea", "marca la tarea", "tarea como hecha", "completé la tarea", "borrar tarea", "borrá la tarea", "eliminar tarea", "registrá una tarea", "tarea nueva", "cuántas tareas tengo", "cuantas tareas tengo"},
+			Frases: []string{"agendá una tarea", "agenda una tarea", "agendame una tarea", "agendá la tarea", "qué tareas tengo", "que tareas tengo", "mis tareas", "tareas pendientes", "tareas me faltan", "todas las tareas", "todas mis tareas", "marcar tarea", "marca la tarea", "tarea como hecha", "completé la tarea", "borrar tarea", "borrá la tarea", "eliminar tarea", "registrá una tarea", "registra una tarea", "creá una tarea", "crea una tarea", "creame una tarea", "tarea nueva", "cuántas tareas tengo", "cuantas tareas tengo"},
 			Palabras: []string{"tarea", "tareas", "agendá", "agenda", "agendame", "agendáme"},
 			Handler: func(cmd string, h *Hands) string { return h.manejarTarea(cmd) },
 		},
