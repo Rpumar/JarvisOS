@@ -1,5 +1,7 @@
 ---
 nombre: frontend-panel
+prioridad: 40
+descripcion: Convenciones del frontend (HTML/CSS/JS puro, panel oscuro, fetch a /api, textos en español).
 activar: [frontend, panel, boton, ui, pagina, diseño, diseno, app.js, index.html, style.css]
 ---
 Convenciones del frontend del proyecto:

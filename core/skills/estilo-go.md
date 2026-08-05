@@ -1,5 +1,7 @@
 ---
 nombre: estilo-go
+prioridad: 20
+descripcion: Convenciones de Go del proyecto (solo librería estándar, nombres, mutex, handlers cortos).
 activar: [go, golang, backend, codigo go, funcion, main.go, handler]
 ---
 Convenciones de Go para este proyecto:

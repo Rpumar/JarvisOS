@@ -362,19 +362,28 @@ func (a *Almacen) MarcarItemLista(nombreLista, item string) (string, error) {
 func (a *Almacen) ObtenerListas() []string {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	// Se recolectan los ids y nombres primero: con SetMaxOpenConns(1) no se
+	// puede hacer un segundo query mientras un *Rows del primero sigue abierto.
+	ids := make([]int64, 0, 8)
+	nombres := make([]string, 0, 8)
 	rows, err := a.db.Query("SELECT id, nombre FROM listas ORDER BY id")
 	if err != nil {
 		return nil
 	}
-	defer rows.Close()
-	var resultado []string
 	for rows.Next() {
 		var id int64
 		var nombre string
 		if err := rows.Scan(&id, &nombre); err != nil {
 			continue
 		}
-		s := nombre + ":"
+		ids = append(ids, id)
+		nombres = append(nombres, nombre)
+	}
+	rows.Close()
+
+	resultado := make([]string, 0, len(nombres))
+	for i, id := range ids {
+		s := nombres[i] + ":"
 		items, err := a.db.Query("SELECT texto, hecho FROM items_lista WHERE lista_id = ? ORDER BY id", id)
 		if err != nil {
 			resultado = append(resultado, s+" (error al leer items)")

@@ -149,7 +149,6 @@
   }
   .quick button:hover { background: #0055aa; color: #fff; }
   #header-actions { display: flex; gap: 8px; }
-  #btn-voz.activa { background: #0055aa; color: #fff; border-color: #00d4ff; }
   #holo {
     display: none;
     position: fixed; inset: 0; z-index: 9999;
@@ -254,6 +253,34 @@
   .rol-operador { color: #ffb300; border-color: #3a3a1e; }
   .aprob-bloqueado { color: #ffb300; font-size: 13px; text-align: center; padding: 8px 0; line-height: 1.5; }
   .aprob-bloqueado a { color: #00d4ff; cursor: pointer; }
+  .ges-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+  .ges-tabs button { background: #161b22; border: 1px solid #30363d; color: #9fb6c8; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+  .ges-tabs button.activa { background: #0055aa; color: #fff; border-color: #00d4ff; }
+  .ges-item { background: #161b22; border: 1px solid #262c36; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .ges-item .t { font-size: 14px; color: #e0e0e0; }
+  .ges-item .d { font-size: 12px; color: #7a8699; margin-top: 2px; }
+  .ges-item .acciones { display: flex; gap: 6px; flex-shrink: 0; }
+  .ges-item .acciones button { background: none; border: 1px solid #30363d; color: #9fb6c8; border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 12px; }
+  .ges-item .acciones button:hover { border-color: #00d4ff; color: #fff; }
+  .ges-item .acciones button.borrar:hover { border-color: #ff4444; color: #ff4444; }
+  .ges-nuevo { width: 100%; background: #0055aa; border: none; color: #fff; border-radius: 8px; padding: 10px; font-size: 14px; cursor: pointer; margin-top: 4px; }
+  .ges-nuevo:hover { background: #0077dd; }
+  .ges-form label { display: block; font-size: 12px; color: #7a8699; margin: 10px 0 4px; letter-spacing: .5px; text-transform: uppercase; }
+  .ges-form input, .ges-form textarea {
+    width: 100%; background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+    padding: 9px 12px; color: #e0e0e0; font-size: 14px; outline: none; font-family: inherit;
+  }
+  .ges-form textarea { min-height: 90px; resize: vertical; }
+  .ges-form input:focus, .ges-form textarea:focus { border-color: #00d4ff; }
+  .ges-form .fila { display: flex; gap: 10px; }
+  .ges-form .fila > div { flex: 1; }
+  .ges-btns { display: flex; gap: 8px; margin-top: 14px; }
+  .ges-btns button { flex: 1; padding: 10px; border-radius: 8px; border: none; font-size: 14px; cursor: pointer; }
+  #ges-guardar { background: #008a3a; color: #fff; }
+  #ges-guardar:hover { background: #00b04c; }
+  #ges-cancelar { background: #333; color: #bbb; }
+  #ges-cancelar:hover { background: #444; }
+  .ges-err { color: #ff4444; font-size: 13px; margin-top: 8px; display: none; }
 </style>
 </head>
 <body>
@@ -264,8 +291,8 @@
     <span>Asistente personal</span>
   </div>
   <div id="header-actions">
-    <button class="clear-btn" id="btn-voz" onclick="toggleVozWeb()" title="Que Jarvis lea en voz alta">🔊 Voz</button>
     <button class="clear-btn" onclick="modoPresentacion()" title="Modo presentación fullscreen">🎦 Presentación</button>
+    <button class="clear-btn" id="btn-gestion" onclick="abrirGestion()" style="display:none">🪄 Skills y roles</button>
     <button class="clear-btn" onclick="limpiarHistorial()">Limpiar</button>
     <button class="clear-btn" id="btn-auditoria" onclick="abrirAuditoria()" style="display:none">📜 Auditoría</button>
     <button class="clear-btn" id="btn-sesion" onclick="abrirLogin()" style="display:none">🔑 Iniciar sesión</button>
@@ -312,6 +339,15 @@
         Solo el administrador puede aprobar acciones sensibles. <a onclick="abrirLogin()">Inicie sesión</a>.
       </div>
     </div>
+  </div>
+</div>
+<div id="gestion-modal" class="modal" onclick="if(event.target===this)cerrarGestion()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2>🪄 Skills y roles</h2>
+      <button class="clear-btn" onclick="cerrarGestion()">✕</button>
+    </div>
+    <div class="modal-body" id="gestion-body"><div class="typing">Cargando, señor...</div></div>
   </div>
 </div>
 <div id="login-modal" class="modal" onclick="if(event.target===this)cerrarLogin()">
@@ -384,25 +420,18 @@
   <button onclick="verificarAprobaciones(true)">🔐 Aprobaciones</button>
   <button onclick="cmd('qué hay en el portapapeles')">📎 Portapapeles</button>
   <button onclick="cmd('apagar la pc')">⏻ Apagar</button>
-  <button onclick="cmd('no hables')">🔇 Silenciar voz</button>
-  <button onclick="cmd('activá tu voz')">🗣 Activar voz</button>
-  <button onclick="cmd('qué voces tenés')">🎙 Voces</button>
 </div>
 <div id="chat">
   <div class="msg jarvis"><strong>JARVIS</strong> — Sistemas en línea, señor. ¿En qué puedo ayudarle?</div>
 </div>
 <div id="input-area">
   <input type="text" id="input" placeholder="Escriba su comando, señor..." autofocus>
-  <button id="mic" onclick="dictar()" title="Dictado por voz (Chrome/Edge)">🎤</button>
   <button id="send" onclick="enviar()">Enviar</button>
 </div>
 <script>
   const chat = document.getElementById('chat');
   const input = document.getElementById('input');
   const sendBtn = document.getElementById('send');
-
-  let vozWeb = false;
-  let vozWebActiva = false;
 
   let rolActual = 'operador';
   let requiereLogin = false;
@@ -418,6 +447,7 @@
     }
     const esAdmin = rolActual === 'admin';
     document.getElementById('btn-auditoria').style.display = esAdmin ? '' : 'none';
+    document.getElementById('btn-gestion').style.display = esAdmin ? '' : 'none';
     document.getElementById('btn-login').style.display = (esAdmin || !requiereLogin) ? 'none' : '';
     document.getElementById('btn-logout').style.display = esAdmin ? '' : 'none';
     const badge = document.getElementById('rol-badge');
@@ -503,31 +533,6 @@
     }
   }
 
-  function toggleVozWeb() {
-    vozWeb = !vozWeb;
-    document.getElementById('btn-voz').classList.toggle('activa', vozWeb);
-    document.getElementById('btn-voz').textContent = vozWeb ? '🔇 Voz' : '🔊 Voz';
-    if (!vozWeb) window.speechSynthesis && window.speechSynthesis.cancel();
-  }
-
-  function vozEspañola() {
-    const voces = window.speechSynthesis.getVoices();
-    return voces.find(v => v.lang && v.lang.toLowerCase().startsWith('es')) || voces[0] || null;
-  }
-
-  function hablar(texto) {
-    if (!vozWeb || !('speechSynthesis' in window)) return;
-    const limpio = texto.replace(/<[^>]*>/g, '').replace(/[#*_`]/g, '');
-    if (!limpio.trim()) return;
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(limpio);
-    const v = vozEspañola();
-    if (v) u.voice = v;
-    u.lang = v && v.lang ? v.lang : 'es-AR';
-    u.rate = 1.02;
-    window.speechSynthesis.speak(u);
-  }
-
   function modoPresentacion() {
     document.getElementById('holo').classList.add('activo');
     actualizarEstado();
@@ -594,7 +599,6 @@
     cerrarAprob();
     aprobActual = null;
     addMsg('jarvis', data.response || 'Respuesta vacía');
-    hablar(data.response);
     verificarAprobaciones(true);
   }
 
@@ -610,7 +614,6 @@
     cerrarAprob();
     aprobActual = null;
     addMsg('jarvis', data.response || 'Respuesta vacía');
-    hablar(data.response);
     verificarAprobaciones(true);
   }
 
@@ -746,7 +749,6 @@
       typingEl.remove();
       if (data.response) {
         addMsg('jarvis', data.response);
-        hablar(data.response);
       } else if (data.error) {
         addMsg('jarvis', 'Error: ' + data.error, true);
       }
@@ -810,28 +812,170 @@
     } catch (e) {}
   }
 
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  let reconociendo = false;
-  let reconocimiento = null;
+  let gestorVista = 'skills';
+  let gestorEditando = null;
 
-  function dictar() {
-    const mic = document.getElementById('mic');
-    if (!SR) { alert('Dictado por voz requiere Chrome o Edge.'); return; }
-    if (reconociendo) { if (reconocimiento) reconocimiento.stop(); return; }
-    reconocimiento = new SR();
-    reconocimiento.lang = 'es-AR';
-    reconocimiento.interimResults = true;
-    reconocimiento.maxAlternatives = 1;
-    reconocimiento.onstart = () => { reconociendo = true; mic.style.background = '#0055aa'; mic.textContent = '🔴'; };
-    reconocimiento.onend = () => { reconociendo = false; mic.style.background = ''; mic.textContent = '🎤'; };
-    reconocimiento.onerror = () => { reconociendo = false; mic.style.background = ''; mic.textContent = '🎤'; };
-    reconocimiento.onresult = (e) => {
-      let texto = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) texto += e.results[i][0].transcript;
-      input.value = texto;
-      if (e.results[0].isFinal && texto.trim()) enviar();
+  function abrirGestion() {
+    document.getElementById('gestion-modal').classList.add('abierto');
+    cargarGestion('skills');
+  }
+
+  function cerrarGestion() {
+    document.getElementById('gestion-modal').classList.remove('abierto');
+  }
+
+  function cargarGestion(tipo) {
+    gestorVista = tipo;
+    gestorEditando = null;
+    const body = document.getElementById('gestion-body');
+    body.innerHTML = '<div class="typing">Cargando, señor...</div>';
+    fetch('/api/' + tipo)
+      .then(r => r.json())
+      .then(data => {
+        const lista = (tipo === 'skills' ? data.skills : data.roles) || [];
+        if (data.error) throw new Error(data.error);
+        let html = '<div class="ges-tabs">' +
+          '<button class="' + (tipo === 'skills' ? 'activa' : '') + '" onclick="cargarGestion(\'skills\')">🪄 Skills (' + 'ver' + ')</button>' +
+          '<button class="' + (tipo === 'roles' ? 'activa' : '') + '" onclick="cargarGestion(\'roles\')">🎭 Roles (' + 'ver' + ')</button>' +
+          '</div>';
+        if (tipo === 'skills') {
+          html += '<button class="ges-nuevo" onclick="nuevaSkill()">+ Nueva skill</button><div style="height:10px"></div>';
+          for (const s of lista) {
+            html += '<div class="ges-item"><div><div class="t">' + s.nombre + '</div>' +
+              '<div class="d">' + (s.descripcion || '') + ' · prioridad ' + s.prioridad + '</div></div>' +
+              '<div class="acciones">' +
+              '<button onclick="editarSkill(' + JSON.stringify(s.nombre).replace(/"/g, '&quot;') + ')">Editar</button>' +
+              '<button class="borrar" onclick="borrarGestion(\'skills\', ' + JSON.stringify(s.nombre).replace(/"/g, '&quot;') + ')">Borrar</button>' +
+              '</div></div>';
+          }
+        } else {
+          html += '<button class="ges-nuevo" onclick="nuevoRol()">+ Nuevo rol</button><div style="height:10px"></div>';
+          for (const r of lista) {
+            html += '<div class="ges-item"><div><div class="t">' + r.etiqueta + '</div>' +
+              '<div class="d">' + (r.descripcion || '') + '</div></div>' +
+              '<div class="acciones">' +
+              '<button onclick="editarRol(' + JSON.stringify(r.nombre).replace(/"/g, '&quot;') + ')">Editar</button>' +
+              '<button class="borrar" onclick="borrarGestion(\'roles\', ' + JSON.stringify(r.nombre).replace(/"/g, '&quot;') + ')">Borrar</button>' +
+              '</div></div>';
+          }
+        }
+        if (!lista.length) html += '<div class="audit-vacio">Sin elementos, señor.</div>';
+        body.innerHTML = html;
+      })
+      .catch(e => { body.innerHTML = '<div class="error">Error: ' + e.message + '</div>'; });
+  }
+
+  function formSkills(s) {
+    s = s || {};
+    return '<div class="ges-form">' +
+      '<label>Nombre (sin espacios)</label><input id="g-nombre" value="' + (s.nombre || '') + '">' +
+      '<label>Descripción</label><input id="g-desc" value="' + (s.descripcion || '') + '">' +
+      '<div class="fila"><div><label>Prioridad</label><input id="g-prioridad" type="number" value="' + (s.prioridad || 0) + '"></div>' +
+      '<div><label>Palabras de activación (coma)</label><input id="g-activar" value="' + ((s.activar || []).join(', ')) + '"></div></div>' +
+      '<label>Instrucciones</label><textarea id="g-instrucciones">' + (s.instrucciones || '') + '</textarea>' +
+      '<div class="ges-err" id="ges-err"></div>' +
+      '<div class="ges-btns"><button id="ges-guardar" onclick="guardarSkill()">✓ Guardar</button>' +
+      '<button id="ges-cancelar" onclick="cargarGestion(\'skills\')">Cancelar</button></div></div>';
+  }
+
+  function formRol(r) {
+    r = r || {};
+    return '<div class="ges-form">' +
+      '<label>Nombre (sin espacios)</label><input id="g-nombre" value="' + (r.nombre || '') + '">' +
+      '<label>Etiqueta</label><input id="g-etiqueta" value="' + (r.etiqueta || '') + '">' +
+      '<label>Descripción</label><input id="g-desc" value="' + (r.descripcion || '') + '">' +
+      '<label>Contexto (archivo .md o vacío)</label><input id="g-contexto" value="' + (r.contexto || '') + '">' +
+      '<label>Palabras de activación (coma)</label><input id="g-activar" value="' + ((r.activar || []).join(', ')) + '">' +
+      '<label>Prompt</label><textarea id="g-instrucciones">' + (r.prompt || '') + '</textarea>' +
+      '<div class="ges-err" id="ges-err"></div>' +
+      '<div class="ges-btns"><button id="ges-guardar" onclick="guardarRol()">✓ Guardar</button>' +
+      '<button id="ges-cancelar" onclick="cargarGestion(\'roles\')">Cancelar</button></div></div>';
+  }
+
+  function nuevaSkill() {
+    document.getElementById('gestion-body').innerHTML = formSkills();
+  }
+
+  function nuevoRol() {
+    document.getElementById('gestion-body').innerHTML = formRol();
+  }
+
+  function editarSkill(nombre) {
+    fetch('/api/skills?nombre=' + encodeURIComponent(nombre)).then(r => r.json()).then(s => {
+      if (s.error) return;
+      gestorEditando = nombre;
+      document.getElementById('gestion-body').innerHTML = formSkills(s);
+    });
+  }
+
+  function editarRol(nombre) {
+    fetch('/api/roles?nombre=' + encodeURIComponent(nombre)).then(r => r.json()).then(r => {
+      if (r.error) return;
+      gestorEditando = nombre;
+      document.getElementById('gestion-body').innerHTML = formRol(r);
+    });
+  }
+
+  function separarActivacion(valor) {
+    return valor.split(',').map(x => x.trim()).filter(Boolean);
+  }
+
+  function guardarSkill() {
+    const nombre = document.getElementById('g-nombre').value.trim();
+    if (!nombre) return mostrarGesError('El nombre es obligatorio');
+    const payload = {
+      nombre: nombre,
+      descripcion: document.getElementById('g-desc').value.trim(),
+      prioridad: parseInt(document.getElementById('g-prioridad').value, 10) || 0,
+      activar: separarActivacion(document.getElementById('g-activar').value),
+      instrucciones: document.getElementById('g-instrucciones').value.trim()
     };
-    reconocimiento.start();
+    enviarGestion('/api/skills', payload, 'skills');
+  }
+
+  function guardarRol() {
+    const nombre = document.getElementById('g-nombre').value.trim();
+    if (!nombre) return mostrarGesError('El nombre es obligatorio');
+    const payload = {
+      nombre: nombre,
+      etiqueta: document.getElementById('g-etiqueta').value.trim(),
+      descripcion: document.getElementById('g-desc').value.trim(),
+      contexto: document.getElementById('g-contexto').value.trim(),
+      activar: separarActivacion(document.getElementById('g-activar').value),
+      prompt: document.getElementById('g-instrucciones').value.trim()
+    };
+    enviarGestion('/api/roles', payload, 'roles');
+  }
+
+  function mostrarGesError(msg) {
+    const el = document.getElementById('ges-err');
+    if (el) { el.textContent = msg; el.style.display = 'block'; }
+  }
+
+  function enviarGestion(ruta, payload, tipo) {
+    fetch(ruta, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) { mostrarGesError(data.error); return; }
+        addMsg('jarvis', data.ok + ' (' + data.nombre + ')');
+        cargarGestion(tipo);
+      })
+      .catch(e => mostrarGesError(e.message));
+  }
+
+  function borrarGestion(tipo, nombre) {
+    if (!confirm('¿Borrar "' + nombre + '" definitivamente, señor?')) return;
+    fetch('/api/' + tipo + '?nombre=' + encodeURIComponent(nombre), { method: 'DELETE' })
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) { alert(data.error); return; }
+        addMsg('jarvis', data.ok);
+        cargarGestion(tipo);
+      });
   }
 
   cargarHistorial();

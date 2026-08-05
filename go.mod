@@ -2,11 +2,7 @@ module JarvisOS
 
 go 1.25.0
 
-require (
-	github.com/alphacep/vosk-api/go v0.3.50
-	github.com/gordonklaus/portaudio v0.0.0-20260203164431-765aa7dfa631
-	modernc.org/sqlite v1.55.0
-)
+require modernc.org/sqlite v1.55.0
 
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
@@ -19,5 +15,3 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
-
-replace github.com/alphacep/vosk-api/go => ./vndr/github.com/alphacep/vosk-api/go

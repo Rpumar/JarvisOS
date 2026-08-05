@@ -1,5 +1,7 @@
 ---
 nombre: rest-api
+prioridad: 50
+descripcion: Convenciones de la API REST del proyecto (rutas /api, JSON, códigos HTTP, persistencia).
 activar: [api, endpoint, rest, servidor, json, crud, crear endpoint, nueva ruta]
 ---
 Convenciones de la API del proyecto:

@@ -280,3 +280,91 @@ func TestCancelarRecordatorios_TodosConTextoVacio(t *testing.T) {
 		t.Error("no debería quedar ningún recordatorio pendiente")
 	}
 }
+
+func TestListas_CrearYAgregarItems(t *testing.T) {
+	a, _ := nuevoAlmacenTest(t)
+	defer a.Cerrar()
+
+	if err := a.CrearLista("compras"); err != nil {
+		t.Fatalf("no se pudo crear la lista: %v", err)
+	}
+	if err := a.CrearLista("compras"); err == nil {
+		t.Error("crear lista duplicada debería fallar")
+	}
+	if err := a.AgregarItemLista("compras", "pan"); err != nil {
+		t.Fatalf("no se pudo agregar item: %v", err)
+	}
+	if err := a.AgregarItemLista("compras", "leche"); err != nil {
+		t.Fatalf("no se pudo agregar item: %v", err)
+	}
+	if err := a.AgregarItemLista("inexistente", "x"); err == nil {
+		t.Error("agregar a lista inexistente debería fallar")
+	}
+
+	lista, ok := a.ObtenerLista("compras")
+	if !ok {
+		t.Fatal("no se encontró la lista compras")
+	}
+	if !strings.Contains(lista, "pan") || !strings.Contains(lista, "leche") {
+		t.Errorf("la lista debería contener los items: %q", lista)
+	}
+}
+
+func TestListas_MarcarItem(t *testing.T) {
+	a, _ := nuevoAlmacenTest(t)
+	defer a.Cerrar()
+
+	_ = a.CrearLista("tareas")
+	_ = a.AgregarItemLista("tareas", "pagar impuestos")
+	_ = a.AgregarItemLista("tareas", "revisar email")
+
+	marcado, err := a.MarcarItemLista("tareas", "impuestos")
+	if err != nil {
+		t.Fatalf("no se pudo marcar: %v", err)
+	}
+	if !strings.Contains(marcado, "impuestos") {
+		t.Errorf("marcado = %q", marcado)
+	}
+	lista, _ := a.ObtenerLista("tareas")
+	if !strings.Contains(lista, "☑") {
+		t.Errorf("esperaba item marcado con ☑: %q", lista)
+	}
+	if _, err := a.MarcarItemLista("tareas", "no-existe"); err == nil {
+		t.Error("marcar item inexistente debería fallar")
+	}
+}
+
+func TestListas_EliminarYListar(t *testing.T) {
+	a, _ := nuevoAlmacenTest(t)
+	defer a.Cerrar()
+
+	_ = a.CrearLista("compras")
+	_ = a.CrearLista("ideas")
+	listas := a.ObtenerListas()
+	if len(listas) != 2 {
+		t.Errorf("esperaba 2 listas, hay %d", len(listas))
+	}
+	if err := a.EliminarLista("compras"); err != nil {
+		t.Fatalf("no se pudo eliminar: %v", err)
+	}
+	if err := a.EliminarLista("compras"); err == nil {
+		t.Error("eliminar lista inexistente debería fallar")
+	}
+	if _, ok := a.ObtenerLista("compras"); ok {
+		t.Error("la lista eliminada no debería existir")
+	}
+	if len(a.ObtenerListas()) != 1 {
+		t.Errorf("esperaba 1 lista tras eliminar, hay %d", len(a.ObtenerListas()))
+	}
+}
+
+func TestListaVacia(t *testing.T) {
+	a, _ := nuevoAlmacenTest(t)
+	defer a.Cerrar()
+
+	_ = a.CrearLista("vacia")
+	lista, ok := a.ObtenerLista("vacia")
+	if !ok || !strings.Contains(lista, "vacía") {
+		t.Errorf("lista vacía debería decirlo: %q ok=%v", lista, ok)
+	}
+}

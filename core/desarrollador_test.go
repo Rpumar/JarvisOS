@@ -1,6 +1,7 @@
 package core
 
 import (
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -183,5 +184,74 @@ func TestMejorarProyectoBloqueaFueraDelProyecto(t *testing.T) {
 	resp = h.mejorarProyecto("mejorar el proyecto prueba")
 	if !strings.Contains(resp, "bloqueé") {
 		t.Errorf("se esperaba bloqueo de escritura fuera del proyecto: %s", resp)
+	}
+}
+
+func TestEscribirMejoraValidaExtensiones(t *testing.T) {
+	dir := t.TempDir()
+	ruta := filepath.Join(dir, "proyecto")
+
+	msg := escribirMejora(ruta, "archivo.exe", "binario")
+	if msg == "" {
+		t.Error("escribirMejora debería bloquear .exe")
+	}
+	msg = escribirMejora(ruta, "app.js", "console.log('ok');")
+	if msg != "" {
+		t.Errorf("escribirMejora debería aceptar .js: %s", msg)
+	}
+	datos, err := os.ReadFile(filepath.Join(ruta, "app.js"))
+	if err != nil || string(datos) != "console.log('ok');" {
+		t.Errorf("no se escribió app.js: %v", err)
+	}
+}
+
+func TestEscribirMejoraBloqueaPathTraversal(t *testing.T) {
+	dir := t.TempDir()
+	ruta := filepath.Join(dir, "proyecto")
+	msg := escribirMejora(ruta, "../fuera.go", "package main")
+	if msg == "" {
+		t.Error("escribirMejora debería bloquear path traversal")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "fuera.go")); err == nil {
+		t.Error("el archivo no debería existir fuera del proyecto")
+	}
+}
+
+func TestPuertoOcupado(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("no pude abrir listener: %v", err)
+	}
+	defer ln.Close()
+	puerto := ln.Addr().(*net.TCPAddr).Port
+
+	if !puertoOcupado(puerto) {
+		t.Errorf("puerto %d debería estar ocupado", puerto)
+	}
+	if puertoOcupado(65400) {
+		t.Errorf("puerto alto probablemente libre reportó ocupado")
+	}
+}
+
+func TestContextoProyecto(t *testing.T) {
+	ruta := t.TempDir()
+	os.MkdirAll(filepath.Join(ruta, "frontend"), 0o755)
+	os.WriteFile(filepath.Join(ruta, "main.go"), []byte("package main"), 0o644)
+	os.WriteFile(filepath.Join(ruta, "frontend", "index.html"), []byte("<h1>Hola</h1>"), 0o644)
+	os.MkdirAll(filepath.Join(ruta, ".git"), 0o755)
+	os.WriteFile(filepath.Join(ruta, ".git", "config"), []byte("ignorado"), 0o644)
+
+	ctx := contextoProyecto(ruta)
+	if !strings.Contains(ctx, "main.go") {
+		t.Errorf("contextoProyecto debería listar main.go")
+	}
+	if !strings.Contains(ctx, "index.html") {
+		t.Errorf("contextoProyecto debería listar index.html")
+	}
+	if strings.Contains(ctx, "=== .git") || strings.Contains(ctx, "ignorado") {
+		t.Errorf("contextoProyecto no debería incluir .git")
+	}
+	if !strings.Contains(ctx, "package main") {
+		t.Errorf("contextoProyecto debería incluir el contenido de main.go")
 	}
 }

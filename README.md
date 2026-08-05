@@ -1,92 +1,88 @@
-# JarvisOS — Empleado Digital Empresarial
+# JarvisOS
 
-> No vendemos IA. Vendemos un **empleado**.
-> El dueño de la empresa da una orden; Jarvis la cumple y **no la cierra hasta terminarla**.
+Asistente de voz de escritorio para Windows, en español, con reconocimiento
+**offline** (Vosk) y respaldo conversacional opcional por IA. Maneja la PC
+con la voz: apps, búsquedas, memoria, recordatorios, tareas, órdenes,
+email, documentos de Office, agenda y PDF — todo sin librerías externas
+más allá de la estándar y PowerShell.
 
-## 1. Qué es
+**Versión:** 0.13.0+ (F1–F2 completas, F3 en curso).
+**Ver `PROGRESO_JARVISOS.md`** para el historial técnico detallado y
+**`INSTALACION.md`** para la guía de instalación.
 
-JarvisOS es un asistente de escritorio para Windows, escrito en **Go**, que se está convirtiendo en un **empleado digital B2B**: un colaborador que vive en la PC de la empresa, recibe órdenes por voz o chat, las ejecuta paso a paso, documenta cada acción, se recupera tras reinicios y **solo da una orden por terminada cuando el resultado fue verificado** (o el dueño la confirma/cancela).
+## 1. Funcionalidades
 
-La propuesta de negocio (detallada en `PLAN-EMPRESA.md`):
-- **Privacidad local como argumento de venta**: los datos no salen de la PC de la empresa.
-- **Suscripción por puesto/mes** (planes Lite/Pro/Empresa, USD 50–150).
-- Despliegue híbrido: agente local ahora + plano de control en la nube en fases futuras.
-- Distribución por canales (consultoras IT) y pilotos directos.
-
-## 2. Estado actual (Fases 0 y 1 completas)
-
-### Fase 0 — Base verificada
-- Control real de la PC: abrir/cerrar apps, archivos, red, diagnóstico, mantenimiento, capturas, voz, multimedia.
-- Memoria persistente, notas, recordatorios, listas, rutinas.
-- **5 roles** (ingeniero, desarrollador, CEO, marketing, humano) + contexto de empresa inyectado en la IA.
-- **IA agnóstica y gratuita**: Ollama, Groq, OpenRouter, LM Studio (probe de disponibilidad de 5 s).
-- Web UI con chat, TTS, diagnóstico y botones rápidos.
-- Bloat eliminado por decisión del dueño: nada de ocio/apps personales; solo lo que trabaja.
-
-### Fase 1 — Núcleo del EMPLEADO (lo nuevo)
 1. **Gestor de Órdenes** (`core/ordenes.go`): orden = {objetivo, fecha, estado, historial de acciones, reporte}. Estados: `pendiente → en_progreso → verificando → terminada`, más `bloqueada` y `cancelada`.
 2. **El empleado no abandona**: las órdenes persisten en disco; al arrancar, Jarvis anuncia las pendientes y las retoma con "retomá las órdenes".
-3. **Bucle de agente con IA** (`core/agente.go`): la IA recibe la orden + un **catálogo de herramientas** y responde con **JSON estricto** (`{"accion":"<comando>","razon":"<por qué>"}` para ejecutar un paso, o `{"fin":"<resumen>"}` para cerrar). El bucle ejecuta, observa el resultado, ajusta (hasta 10 iteraciones) y, al cumplirse, **aprende el procedimiento** para la próxima vez. Si la IA responde JSON malformado, se le re-pide mostrando el error (hasta 3 veces) antes de bloquear la orden.
-4. **Procedimientos** (`core/empleado.go`): se aprenden en 1 o 2 turnos ("aprendé que para hacer X: paso 1, paso 2"), se ejecutan, se consultan y se inyectan en el prompt de la IA.
-5. **Acciones sensibles → aprobación (F2 inicial)**: el bucle ya no bloquea en seco. Detecta la acción sensible con el paquete `core/security`, pasa la orden a **`esperando_aprobacion`**, dispara una **alerta visual en la Web UI** y exige el **PIN del dueño** (4-6 dígitos, en `config.json`) o el botón de autorización del panel. Al aprobar, el agente **reanuda la ejecución automáticamente**; al denegar, la orden queda bloqueada. Si el dueño no responde en **5 minutos**, la orden expira sola (`expirada`, auditada como `expirado_por_timeout_aprobacion`) y se puede volver a ejecutar.
-6. **Auditoría inmutable** (`core/audit`, JSONL append-only): cada comando ejecutado se registra con usuario, rol, orden, comando y resultado exacto. Al superar **10 MB** el archivo se **rota automáticamente** (se archiva con sufijo `.YYYYMMDD_HHMMSS` y se sigue en un archivo nuevo limpio).
-7. **Acceso con roles (F2 completo)**: el panel web pide **contraseña de acceso** (en `config.json`, campo `login_password_hash`) cuando el dueño la configura. Sin sesión, el visitante entra como **Operador** (conversa y consulta, pero no autoriza ni ve auditoría); con la contraseña correcta entra como **Admin** (aprueba/deniega con PIN, ve el **visor de auditoría** del panel y cierra sesión). Se configura por voz: "configurá la contraseña de acceso miClave" (6-32 caracteres).
-8. **Email (F3)**: envío de correos por **SMTP con la librería estándar** (Gmail/Outlook con contraseña de aplicación; campos `email_smtp_*` en `config.json`) y **lectura de bandeja por IMAP** (cliente mínimo propio sobre stdlib, `email_imap_host`/`port`/`max`). Comando: "enviá un email a persona@dominio.com con asunto ... y el texto ..." y "leé los últimos 5 correos". El envío es una **acción externa**: pasa por **aprobación** del dueño (PIN/panel) antes de salir y queda en la auditoría. Probado contra un servidor IMAP falso en los tests; falta la prueba en vivo con cuenta real (app password).
-9. **Escritura atómica** (temp + rename) para que un crash no corrompa órdenes/tareas/procedimientos.
-10. **Reporte por orden**: qué hizo, en qué orden, qué falló, qué necesita.
+3. **Reconocimiento de voz offline** (Vosk, español) y síntesis con voz de Windows.
+4. **Comandos de sistema**: abrir/cerrar apps, volumen real por `keybd_event`, play/pausa/pista, captura de pantalla, bloqueo de pantalla, minimizar, red (IP, ping, velocidad, escaneo), RAM/CPU/disco, plan de energía, batería, temporales, organización de Descargas.
+5. **Búsquedas y navegación**: Google, YouTube, Wikipedia, "ir a [sitio]" con URL directa.
+6. **Memoria de sesión** (última app/búsqueda, historial IA) y **memoria persistente** en JSON (`%USERPROFILE%\JarvisOS-datos\memoria.json`): hechos ("recordá que me llamo X"), notas libres, y comandos "qué recordás", "cuál es mi nombre".
+7. **Recordatorios y timers**: "recordame llamar a mamá a las 5 de la tarde" (Jarvis habla solo a la hora), "poné un timer de 5 minutos", listar y cancelar.
+8. **Email (F3)**: envío por **SMTP con la librería estándar** (Gmail/Outlook con contraseña de aplicación; campos `email_smtp_*` en `config.json`) y **lectura de bandeja por IMAP** (cliente mínimo propio sobre stdlib, `email_imap_host`/`port`/`max`). Comando: "enviá un email a persona@dominio.com con asunto ... y el texto ..." y "leé los últimos 5 correos". El envío es una **acción externa**: pasa por **aprobación** del dueño (PIN/panel) antes de salir y queda en la auditoría. ✅ **Probado en vivo con cuenta real** (Gmail, contraseña de aplicación): SMTP envió un correo real y IMAP lo leyó de vuelta de la bandeja (smoke test con gate `JARVIS_EMAIL_SMOKE=1`).
+9. **Trato personalizado**: si le decís tu nombre, te llama por él en todas las respuestas.
+10. **Seguridad (F2)**: paquetes `core/security` (clasificación de riesgo) y `core/audit` (registro inmutable); acciones sensibles requieren **aprobación por PIN/panel** con reanudación automática; procesos críticos de Windows protegidos contra `cerrarApp`; `CoderAgent` bloquea patrones peligrosos en scripts generados por IA y nunca ejecuta sin confirmación explícita.
+11. **Office por COM (F3)**: crear documentos de **Word/Excel/PowerPoint** vía PowerShell COM (`core/manos_office.go`), sin librerías externas. Comandos: "creá un documento word llamado informe", "crear una planilla de excel en presupuesto", "hacé un powerpoint". ✅ **Probado en vivo** con Office 16: los tres formatos se generan y guardan en `workspace_root` (smoke test con gate `JARVIS_SMOKE=1`).
+12. **Calendario/agenda local (F3)**: `core/agenda.go` — eventos con título, inicio y opcional ubicación, persistidos en **JSON** (`JarvisOS-datos/agenda.json`), **offline y sin credenciales**. Reutiliza los parsers de fecha/hora de los recordatorios ("mañana", "el martes", "el 5 de agosto", "a las 15"). Comandos: "agendá una reunión mañana a las 15", "qué tengo hoy", "qué tengo mañana", "próximos eventos", "cancelá el evento X".
+13. **Sincronización con Outlook (F3)**: `core/manos_outlook.go` — exporta los eventos de la agenda local como citas en el **calendario de Outlook por COM** (`outlook.application`, sin librerías externas) y los marca para no duplicarlos; también lee los próximos turnos. Comandos: "sincronizá la agenda con outlook", "leé mis próximos eventos de outlook". Requiere Outlook instalado y una cuenta configurada (si no hay cuenta, responde con un error claro). Smoke test con gate `JARVIS_SMOKE=1`.
+14. **PDF (F3)**: `core/manos_pdf.go` — dos vías sin librerías externas: (a) **generador de PDF puro en Go** (formato mínimo: catálogo, páginas, stream de texto Helvetica, xref validado en tests; codificación WinAnsi para acentos del español), para "exportá mis notas a pdf"; (b) **conversión de Office → PDF por COM** (Word `SaveAs2(...17)`, Excel `ExportAsFixedFormat(0,...)`, PowerPoint `SaveAs(...32)`) para "convertí informe.docx a pdf". Los PDF generados guardan en `workspace_root`.
+15. **Redes sociales (F3)**: `core/manos_redes.go` — publicar en **X** (API v2 `https://api.twitter.com/2/tweets` con firma **OAuth 1.0a HMAC-SHA1** implementada a mano sobre la librería estándar, RFC 5849, validada contra el vector canónico del RFC) y en **LinkedIn** (`https://api.linkedin.com/v2/ugcPosts` con Bearer). Comandos: "publicá en x que estoy trabajando en Jarvis", "publicá en linkedin un aviso de la promo", "twitteá un tuit". Publicar es una **acción externa visible**: pasa por **aprobación** del dueño (PIN/panel) antes de salir y queda en la auditoría. Credenciales en `config.json`: `x_api_key`, `x_api_secret`, `x_access_token`, `x_access_secret`, `linkedin_token`, `linkedin_author`. Los tests apuntan a servidores locales (`httptest`) para no tocar la red real.
+16. **Web UI** (`webui/`): panel de control con **roles** (Operador vs Admin), login con contraseña, sesiones, **aprobación de acciones sensibles por PIN o botón** y **visor de auditoría**.
+17. **Agentes** (`agents/`): `CoderAgent` (genera y ejecuta scripts de PowerShell con IA, siempre con confirmación), `GestorPlan` y agentes del loop con **JSON estricto** y reintento ante respuestas malformadas.
 
-## 3. Arquitectura
-
-```
-main.go            → 3 modos: consola normal, servicio, web (http://127.0.0.1:8080)
-core/              → empleado: ordenes.go, agente.go, empleado.go, tareas, rutinas, memoria,
-                     intents.go (clasificador), brain.go, hands.go (catálogo de herramientas), roles, skills
-ia/                → conector agnóstico (Ollama/Groq/OpenRouter/LM Studio)
-agents/            → subagentes (coder, planificador) — módulo dev, fuera del perfil oficina
-config/            → configuración local
-webui/             → interfaz web (chat, TTS, botones)
-vendor/            → dependencias (sqlite, portaudio, uuid, etc.)
-JarvisOS-datos/    → datos del empleado en %USERPROFILE%: config.json, ordenes.json, tareas.json,
-                     procedimientos.json, rutinas.json, memoria.json, preferencias.json, empresa.md
-```
-
-Reglas del código: paquetes desacoplados, tests por paquete, build + `go vet` + suite de tests verdes en cada checkpoint, datos de la empresa separados de la instalación.
-
-## 4. Tecnología
-
-- Go 1.26, Windows (Win32/COM para control del sistema).
-- SQLite (modernc.org), PortAudio (voz), Web UI sin framework pesado.
-- Voz: entrada (portaudio) y salida TTS (voces de Windows).
-- Persistencia en JSON local (escritura atómica).
-
-## 5. Cómo se prueba
+## 2. Arquitectura
 
 ```
-go build -o JarvisOS.exe .
-go vet ./core/ ./ia/ ./config/ ./webui/ ./agents/
-go test ./core/ ./ia/ ./config/ ./webui/ ./agents/
+JarvisOS/
+├── main.go               # arranque, loop de escucha, vigía de recordatorios
+├── core/                 # lógica central (hands, brain, intents, agenda,
+│                         #   outlook, office, pdf, tareas, órdenes, rutinas,
+│                         #   recordatorios, memoria de sesión, seguridad, audit)
+│   ├── hands.go          # ejecuta acciones en Windows (apps, volumen, etc.)
+│   ├── brain.go          # orquestador: comando local → IA de respaldo
+│   ├── ears.go           # micrófono (PortAudio) + STT (Vosk)
+│   └── ...               # ver funcionalidades
+├── config/               # configuración centralizada (config.json)
+├── ia/                   # conector de respaldo a IA (OpenAI-compatible)
+├── memoria/              # memoria persistente en JSON (SQLite para listas)
+├── agents/               # CoderAgent, GestorPlan y agentes del loop
+├── webui/                # panel web con roles y aprobación
+└── vendor/               # dependencias vendorizadas (sin red en build)
 ```
 
-Suite verde actual: **core** (17 s, incluye el bucle del agente con una IA falsa de prueba), **ia**, **agents**, **webui** (RBAC, login, sesiones); config sin tests. También hay smoke tests reales por web (agendar → aprender → cumplir; persistencia tras reinicio).
+- Los comandos se enrutan por **intents** (`core/intents.go`): frases + palabras clave, con prioridad por orden (los más específicos primero).
+- Todo lo externo (Office, Outlook, PowerShell, red) va por `ejecutarConTimeout` con timeout de 30 s por defecto.
+- **Sin librerías externas para F3**: Office/Outlook/PDF usan la librería estándar de Go + PowerShell COM.
 
-Ejemplo del bucle con IA (probado con IA falsa):
-1. Dueño: "agendá una orden preparar la presentación".
-2. Jarvis: Orden #1 registrada, la cumplo y no la cierro hasta terminarla.
-3. Bucle: `{"accion":"eco hola","razon":"saludar"}` → resultado → `{"accion":"eco listo"}` → `{"fin":"presentación preparada y verificada"}`.
-4. Resultado: orden terminada con reporte + **procedimiento aprendido** (2 pasos) para la próxima.
+## 3. Suite de tests
 
-## 6. Qué sigue (plan por fases)
+Suite verde actual: **core** (~22 s, incluye el bucle del agente con una IA falsa de prueba, diagnóstico, email, Office, Outlook, PDF y agenda), **ia**, **agents** (detector de proyectos, gestor de planes, generador de planes con IA falsa y agente de proyectos), **webui** (RBAC, login, sesiones y todos los handlers de la API), **memoria** (incluye el CRUD de listas que destapó un bug real de queries anidadas en `ObtenerListas`, corregido) y **config** (Load/Save, defaults, archivo ausente/corrupto). También hay smoke tests reales por web (agendar → aprender → cumplir; persistencia tras reinicio) y smoke tests con gate de ambiente para **email real** (`JARVIS_EMAIL_SMOKE=1`), **Office real** (`JARVIS_SMOKE=1`) y **Outlook** (`JARVIS_SMOKE=1`).
 
+```
+go build ./...           # compila todo
+go vet ./...             # análisis estático
+go test ./...            # todos los tests
+```
+
+Cobertura aproximada: **security 100%**, **audit 96%**, **config 85%**, **webui 77%**, **agents 69%**, **memoria 57%**, **core ~50%**, **ia 31%**.
+
+## 4. Roadmap
+
+- **F1 — Base**: ✅ completa (personalidad, micrófono, comandos de sistema, IA de respaldo).
 - **F2 — Confiabilidad B2B** ✅ *completa*: paquetes `security` (clasificación de riesgo) y `audit` (registro inmutable); **aprobación por PIN/panel con reanudación automática** para acciones sensibles; **timeout de aprobación de 5 min** (la orden expira sola) y **rotación automática de la auditoría** a 10 MB; **timeout de ejecución de comandos externos** de 30 s; **acceso con roles** (Operador vs Admin) con **contraseña de acceso**, sesión web, **visor de auditoría** en el panel y aprobación solo para Admin. Decisión: la auditoría se consume por pantalla, no por voz (la voz no puede autenticar quién pide el dato).
-- **F3 — Integraciones de oficina** *(en curso)*: **email completo (envío SMTP + lectura IMAP)**. Pendiente: probar en vivo con cuenta real (falta app password), Office por COM (Word/Excel/PPT), calendario, PDF, redes sociales.
+- **F3 — Integraciones de oficina** *(en curso)*: **email completo (envío SMTP + lectura IMAP)** ✅ probado en vivo con cuenta real; **Office por COM (Word/Excel/PPT)** ✅ probado en vivo con Office 16; **calendario/agenda local** ✅ (eventos en `agenda.json` bajo `JarvisOS-datos`, offline, sin credenciales; comandos "agendá una reunión mañana a las 15", "qué tengo hoy", "cancelá el evento X"); **sync con calendario de Outlook por COM** ✅ (exporta la agenda local como citas, sin duplicados; requiere cuenta configurada); **PDF** ✅ (generador puro en Go + conversión Office→PDF por COM); **redes sociales** ✅ (X con OAuth 1.0a sobre stdlib + LinkedIn con Bearer, ambos exigiendo aprobación; validados con vector canónico del RFC 5849 y servidores de prueba; falta smoke real con credenciales del cliente).
 - **F4 — Producto y presencia B2B**: marca corporativa, dashboard, onboarding en <15 min.
 - **F5 — Propuesta comercial**: documento de venta + demo guionizada + pilotos.
 
-## 7. Puntos abiertos para una opinión externa
+## 5. Instalación
+
+Ver **`INSTALACION.md`** — guía paso a paso (MSYS2, PortAudio, Vosk, variables de entorno, y troubleshooting con el error `-mthreads` ya resuelto de antemano con `CGO_CFLAGS_ALLOW`).
+
+## 6. Puntos abiertos para una opinión externa
 
 1. **Diseño del agent loop**: ✅ migrado a **JSON estricto** (`{"accion":..., "razon":...}` / `{"fin":...}`) con reintento automático ante JSON malformado (hasta 3 veces antes de bloquear). Pendiente de evaluar: tool calling nativo de las APIs y verificación más estricta del resultado.
 2. **Seguridad**: ✅ acciones sensibles ya no bloquean en seco: pasan a **`esperando_aprobacion`**, alerta en la Web UI y aprobación por **PIN del dueño** o botón del panel, con reanudación automática del bucle. ✅ **Roles**: el panel distingue **Operador** (consulta) de **Admin** (aprueba, ve auditoría) con contraseña de acceso y sesión web. Pendiente: doble factor más estricto.
-3. **Persistencia**: JSON local con escritura atómica vs SQLite para órdenes/historial con volúmenes reales.
-4. **IA agnóstica gratuita**: ¿es viable como producto B2B con modelos open-weight locales, o limita la calidad del bucle?
-5. **Precios y fases**: ¿es realista la ruta F0→F5 y la monetización por puesto/mes para un MVP?
-6. **Arquitectura**: ✅ paquetes `core/security` y `core/audit` creados y desacoplados de `core`. Pendiente: evaluar separar `integraciones`/`control` en paquetes propios al llegar a F3.
+3. **F3**: email y Office probados en vivo; Outlook requiere cuenta configurada en la máquina del cliente; redes sociales implementadas con tests contra el vector canónico del RFC 5849 y servidores `httptest`, pendientes de smoke real con las API keys del cliente (X: developer.twitter.com; LinkedIn: developer.linkedin.com).
+4. **Cobertura**: ✅ config (85%), webui (77%) y agents (69%) ahora tienen tests propios. Los tests de config destaparon y corrigieron un bug real: un `config.json` sin `require_approval` **desactivaba silenciosamente la aprobación de acciones sensibles** (el default es `true`); ahora solo se pisa el campo cuando el archivo lo define. Pendiente: ia y parte de core.
+5. **PDF**: el generador puro es texto simple (sin tablas/imágenes); para documentos ricos se recomienda el camino Office→PDF.
+6. **Arquitectura**: ✅ paquetes `core/security` y `core/audit` creados y desacoplados de `core`. ✅ memoria + IA con cobertura real. Pendiente: evaluar separar `integraciones`/`control` en paquetes propios al llegar a F3.

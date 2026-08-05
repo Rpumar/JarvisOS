@@ -451,11 +451,23 @@ func (h *Hands) listarSkills() string {
 	if h.Skills == nil {
 		return "No tengo skills cargadas, señor."
 	}
-	nombres := h.Skills.Listar()
-	if len(nombres) == 0 {
+	detalles := h.Skills.ListarDetallado()
+	if len(detalles) == 0 {
 		return "No tengo skills cargadas, señor."
 	}
-	return "Tengo estas skills: " + strings.Join(nombres, ", ") + ". Se activan solas según lo que pida, señor."
+	var b strings.Builder
+	b.WriteString("Tengo estas skills, señor:")
+	for i, s := range detalles {
+		b.WriteString("\n- " + s.Nombre)
+		if s.Descripcion != "" {
+			b.WriteString(": " + s.Descripcion)
+		}
+		if i == 0 && s.Nombre == "seguridad" {
+			b.WriteString(" (la más importante)")
+		}
+	}
+	b.WriteString("\nSe activan solas según lo que pida, señor.")
+	return b.String()
 }
 
 func compilarProyectoEn(ruta, exe string) (string, error) {

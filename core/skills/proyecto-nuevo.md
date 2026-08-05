@@ -1,5 +1,7 @@
 ---
 nombre: proyecto-nuevo
+prioridad: 30
+descripcion: Guía para crear o extender proyectos de JarvisOS (estructura de carpetas, build y verificación).
 activar: [crear proyecto, nueva app, nuevo proyecto, nueva web, scaffold, crear una app]
 ---
 Guía para crear o extender proyectos de JarvisOS:

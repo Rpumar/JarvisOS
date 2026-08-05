@@ -2,8 +2,11 @@ package ia
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 	"time"
+
+	"JarvisOS/core"
 )
 
 func TestDisponible(t *testing.T) {
@@ -120,5 +123,50 @@ func TestParsearRespuestaCodigo(t *testing.T) {
 				t.Errorf("explicacion = %q, esperaba %q", explicacion, c.explicacionEsperada)
 			}
 		})
+	}
+}
+
+func TestBuildMensajes(t *testing.T) {
+	m := buildMensajes("decime la hora", nil)
+	if len(m) != 2 {
+		t.Fatalf("sin historial deberia haber system + user, hay %d", len(m))
+	}
+	if m[0].Role != "system" || !strings.Contains(m[0].Content, "JARVIS") {
+		t.Errorf("primer mensaje deberia ser el system prompt de JARVIS")
+	}
+	if m[1].Role != "user" || m[1].Content != "decime la hora" {
+		t.Errorf("ultimo mensaje deberia ser la peticion: %+v", m[1])
+	}
+}
+
+func TestBuildMensajesConHistorial(t *testing.T) {
+	historial := []core.TurnoConversacion{
+		{Usuario: "hola", Asistente: "hola señor"},
+		{Usuario: "como estas", Asistente: "muy bien"},
+	}
+	m := buildMensajes("gracias", historial)
+	// system + 2 turnos (4) + user = 6
+	if len(m) != 6 {
+		t.Fatalf("esperaba 6 mensajes, hay %d", len(m))
+	}
+	if m[1].Content != "hola" || m[2].Content != "hola señor" {
+		t.Errorf("historial mal intercalado: %+v %+v", m[1], m[2])
+	}
+	if m[len(m)-1].Content != "gracias" {
+		t.Errorf("ultimo mensaje = %q", m[len(m)-1].Content)
+	}
+}
+
+func TestExtraerExplicacionDesarrollo(t *testing.T) {
+	casos := map[string]string{
+		"CODIGO:\npackage main\nEXPLICACION:\nHola mundo":                 "Hola mundo",
+		"todo sin marcadores":                                             "todo sin marcadores",
+		"EXPLICACION:\nUna mejora.\nARCHIVO: main.go\nCONTENIDO:\nx":       "Una mejora.\nARCHIVO: main.go\nCONTENIDO:\nx",
+		"  EXPLICACION:  con espacios  ":                                  "con espacios",
+	}
+	for entrada, esperado := range casos {
+		if got := extraerExplicacionDesarrollo(entrada); got != esperado {
+			t.Errorf("extraerExplicacionDesarrollo(%q) = %q, esperaba %q", entrada, got, esperado)
+		}
 	}
 }

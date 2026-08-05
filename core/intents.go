@@ -24,6 +24,16 @@ func NuevoClasificador() *Clasificador {
 	c := &Clasificador{}
 	c.intentos = []Intento{
 		{
+			Nombre: "pdf",
+			Frases: []string{
+				"crea un pdf con", "crea un pdf que diga",
+				"exporta mis notas a pdf", "exporta tus notas a pdf",
+				"a pdf",
+			},
+			Palabras: []string{"pdf"},
+			Handler:  func(cmd string, h *Hands) string { return h.manejarPDF(cmd) },
+		},
+		{
 			Nombre: "orden",
 			Frases: []string{"agendá una orden", "agenda una orden", "nueva orden", "registrá la orden", "registra la orden", "qué órdenes tengo", "que ordenes tengo", "órdenes pendientes", "ordenes pendientes", "todas las órdenes", "todas las ordenes", "retomá las órdenes", "retoma las ordenes", "ejecutá la orden", "ejecuta la orden", "tomá la orden", "toma la orden", "reportá la orden", "reporta la orden", "reporte de la orden", "terminá la orden", "termina la orden", "marcar la orden", "bloquear la orden", "bloqueá la orden", "bloquea la orden", "cancelar la orden", "cancela la orden", "cancelá la orden", "aprobar la orden", "aprobar orden", "denegar la orden", "rechazar la orden", "mis órdenes", "mis ordenes"},
 			Palabras: []string{"orden", "órdenes", "ordenes"},
@@ -84,28 +94,21 @@ func NuevoClasificador() *Clasificador {
 			Handler: func(cmd string, h *Hands) string { return h.nivelBateria() },
 		},
 		{
+			Nombre: "redes",
+			Frases: []string{
+				"publica en x ", "publicar en x ", "publica en twitter", "publicar en twitter",
+				"publica un tuit", "publica un tweet", "twittea", "tuitea", "twitea",
+				"publica en linkedin", "publicar en linkedin", "publica un post en linkedin",
+				"hace un post en linkedin", "hacé un post en linkedin",
+			},
+			Palabras: []string{"tuit", "twittea", "tuitea", "twitter", "linkedin", "publicar"},
+			Handler:  func(cmd string, h *Hands) string { return h.manejarRedes(cmd) },
+		},
+		{
 			Nombre: "ip_publica",
 			Frases: []string{"ip publica", "mi ip publica", "ip externa", "qué ip publica tengo", "que ip publica tengo"},
 			Palabras: []string{"publica"},
 			Handler: func(cmd string, h *Hands) string { return h.ipPublica() },
-		},
-		{
-			Nombre: "voz_desactivar",
-			Frases: []string{"no hables", "no hables más", "no me hables", "no respondas por voz", "silenciá tu voz", "silencia tu voz", "no me respondas por audio", "callate", "cállate", "calmate", "cállate la boca"},
-			Palabras: []string{"callate", "cállate", "silenciá", "silencia", "no hables"},
-			Handler: func(cmd string, h *Hands) string { return h.desactivarVoz() },
-		},
-		{
-			Nombre: "voz_activar",
-			Frases: []string{"activá tu voz", "activa tu voz", "hablá de nuevo", "habla de nuevo", "respondeme por voz", "respondé por voz", "volvé a hablar", "volve a hablar", "respondeme por audio", "no me escribas", "voz activada"},
-			Palabras: []string{"activá tu voz", "activa tu voz", "hablá de nuevo", "habla de nuevo"},
-			Handler: func(cmd string, h *Hands) string { return h.activarVoz() },
-		},
-		{
-			Nombre: "voz_listar",
-			Frases: []string{"qué voces tenés", "que voces tenes", "voces disponibles", "voces de voz", "lista de voces", "qué voces instaladas", "que voces instaladas", "voces instaladas"},
-			Palabras: []string{"voces"},
-			Handler: func(cmd string, h *Hands) string { return h.listarVoces() },
 		},
 		{
 			Nombre: "ping_sitio",
@@ -340,6 +343,38 @@ func NuevoClasificador() *Clasificador {
 			Frases: []string{"agendá una tarea", "agenda una tarea", "agendame una tarea", "agendá la tarea", "qué tareas tengo", "que tareas tengo", "tareas pendientes", "tareas me faltan", "todas las tareas", "marcar tarea", "marca la tarea", "tarea como hecha", "completé la tarea", "borrar tarea", "borrá la tarea", "eliminar tarea", "registrá una tarea", "tarea nueva", "cuántas tareas tengo", "cuantas tareas tengo"},
 			Palabras: []string{"tarea", "tareas", "agendá", "agenda", "agendame", "agendáme"},
 			Handler: func(cmd string, h *Hands) string { return h.manejarTarea(cmd) },
+		},
+		{
+			Nombre: "outlook",
+			Frases: []string{
+				"sincronizá la agenda con outlook", "sincroniza la agenda con outlook",
+				"exportá la agenda a outlook", "exporta la agenda a outlook",
+				"manda mis eventos a outlook", "mandá mis eventos a outlook",
+				"sincronizá el calendario con outlook", "sincroniza el calendario con outlook",
+				"leé mis próximos eventos de outlook", "lee mis proximos eventos de outlook",
+				"qué tengo en outlook", "que tengo en outlook", "proximos eventos en outlook",
+			},
+			Palabras: []string{"outlook"},
+			Handler:  func(cmd string, h *Hands) string { return h.manejarOutlook(cmd) },
+		},
+		{
+			Nombre: "agenda",
+			Frases: []string{
+				"agendá ", "agenda ", "agendame", "agendáme",
+				"anotá en el calendario", "anota en el calendario",
+				"marcá en el calendario", "marca en el calendario",
+				"guardá en el calendario", "guarda en el calendario",
+				"agregá al calendario", "agrega al calendario",
+				"creá un evento", "crea un evento",
+				"qué tengo hoy", "que tengo hoy", "qué tengo mañana", "que tengo manana",
+				"eventos de hoy", "eventos de mañana", "eventos de manana",
+				"qué eventos tengo", "que eventos tengo",
+				"lista de eventos", "próximos eventos", "proximos eventos", "qué se viene",
+				"cancelá el evento", "cancela el evento", "borrá el evento", "borra el evento",
+				"mi agenda", "la agenda",
+			},
+			Palabras: []string{"calendario", "evento", "eventos", "agenda"},
+			Handler:  func(cmd string, h *Hands) string { return h.manejarAgenda(cmd) },
 		},
 		{
 			Nombre: "procedimiento",
@@ -648,6 +683,18 @@ func NuevoClasificador() *Clasificador {
 			},
 			Palabras: []string{"skills", "skill"},
 			Handler:  func(cmd string, h *Hands) string { return h.listarSkills() },
+		},
+		{
+			Nombre: "crear_documento_office",
+			Frases: []string{
+				"crear un documento de word", "crear un documento word", "creá un documento de word", "crea un documento de word",
+				"crear un word", "creá un word", "crea un word",
+				"crear una planilla de excel", "crear una planilla excel", "creá una planilla de excel", "crear un excel", "creá un excel", "crear una hoja de calculo",
+				"crear una presentación de powerpoint", "crear una presentacion de powerpoint", "crear un powerpoint", "creá un powerpoint", "hacé un powerpoint",
+				"crear una presentación", "crear una presentacion", "crear diapositivas",
+			},
+			Palabras: []string{"word", "excel", "powerpoint", "power point", "planilla", "presentación", "presentacion", "diapositiva", "diapositivas"},
+			Handler:  func(cmd string, h *Hands) string { return h.manejarOffice(cmd) },
 		},
 		{
 			Nombre: "ayuda",

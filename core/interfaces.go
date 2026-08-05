@@ -4,7 +4,6 @@ import "time"
 
 type EjecutorComandos interface {
 	RunCommand(cmd string) string
-	Hablar(texto string) string
 }
 
 type TurnoConversacion struct {
@@ -48,7 +47,6 @@ type RegistroPreferencias interface {
 	SetUltimoProyecto(ruta string)
 	SetNombre(nombre string)
 	SetTema(tema string)
-	SetVoz(activada bool)
 	SetVolumen(nivel int)
 }
 

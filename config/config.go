@@ -13,14 +13,9 @@ type Config struct {
 	Version         string        `json:"version"`
 	RequireApproval bool          `json:"require_approval"`
 	Timeout         time.Duration `json:"timeout"`
-	ModeloVoz       string        `json:"modelo_voz"`
 	RutaMemoria     string        `json:"ruta_memoria"`
 	RutaConfig      string        `json:"-"`
 
-	ContinuousListening bool     `json:"continuous_listening"`
-	WakeWords           []string `json:"wake_words"`
-	TTSVoice            string   `json:"tts_voice"`
-	TTSRate             int      `json:"tts_rate"`
 	MaxHistorialIA      int      `json:"max_historial_ia"`
 
 	ModeloIA       string `json:"modelo_ia"`
@@ -59,6 +54,19 @@ type Config struct {
 	EmailImapPort int `json:"email_imap_port"`
 	// EmailImapMax es cuántos correos leer de la bandeja por defecto (10).
 	EmailImapMax int `json:"email_imap_max"`
+
+	// XApiKey / XApiSecret son las claves de la app de X (Twitter API v2,
+	// OAuth 1.0a). XAccessToken / XAccessSecret son los tokens del usuario.
+	XApiKey        string `json:"x_api_key"`
+	XApiSecret     string `json:"x_api_secret"`
+	XAccessToken   string `json:"x_access_token"`
+	XAccessSecret  string `json:"x_access_secret"`
+
+	// LinkedInToken es un token de acceso OAuth 2.0 (Bearer) para la API de
+	// LinkedIn, y LinkedInAuthor es el URN del autor ("urn:li:person:..." o
+	// "urn:li:organization:...").
+	LinkedInToken  string `json:"linkedin_token"`
+	LinkedInAuthor string `json:"linkedin_author"`
 }
 
 func defaultConfig() *Config {
@@ -67,12 +75,7 @@ func defaultConfig() *Config {
 		Version:             "0.14.0",
 		RequireApproval:     true,
 		Timeout:             30 * time.Second,
-		ModeloVoz:           "./modelo-voz-es",
 		RutaMemoria:         filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "memoria.json"),
-		ContinuousListening: false,
-		WakeWords:           []string{"jarvis"},
-		TTSVoice:            "",
-		TTSRate:             0,
 		MaxHistorialIA:      20,
 		ModeloIA:            "qwen2.5-coder:7b",
 		IAURL:               "",
@@ -137,14 +140,9 @@ func Load() *Config {
 	type configAlias struct {
 		AppName             string  `json:"app_name"`
 		Version             string  `json:"version"`
-		RequireApproval     bool    `json:"require_approval"`
+		RequireApproval     *bool   `json:"require_approval"`
 		TimeoutSegundos     int     `json:"timeout_segundos"`
-		ModeloVoz           string  `json:"modelo_voz"`
 		RutaMemoria         string  `json:"ruta_memoria"`
-		ContinuousListening bool    `json:"continuous_listening"`
-		WakeWords           []string `json:"wake_words"`
-		TTSVoice            string  `json:"tts_voice"`
-		TTSRate             int     `json:"tts_rate"`
 		MaxHistorialIA      int     `json:"max_historial_ia"`
 		ModeloIA            string  `json:"modelo_ia"`
 		IAURL               string  `json:"ia_url"`
@@ -165,6 +163,12 @@ func Load() *Config {
 		EmailImapHost        string `json:"email_imap_host"`
 		EmailImapPort        int    `json:"email_imap_port"`
 		EmailImapMax         int    `json:"email_imap_max"`
+		XApiKey              string `json:"x_api_key"`
+		XApiSecret           string `json:"x_api_secret"`
+		XAccessToken         string `json:"x_access_token"`
+		XAccessSecret        string `json:"x_access_secret"`
+		LinkedInToken        string `json:"linkedin_token"`
+		LinkedInAuthor       string `json:"linkedin_author"`
 	}
 
 	var alias configAlias
@@ -175,14 +179,9 @@ func Load() *Config {
 
 	if alias.AppName != "" { cfg.AppName = alias.AppName }
 	if alias.Version != "" { cfg.Version = alias.Version }
-	cfg.RequireApproval = alias.RequireApproval
+	cfg.RequireApproval = alias.RequireApproval == nil || *alias.RequireApproval
 	if alias.TimeoutSegundos > 0 { cfg.Timeout = time.Duration(alias.TimeoutSegundos) * time.Second }
-	if alias.ModeloVoz != "" { cfg.ModeloVoz = alias.ModeloVoz }
 	if alias.RutaMemoria != "" { cfg.RutaMemoria = alias.RutaMemoria }
-	cfg.ContinuousListening = alias.ContinuousListening
-	if len(alias.WakeWords) > 0 { cfg.WakeWords = alias.WakeWords }
-	if alias.TTSVoice != "" { cfg.TTSVoice = alias.TTSVoice }
-	cfg.TTSRate = alias.TTSRate
 	if alias.MaxHistorialIA > 0 { cfg.MaxHistorialIA = alias.MaxHistorialIA }
 	if alias.ModeloIA != "" { cfg.ModeloIA = alias.ModeloIA }
 	if alias.IAURL != "" { cfg.IAURL = alias.IAURL }
@@ -203,6 +202,12 @@ func Load() *Config {
 	if alias.EmailImapHost != "" { cfg.EmailImapHost = alias.EmailImapHost }
 	if alias.EmailImapPort > 0 { cfg.EmailImapPort = alias.EmailImapPort }
 	if alias.EmailImapMax > 0 { cfg.EmailImapMax = alias.EmailImapMax }
+	if alias.XApiKey != "" { cfg.XApiKey = alias.XApiKey }
+	if alias.XApiSecret != "" { cfg.XApiSecret = alias.XApiSecret }
+	if alias.XAccessToken != "" { cfg.XAccessToken = alias.XAccessToken }
+	if alias.XAccessSecret != "" { cfg.XAccessSecret = alias.XAccessSecret }
+	if alias.LinkedInToken != "" { cfg.LinkedInToken = alias.LinkedInToken }
+	if alias.LinkedInAuthor != "" { cfg.LinkedInAuthor = alias.LinkedInAuthor }
 
 	return cfg
 }
@@ -213,12 +218,7 @@ func (c *Config) Save() error {
 		"version":                c.Version,
 		"require_approval":       c.RequireApproval,
 		"timeout_segundos":       int(c.Timeout.Seconds()),
-		"modelo_voz":             c.ModeloVoz,
 		"ruta_memoria":           c.RutaMemoria,
-		"continuous_listening":   c.ContinuousListening,
-		"wake_words":             c.WakeWords,
-		"tts_voice":              c.TTSVoice,
-		"tts_rate":               c.TTSRate,
 		"max_historial_ia":       c.MaxHistorialIA,
 		"modelo_ia":              c.ModeloIA,
 		"ia_url":                 c.IAURL,
@@ -239,6 +239,12 @@ func (c *Config) Save() error {
 		"email_imap_host":         c.EmailImapHost,
 		"email_imap_port":         c.EmailImapPort,
 		"email_imap_max":          c.EmailImapMax,
+		"x_api_key":               c.XApiKey,
+		"x_api_secret":            c.XApiSecret,
+		"x_access_token":          c.XAccessToken,
+		"x_access_secret":         c.XAccessSecret,
+		"linkedin_token":          c.LinkedInToken,
+		"linkedin_author":         c.LinkedInAuthor,
 	}
 
 	contenido, err := json.MarshalIndent(datos, "", "  ")

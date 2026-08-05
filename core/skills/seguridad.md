@@ -1,5 +1,7 @@
 ---
 nombre: seguridad
+prioridad: 100
+descripcion: Reglas de seguridad absolutas para el código generado. Se activa ante peticiones peligrosas (borrar, formatear, firewall, apagar, instalar).
 activar: [borrar, borra, eliminar, elimina, borrame, eliminame, firewall, permisos, formatear, formatea, particiones, peligroso, apagar, apaga, reiniciar, reinicia, descargar, descarga, instalar, instala, registro, password]
 ---
 Reglas de seguridad absolutas para el código que escribas:

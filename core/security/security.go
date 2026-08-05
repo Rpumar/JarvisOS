@@ -70,6 +70,14 @@ var frasesPeligrosas = []frasePeligrosa{
 	{"mandar un email", "enviar un correo electrónico"},
 	{"mandar un correo", "enviar un correo electrónico"},
 	{"mandar un mail", "enviar un correo electrónico"},
+	// Publicar en redes sociales es una acción externa visible: aprobación.
+	{"publicar en x", "publicar en X (Twitter)"},
+	{"publicar en twitter", "publicar en X (Twitter)"},
+	{"twittear", "publicar en X (Twitter)"},
+	{"tuitear", "publicar en X (Twitter)"},
+	{"publicar un tuit", "publicar en X (Twitter)"},
+	{"publicar en linkedin", "publicar en LinkedIn"},
+	{"publicar un post en linkedin", "publicar en LinkedIn"},
 }
 
 // Clasificar devuelve el riesgo de una acción y una descripción de qué

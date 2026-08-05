@@ -121,9 +121,9 @@ func parseRol(contenido string) (Rol, bool) {
 		case strings.HasPrefix(trim, "nombre:"):
 			r.Nombre = strings.TrimSpace(strings.TrimPrefix(trim, "nombre:"))
 		case strings.HasPrefix(trim, "etiqueta:"):
-			r.Etiqueta = strings.TrimSpace(strings.TrimPrefix(trim, "etiqueta:"))
+			r.Etiqueta = strings.Trim(strings.TrimSpace(strings.TrimPrefix(trim, "etiqueta:")), `"'`)
 		case strings.HasPrefix(trim, "descripcion:"):
-			r.Descripcion = strings.TrimSpace(strings.TrimPrefix(trim, "descripcion:"))
+			r.Descripcion = strings.Trim(strings.TrimSpace(strings.TrimPrefix(trim, "descripcion:")), `"'`)
 		case strings.HasPrefix(trim, "activar:"):
 			lista := strings.TrimSpace(strings.TrimPrefix(trim, "activar:"))
 			lista = strings.Trim(lista, "[]")
@@ -302,6 +302,16 @@ const plantillaEmpresa = `# Perfil de la empresa
 - Presencia en redes:
 `
 
+// Recargar vuelve a leer los roles del usuario desde disco, sin reiniciar.
+// Se usa tras crear/editar/borrar desde la WebUI.
+func (m *RolesManager) Recargar() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.roles = m.roles[:0]
+	m.cargarDefaults()
+	m.cargarUsuario()
+}
+
 // Listar devuelve las etiquetas de todos los roles cargados.
 func (m *RolesManager) Listar() []string {
 	m.mu.RLock()
@@ -315,4 +325,120 @@ func (m *RolesManager) Listar() []string {
 		res = append(res, nombre)
 	}
 	return res
+}
+
+// RolInfo es la vista pública de un rol para el listado del panel.
+type RolInfo struct {
+	Nombre      string   `json:"nombre"`
+	Etiqueta    string   `json:"etiqueta"`
+	Descripcion string   `json:"descripcion,omitempty"`
+	Activar     []string `json:"activar,omitempty"`
+	Contexto    string   `json:"contexto,omitempty"`
+}
+
+// ListarDetallado devuelve la información de todos los roles.
+func (m *RolesManager) ListarDetallado() []RolInfo {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	res := make([]RolInfo, 0, len(m.roles))
+	for _, r := range m.roles {
+		res = append(res, RolInfo{
+			Nombre:      r.Nombre,
+			Etiqueta:    r.Etiqueta,
+			Descripcion: r.Descripcion,
+			Activar:     r.Activar,
+			Contexto:    r.Contexto,
+		})
+	}
+	return res
+}
+
+// Obtener devuelve el rol completo por nombre, o false si no existe. Se usa
+// para editar desde la WebUI.
+func (m *RolesManager) Obtener(nombre string) (Rol, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, r := range m.roles {
+		if r.Nombre == nombre {
+			return r, true
+		}
+	}
+	return Rol{}, false
+}
+
+// RutaUsuario devuelve la ruta del archivo .md del usuario para un rol, o
+// vacío si el nombre no es válido.
+func (m *RolesManager) RutaUsuario(nombre string) string {
+	if nombre == "" || strings.ContainsAny(nombre, `/\:*?"<>|`) {
+		return ""
+	}
+	return filepath.Join(m.datosDir, "roles", nombre+".md")
+}
+
+// CrearOActualizar guarda (o sobrescribe) un rol del usuario y recarga la
+// lista en caliente.
+func (m *RolesManager) CrearOActualizar(r Rol) error {
+	r.Nombre = strings.TrimSpace(r.Nombre)
+	r.Etiqueta = strings.TrimSpace(r.Etiqueta)
+	r.Prompt = strings.TrimSpace(r.Prompt)
+	if r.Nombre == "" {
+		return fmt.Errorf("el nombre del rol es obligatorio")
+	}
+	if r.Etiqueta == "" {
+		return fmt.Errorf("la etiqueta del rol es obligatoria")
+	}
+	if r.Prompt == "" {
+		return fmt.Errorf("el rol debe tener un prompt")
+	}
+	ruta := m.RutaUsuario(r.Nombre)
+	if ruta == "" {
+		return fmt.Errorf("nombre de rol inválido: %q", r.Nombre)
+	}
+	if err := os.MkdirAll(filepath.Dir(ruta), 0o700); err != nil {
+		return err
+	}
+	if err := os.WriteFile(ruta, []byte(serializarRol(r)), 0o600); err != nil {
+		return err
+	}
+	m.Recargar()
+	return nil
+}
+
+// Eliminar borra un rol del usuario. Si es embebido (sin archivo de usuario),
+// no hace nada y devuelve nil.
+func (m *RolesManager) Eliminar(nombre string) error {
+	ruta := m.RutaUsuario(nombre)
+	if ruta == "" {
+		return fmt.Errorf("nombre de rol inválido: %q", nombre)
+	}
+	if _, err := os.Stat(ruta); os.IsNotExist(err) {
+		return nil
+	}
+	if err := os.Remove(ruta); err != nil {
+		return err
+	}
+	m.Recargar()
+	return nil
+}
+
+// serializarRol arma el archivo .md con front-matter de un rol.
+func serializarRol(r Rol) string {
+	var b strings.Builder
+	b.WriteString("---\n")
+	b.WriteString("nombre: " + r.Nombre + "\n")
+	b.WriteString("etiqueta: \"" + r.Etiqueta + "\"\n")
+	if r.Descripcion != "" {
+		b.WriteString("descripcion: \"" + r.Descripcion + "\"\n")
+	}
+	if r.Contexto != "" {
+		b.WriteString("contexto: " + r.Contexto + "\n")
+	}
+	claves := make([]string, 0, len(r.Activar))
+	for _, k := range r.Activar {
+		claves = append(claves, strings.TrimSpace(k))
+	}
+	b.WriteString("activar: [" + strings.Join(claves, ", ") + "]\n")
+	b.WriteString("---\n")
+	b.WriteString(r.Prompt + "\n")
+	return b.String()
 }

@@ -44,8 +44,8 @@ Sos un CEO experto en negocios.
 func TestNuevoRolesManagerDefaults(t *testing.T) {
 	m := nuevoRolesManagerConDir(t.TempDir())
 	etiquetas := m.Listar()
-	if len(etiquetas) != 5 {
-		t.Fatalf("se esperaban 5 roles embebidos, obtuve %d: %v", len(etiquetas), etiquetas)
+	if len(etiquetas) != 6 {
+		t.Fatalf("se esperaban 6 roles embebidos, obtuve %d: %v", len(etiquetas), etiquetas)
 	}
 	esperados := []string{
 		"Ingeniero en sistemas",
@@ -53,6 +53,7 @@ func TestNuevoRolesManagerDefaults(t *testing.T) {
 		"CEO empresarial",
 		"Licenciado en marketing",
 		"Modo humano",
+		"Asistente corporativo",
 	}
 	lista := strings.Join(etiquetas, ",")
 	lista = strings.ToLower(lista)
@@ -168,5 +169,115 @@ func TestTextoParaIA_RolSugeridoUnTurno(t *testing.T) {
 	}
 	if strings.Contains(texto, "(modo activo)") {
 		t.Error("no debería marcar modo activo en un uso de un turno")
+	}
+}
+
+func TestCRUDRol(t *testing.T) {
+	dir := t.TempDir()
+	m := nuevoRolesManagerConDir(dir)
+	antes := len(m.Listar())
+
+	nuevo := Rol{
+		Nombre:      "analista_datos",
+		Etiqueta:    "Analista de datos",
+		Descripcion: "Analiza datos y saca conclusiones.",
+		Activar:     []string{"analista", "datos", "informe de datos"},
+		Prompt:      "Sos un analista de datos senior.",
+	}
+	if err := m.CrearOActualizar(nuevo); err != nil {
+		t.Fatalf("CrearOActualizar: %v", err)
+	}
+	if len(m.Listar()) != antes+1 {
+		t.Errorf("debería haber un rol más, obtuve %d (antes %d)", len(m.Listar()), antes)
+	}
+	m.Recargar()
+	obtenido, ok := m.Obtener("analista_datos")
+	if !ok {
+		t.Fatal("no se encontró el rol creado tras recargar")
+	}
+	if obtenido.Prompt != "Sos un analista de datos senior." || len(obtenido.Activar) != 3 {
+		t.Errorf("round-trip incorrecto: %+v", obtenido)
+	}
+	// El rol creado debe poder activarse por su etiqueta.
+	if !m.Activar("analista de datos") {
+		t.Error("el rol nuevo no se activa por etiqueta")
+	}
+	m.Desactivar()
+	// Actualizar y eliminar.
+	nuevo.Prompt = "Prompt nuevo."
+	if err := m.CrearOActualizar(nuevo); err != nil {
+		t.Fatalf("actualizar: %v", err)
+	}
+	obtenido, _ = m.Obtener("analista_datos")
+	if obtenido.Prompt != "Prompt nuevo." {
+		t.Errorf("prompt no actualizado: %q", obtenido.Prompt)
+	}
+	if err := m.Eliminar("analista_datos"); err != nil {
+		t.Fatalf("Eliminar: %v", err)
+	}
+	if _, ok := m.Obtener("analista_datos"); ok {
+		t.Error("el rol eliminado sigue apareciendo")
+	}
+}
+
+func TestCRUDRolValidaciones(t *testing.T) {
+	m := nuevoRolesManagerConDir(t.TempDir())
+	casos := []struct {
+		nombre string
+		r      Rol
+	}{
+		{"sin nombre", Rol{Etiqueta: "e", Prompt: "p"}},
+		{"sin etiqueta", Rol{Nombre: "n", Prompt: "p"}},
+		{"sin prompt", Rol{Nombre: "n", Etiqueta: "e"}},
+		{"nombre inválido", Rol{Nombre: "a/b", Etiqueta: "e", Prompt: "p"}},
+	}
+	for _, c := range casos {
+		if err := m.CrearOActualizar(c.r); err == nil {
+			t.Errorf("%s: debería devolver error", c.nombre)
+		}
+	}
+}
+
+func TestSerializarRolParseable(t *testing.T) {
+	original := Rol{Nombre: "r", Etiqueta: "Rol", Descripcion: "D", Contexto: "ctx.md", Activar: []string{"x", "y"}, Prompt: "Cuerpo"}
+	parseada, ok := parseRol(serializarRol(original))
+	if !ok {
+		t.Fatal("serializarRol no produce un front-matter parseable")
+	}
+	if parseada.Nombre != "r" || parseada.Etiqueta != "Rol" || parseada.Contexto != "ctx.md" || len(parseada.Activar) != 2 {
+		t.Errorf("round-trip de serialización incorrecto: %+v", parseada)
+	}
+}
+
+func TestAsistenteCorporativoSeActivaPorFrase(t *testing.T) {
+	m := nuevoRolesManagerConDir(t.TempDir())
+	casos := []string{
+		"un cliente me pidió una reunión",
+		"coordiná el seguimiento del contrato",
+		"el proveedor entregó el pedido",
+		"gestioná la agenda del día",
+	}
+	for _, c := range casos {
+		if !m.Activar(c) {
+			t.Errorf("el rol corporativo debería activarse con %q", c)
+		}
+		m.Desactivar()
+	}
+	if r := m.BuscarRol("asistente corporativo"); r == nil || r.Nombre != "asistente_corporativo" {
+		t.Errorf("BuscarRol('asistente corporativo') no devolvió el rol")
+	}
+}
+
+func TestAsistenteCorporativoPromptDeElite(t *testing.T) {
+	m := nuevoRolesManagerConDir(t.TempDir())
+	if !m.Activar("asistente corporativo") {
+		t.Fatal("no se pudo activar el rol")
+	}
+	texto := m.TextoParaIA("un cliente quiere coordinar")
+	if !strings.Contains(texto, "Asistente corporativo") {
+		t.Errorf("falta la etiqueta del rol: %q", texto)
+	}
+	if !strings.Contains(texto, "estructura ejecutiva") {
+		t.Errorf("el prompt debería exigir estructura ejecutiva: %q", texto)
 	}
 }

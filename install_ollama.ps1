@@ -33,13 +33,13 @@ try {
     exit 1
 }
 
-Write-Host "[3/3] Descargando modelo Llama 3.2 3B (esto puede tomar varios minutos)..."
+Write-Host "[3/3] Descargando modelo qwen2.5-coder:7b (esto puede tomar varios minutos)..."
 try {
-    & "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" pull llama3.2:3b
+    & "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" pull qwen2.5-coder:7b
     Write-Host " Modelo descargado correctamente."
 } catch {
     Write-Host "[ADVERTENCIA] No se pudo descargar el modelo automaticamente."
-    Write-Host "Ejecute manualmente: ollama pull llama3.2:3b"
+    Write-Host "Ejecute manualmente: ollama pull qwen2.5-coder:7b"
 }
 
 Write-Host ""
