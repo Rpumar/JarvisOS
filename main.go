@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -211,6 +213,10 @@ loop:
 		fmt.Print("\n> ")
 		comando, err := oidos.EscucharTexto()
 		if err != nil {
+			if errors.Is(err, io.EOF) {
+				fmt.Println("\nFin de la entrada. Hasta luego, señor.")
+				return
+			}
 			fmt.Printf("[ADVERTENCIA] %v\n", err)
 			continue
 		}
@@ -221,7 +227,7 @@ loop:
 
 		comandoLower := strings.ToLower(comando)
 
-		if strings.Contains(comandoLower, "apagar") || strings.Contains(comandoLower, "adiós") {
+		if core.EsDespedida(comandoLower) {
 			fmt.Println(brain.Despedirse())
 			close(apagar)
 			break loop
@@ -326,6 +332,10 @@ func ejecutarModoServicio() {
 	for {
 		comando, err := oidos.EscucharTexto()
 		if err != nil {
+			if errors.Is(err, io.EOF) {
+				fmt.Println("[SERVICE] Entrada cerrada. Deteniendo modo servicio.")
+				return
+			}
 			time.Sleep(5 * time.Second)
 			continue
 		}

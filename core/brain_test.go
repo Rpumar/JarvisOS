@@ -598,6 +598,31 @@ func TestDespedirse_UsaNombreCuandoLoConoce(t *testing.T) {
 	}
 }
 
+func TestEsDespedida(t *testing.T) {
+	casos := []struct {
+		entrada string
+		esperado bool
+	}{
+		{"chau", true},
+		{"chau jefe", true},
+		{"adiós", true},
+		{"hasta luego", true},
+		{"nos vemos", true},
+		{"salir", true},
+		{"qué hora es", false},
+		{"salir de modo", false},
+		{"apagar la pc", false},
+		{"", false},
+	}
+	for _, c := range casos {
+		got := EsDespedida(c.entrada)
+		if got != c.esperado {
+			t.Errorf("EsDespedida(%q) = %v, esperaba %v", c.entrada, got, c.esperado)
+		}
+	}
+}
+
+
 // --- Tests: Fase 3, hechos nuevos (cumpleaños, trabajo, llamame) ---
 
 func TestProcess_Llamame_GuardaComoNombre(t *testing.T) {

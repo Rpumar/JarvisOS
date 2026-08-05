@@ -225,6 +225,39 @@ func esAccionPeligrosa(entrada string) (string, bool) {
 	return clasif.Descripcion, true
 }
 
+var frasesDespedida = []string{
+	"chau", "chao", "adios", "adiós", "hasta luego", "nos vemos",
+	"apagate", "apágate", "me voy", "me retiro", "fin de la conversación",
+	"terminamos", "terminamos por hoy", "buenas noches", "salir",
+}
+
+var frasesQueNoSonDespedida = []string{
+	"salir de modo", "salir del modo", "salir de la app", "salir del programa",
+	"apagar la pc", "apagar pc", "apagar la compu", "apagar compu",
+	"apagar el equipo", "apagar computadora", "apagar la computadora",
+}
+
+// EsDespedida indica si el texto es un saludo de cierre, para que los loops de
+// consola y servicio cierren la sesión en lugar de intentar responder.
+// "apagar la pc" y "salir de modo" no cuentan: apuntan a otra acción.
+func EsDespedida(entrada string) bool {
+	entrada = strings.ToLower(strings.TrimSpace(entrada))
+	if entrada == "" {
+		return false
+	}
+	for _, no := range frasesQueNoSonDespedida {
+		if strings.Contains(entrada, no) {
+			return false
+		}
+	}
+	for _, f := range frasesDespedida {
+		if strings.Contains(entrada, f) {
+			return true
+		}
+	}
+	return false
+}
+
 func esConsultaSegura(entrada string) bool {
 	entrada = strings.TrimSpace(entrada)
 	return strings.HasPrefix(entrada, "buscar ") ||

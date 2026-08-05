@@ -342,6 +342,7 @@ func (h *Hands) manejarTarea(cmd string) string {
 	switch {
 	case strings.Contains(entrada, "qué tareas tengo") || strings.Contains(entrada, "que tareas tengo"),
 		strings.Contains(entrada, "tareas pendientes") || strings.Contains(entrada, "tareas me faltan"),
+		strings.Contains(entrada, "mis tareas") || strings.Contains(entrada, "mis tareas pendientes"),
 		strings.Contains(entrada, "listá mis tareas") || strings.Contains(entrada, "lista mis tareas"),
 		strings.Contains(entrada, "cuántas tareas tengo") || strings.Contains(entrada, "cuantas tareas tengo"):
 		return h.listarTareas(false)
