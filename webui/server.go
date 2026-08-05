@@ -72,6 +72,13 @@ type GestorRoles interface {
 	Eliminar(nombre string) error
 }
 
+// GestorEmpresa expone el perfil de la empresa para verlo/guardarlo desde la WebUI.
+type GestorEmpresa interface {
+	Obtener() core.PerfilEmpresa
+	Reemplazar(core.PerfilEmpresa) error
+	Resumen() string
+}
+
 // nombreCookieSesion identifica la cookie de sesión del panel.
 const nombreCookieSesion = "jarvis_sesion"
 
@@ -86,6 +93,7 @@ type ServidorWeb struct {
 	auditor     Auditor
 	skills      GestorSkills
 	roles       GestorRoles
+	empresa     GestorEmpresa
 	historial   []HistorialEntry
 	mu          sync.Mutex
 	port        int
@@ -128,6 +136,9 @@ func NuevoServidor(brain ProcesadorChat, port int, opciones ...ServidorOpciones)
 		if o.Roles != nil {
 			s.roles = o.Roles
 		}
+		if o.Empresa != nil {
+			s.empresa = o.Empresa
+		}
 		if o.RutaHistorial != "" {
 			s.rutaHist = o.RutaHistorial
 		}
@@ -146,6 +157,7 @@ type ServidorOpciones struct {
 	Auditor        Auditor
 	Skills         GestorSkills
 	Roles          GestorRoles
+	Empresa        GestorEmpresa
 	RutaHistorial  string
 	ContrasenaHash string
 }
@@ -173,6 +185,7 @@ func (s *ServidorWeb) Iniciar() error {
 	mux.HandleFunc("/api/auditoria", s.manejarAuditoria)
 	mux.HandleFunc("/api/skills", s.manejarSkills)
 	mux.HandleFunc("/api/roles", s.manejarRoles)
+	mux.HandleFunc("/api/empresa", s.manejarEmpresa)
 
 	mux.Handle("/", http.FileServer(http.FS(archivosEstaticos)))
 
@@ -542,6 +555,39 @@ func (s *ServidorWeb) manejarRoles(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		_ = json.NewEncoder(w).Encode(map[string]string{"ok": "rol eliminado"})
+	default:
+		http.Error(w, "método no permitido", http.StatusMethodNotAllowed)
+	}
+}
+
+// manejarEmpresa expone el perfil de la empresa: GET lo consulta y POST lo
+// reemplaza (solo Admin para la escritura).
+func (s *ServidorWeb) manejarEmpresa(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if s.empresa == nil {
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "sin gestor de empresa"})
+		return
+	}
+	switch r.Method {
+	case http.MethodGet:
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"perfil":  s.empresa.Obtener(),
+			"resumen": s.empresa.Resumen(),
+		})
+	case http.MethodPut, http.MethodPost:
+		if !s.exigePermiso(r, w, security.PermisoAprobar) {
+			return
+		}
+		var perfil core.PerfilEmpresa
+		if err := json.NewDecoder(r.Body).Decode(&perfil); err != nil {
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "request inválido"})
+			return
+		}
+		if err := s.empresa.Reemplazar(perfil); err != nil {
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]string{"ok": "perfil de empresa guardado"})
 	default:
 		http.Error(w, "método no permitido", http.StatusMethodNotAllowed)
 	}

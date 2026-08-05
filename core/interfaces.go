@@ -50,5 +50,6 @@ type BrainOpciones struct {
 	Skills         *SkillsManager
 	Roles          *RolesManager
 	Procedimientos *GestorProcedimientos
+	Empresa        *GestorEmpresa
 	MaxHistorialIA int
 }

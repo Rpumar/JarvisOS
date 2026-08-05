@@ -15,6 +15,7 @@ type Brain struct {
 	skills *SkillsManager
 	roles  *RolesManager
 	procs  *GestorProcedimientos
+	empresa *GestorEmpresa
 
 	ultimaApp      string
 	ultimaBusqueda string
@@ -31,7 +32,7 @@ type accionConfirmable struct {
 }
 
 func NewBrain(h EjecutorComandos, opciones BrainOpciones) *Brain {
-	b := &Brain{hands: h, ia: opciones.IA, mem: opciones.Memoria, prefs: opciones.Prefs, skills: opciones.Skills, roles: opciones.Roles, procs: opciones.Procedimientos, maxHistorialIA: 5}
+	b := &Brain{hands: h, ia: opciones.IA, mem: opciones.Memoria, prefs: opciones.Prefs, skills: opciones.Skills, roles: opciones.Roles, procs: opciones.Procedimientos, empresa: opciones.Empresa, maxHistorialIA: 5}
 	if opciones.MaxHistorialIA > 0 {
 		b.maxHistorialIA = opciones.MaxHistorialIA
 	}
@@ -121,6 +122,10 @@ func (b *Brain) procesarInterno(input string) string {
 		return respuesta
 	}
 
+	if respuesta, atendido := b.manejarEmpresa(original); atendido {
+		return respuesta
+	}
+
 	b.actualizarMemoriaDeSesion(entrada)
 
 	if descripcion, peligroso := esAccionPeligrosa(entrada); peligroso && !esConsultaSegura(entrada) {
@@ -157,6 +162,11 @@ func (b *Brain) procesarInterno(input string) string {
 		}
 		if b.procs != nil {
 			if texto := b.procs.TextoParaIA(input); texto != "" {
+				prompt = texto + "\n\n" + prompt
+			}
+		}
+		if b.empresa != nil {
+			if texto := b.empresa.TextoParaIA(); texto != "" {
 				prompt = texto + "\n\n" + prompt
 			}
 		}
@@ -456,6 +466,16 @@ ROLES (asistente operativo):
   modo asistente corporativo    -> interpreta pedidos de clientes y los convierte en acciones
   qué roles tenés               -> lista los roles disponibles
   salir de modo / modo normal   -> vuelve al modo general
+
+EMPRESA (perfil del negocio):
+  qué sabés de mi empresa       -> veo el perfil cargado
+  configurá mi empresa          -> arranco a cargar el perfil
+  mi empresa se llama X         -> nombre
+  mi rubro es Y                 -> rubro / sector
+  somos N empleados             -> tamaño
+  mi producto principal es W    -> agrega producto o servicio
+  agendá un objetivo Z          -> agrega objetivo
+  el dueño se llama D           -> dueño
 
 TAREAS:
   agendá una tarea [nombre] (para [cuándo]) -> registro una tarea

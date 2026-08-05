@@ -431,3 +431,56 @@ func TestChatAcotaHistorialACien(t *testing.T) {
 		t.Errorf("tras acotar, las entradas deberían seguir siendo válidas: %+v", s.historial[0])
 	}
 }
+
+type fakeEmpresa struct {
+	perf core.PerfilEmpresa
+	err  error
+}
+
+func (f *fakeEmpresa) Obtener() core.PerfilEmpresa                    { return f.perf }
+func (f *fakeEmpresa) Reemplazar(p core.PerfilEmpresa) error           { f.perf = p; return f.err }
+func (f *fakeEmpresa) Resumen() string                                { return "resumen" }
+
+func TestManejarEmpresa_Get(t *testing.T) {
+	s := NuevoServidor(&fakeBrain{}, 0, ServidorOpciones{
+		Empresa: &fakeEmpresa{perf: core.PerfilEmpresa{Nombre: "ABC"}},
+	})
+	rr := httptest.NewRecorder()
+	s.manejarEmpresa(rr, httptest.NewRequest(http.MethodGet, "/api/empresa", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("GET debería ser 200, fue %d", rr.Code)
+	}
+	var res map[string]interface{}
+	json.NewDecoder(rr.Body).Decode(&res)
+	if res["resumen"] != "resumen" {
+		t.Errorf("resumen inesperado: %v", res)
+	}
+}
+
+func TestManejareEmpresaPutRequiereAdmin(t *testing.T) {
+	s := NuevoServidor(&fakeBrain{}, 0, ServidorOpciones{
+		Empresa:        &fakeEmpresa{},
+		ContrasenaHash: "h",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/empresa", bytes.NewBufferString(`{"nombre":"X"}`))
+	rr := httptest.NewRecorder()
+	s.manejarEmpresa(rr, req)
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("sin sesión debería ser 403, fue %d", rr.Code)
+	}
+}
+
+func TestManejareEmpresaPutAdmin(t *testing.T) {
+	fe := &fakeEmpresa{}
+	s := NuevoServidor(&fakeBrain{}, 0, ServidorOpciones{Empresa: fe})
+	// Sin contraseña configurada todos son Admin → la escritura pasa.
+	req := httptest.NewRequest(http.MethodPost, "/api/empresa", bytes.NewBufferString(`{"nombre":"Nueva SRL"}`))
+	rr := httptest.NewRecorder()
+	s.manejarEmpresa(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("guardar perfil debería ser 200, fue %d (%s)", rr.Code, rr.Body.String())
+	}
+	if fe.perf.Nombre != "Nueva SRL" {
+		t.Errorf("el perfil no se guardó: %+v", fe.perf)
+	}
+}

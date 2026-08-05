@@ -263,6 +263,10 @@
   .ges-item .acciones button { background: none; border: 1px solid #30363d; color: #9fb6c8; border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 12px; }
   .ges-item .acciones button:hover { border-color: #00d4ff; color: #fff; }
   .ges-item .acciones button.borrar:hover { border-color: #ff4444; color: #ff4444; }
+.campo { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.campo label { font-size: 12px; color: #7a8699; }
+.emp-input { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; color: #e0e0e0; padding: 8px 10px; font-size: 14px; width: 100%; box-sizing: border-box; }
+.emp-input:focus { border-color: #00d4ff; outline: none; }
   .ges-nuevo { width: 100%; background: #0055aa; border: none; color: #fff; border-radius: 8px; padding: 10px; font-size: 14px; cursor: pointer; margin-top: 4px; }
   .ges-nuevo:hover { background: #0077dd; }
   .ges-form label { display: block; font-size: 12px; color: #7a8699; margin: 10px 0 4px; letter-spacing: .5px; text-transform: uppercase; }
@@ -293,6 +297,7 @@
   <div id="header-actions">
     <button class="clear-btn" onclick="modoPresentacion()" title="Modo presentación fullscreen">🎦 Presentación</button>
     <button class="clear-btn" id="btn-gestion" onclick="abrirGestion()" style="display:none">🪄 Skills y roles</button>
+<button class="clear-btn" id="btn-empresa" onclick="abrirEmpresa()" style="display:none">🏢 Empresa</button>
     <button class="clear-btn" onclick="limpiarHistorial()">Limpiar</button>
     <button class="clear-btn" id="btn-auditoria" onclick="abrirAuditoria()" style="display:none">📜 Auditoría</button>
     <button class="clear-btn" id="btn-sesion" onclick="abrirLogin()" style="display:none">🔑 Iniciar sesión</button>
@@ -350,6 +355,15 @@
     <div class="modal-body" id="gestion-body"><div class="typing">Cargando, señor...</div></div>
   </div>
 </div>
+<div id="empresa-modal" class="modal" onclick="if(event.target===this)cerrarEmpresa()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2>🏢 Perfil de la empresa</h2>
+      <button class="clear-btn" onclick="cerrarEmpresa()">✕</button>
+    </div>
+    <div class="modal-body" id="empresa-body"><div class="typing">Cargando, señor...</div></div>
+  </div>
+</div>
 <div id="login-modal" class="modal" onclick="if(event.target===this)cerrarLogin()">
   <div class="modal-box" style="max-width:380px">
     <div class="modal-head">
@@ -399,16 +413,13 @@
   <button onclick="cmd('plan de acción')">🧠 Plan</button>
   <button onclick="cmd('ejecutá el plan')">⚡ Ejecutar plan</button>
   <button onclick="cmd('modo vigilante')">🛡 Vigilar</button>
-  <button onclick="cmd('mis proyectos')">📁 Mis proyectos</button>
-  <button onclick="cmd('crear proyecto web demo')">🧩 Nuevo proyecto</button>
-  <button onclick="cmd('ejecutar proyecto demo')">🚀 Ejecutar</button>
-  <button onclick="cmd('detener proyecto demo')">⏹ Detener</button>
+  <button onclick="cmd('qué sabés de mi empresa')">🏢 Mi empresa</button>
+  <button onclick="cmd('configurá mi empresa')">📝 Perfil de empresa</button>
   <button onclick="cmd('qué skills tenés')">🪄 Skills</button>
-  <button onclick="cmd('modo ingeniero')">🔧 Ingeniero</button>
-  <button onclick="cmd('modo desarrollador')">🧠 Desarrollador</button>
   <button onclick="cmd('modo ceo')">💼 CEO</button>
   <button onclick="cmd('modo marketing')">📈 Marketing</button>
   <button onclick="cmd('modo humano')">💬 Humano</button>
+  <button onclick="cmd('modo asistente corporativo')">🤝 Asistente</button>
   <button onclick="cmd('salir de modo')">🔙 Modo normal</button>
   <button onclick="cmd('qué roles tenés')">🎭 Roles</button>
   <button onclick="cmd('qué tareas tengo')">📌 Tareas</button>
@@ -448,6 +459,7 @@
     const esAdmin = rolActual === 'admin';
     document.getElementById('btn-auditoria').style.display = esAdmin ? '' : 'none';
     document.getElementById('btn-gestion').style.display = esAdmin ? '' : 'none';
+document.getElementById('btn-empresa').style.display = esAdmin ? '' : 'none';
     document.getElementById('btn-login').style.display = (esAdmin || !requiereLogin) ? 'none' : '';
     document.getElementById('btn-logout').style.display = esAdmin ? '' : 'none';
     const badge = document.getElementById('rol-badge');
@@ -814,6 +826,74 @@
 
   let gestorVista = 'skills';
   let gestorEditando = null;
+
+  function abrirEmpresa() {
+    document.getElementById('empresa-modal').classList.add('abierto');
+    cargarEmpresa();
+  }
+
+  function cerrarEmpresa() {
+    document.getElementById('empresa-modal').classList.remove('abierto');
+  }
+
+  const camposEmpresa = [
+    ['nombre', 'Nombre'], ['rubro', 'Rubro / sector'], ['descripcion', 'Descripción'],
+    ['tamano', 'Tamaño'], ['facturacion', 'Facturación'], ['costos', 'Costos'],
+    ['equipo', 'Equipo'], ['dueno', 'Dueño'], ['email', 'Email'], ['telefono', 'Teléfono']
+  ];
+  const listasEmpresa = [
+    ['productos', 'Productos'], ['clientes', 'Clientes típicos'], ['objetivos', 'Objetivos'],
+    ['competidores', 'Competidores'], ['redes', 'Redes']
+  ];
+
+  function cargarEmpresa() {
+    const body = document.getElementById('empresa-body');
+    body.innerHTML = '<div class="typing">Cargando, señor...</div>';
+    fetch('/api/empresa')
+      .then(r => r.json())
+      .then(data => {
+        const p = data.perfil || {};
+        let html = '<div class="aux-line">Editalo y guardá; Jarvis lo usa para asesorarte (CEO, marketing, asistente).</div>';
+        html += '<div class="ges-tabs"><button class="activa">Perfil</button></div>';
+        for (const [k, lbl] of camposEmpresa) {
+          html += '<div class="ges-item"><div class="campo"><label>' + lbl + '</label><input class="emp-input" id="emp-' + k + '" value="' + escAttr(p[k] || '') + '"></div></div>';
+        }
+        for (const [k, lbl] of listasEmpresa) {
+          const items = (p[k] || []).join(', ');
+          html += '<div class="ges-item"><div class="campo"><label>' + lbl + ' (separá por coma)</label><input class="emp-input" id="emp-' + k + '" value="' + escAttr(items) + '"></div></div>';
+        }
+        html += '<button class="ges-nuevo" onclick="guardarEmpresa()">💾 Guardar perfil</button>' +
+          '<div id="emp-msj"></div>';
+        body.innerHTML = html;
+      })
+      .catch(e => { body.innerHTML = '<div class="audit-vacio">Error: ' + e.message + '</div>'; });
+  }
+
+  function escAttr(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+
+  function convertirLista(csv) {
+    return String(csv).split(',').map(s => s.trim()).filter(Boolean);
+  }
+
+  function guardarEmpresa() {
+    const p = {};
+    for (const [k] of camposEmpresa) { p[k] = document.getElementById('emp-' + k).value.trim(); }
+    for (const [k] of listasEmpresa) {
+      p[k] = convertirLista(document.getElementById('emp-' + k).value);
+    }
+    fetch('/api/empresa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(p)
+    })
+      .then(r => r.json())
+      .then(data => {
+        const msj = document.getElementById('emp-msj');
+        if (data.ok) { msj.textContent = '✅ ' + data.ok; msj.style.color = '#7dffb0'; }
+        else { msj.textContent = '❌ ' + (data.error || 'error'); msj.style.color = '#ff6b6b'; }
+      })
+      .catch(e => { document.getElementById('emp-msj').textContent = '❌ ' + e.message; });
+  }
 
   function abrirGestion() {
     document.getElementById('gestion-modal').classList.add('abierto');

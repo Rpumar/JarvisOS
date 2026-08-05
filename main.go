@@ -77,6 +77,7 @@ func main() {
 	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout, cfg.IAURL, cfg.IAAPIKey)
 	gestorSkills := core.NuevoSkillsManager()
 	gestorRoles := core.NuevoRolesManager()
+	gestorEmpresa := core.NuevoGestorEmpresa(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "empresa.json"))
 	hands := core.NewHands(core.HandsOpciones{
 		Apps:            cfg.Apps,
 		ClimaKey:        cfg.OpenWeatherKey,
@@ -138,6 +139,7 @@ func main() {
 		Skills:          gestorSkills,
 		Roles:           gestorRoles,
 		Procedimientos:  procedimientos,
+		Empresa:         gestorEmpresa,
 		MaxHistorialIA: cfg.MaxHistorialIA,
 	})
 
@@ -248,6 +250,7 @@ func ejecutarModoServicio() {
 	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout, cfg.IAURL, cfg.IAAPIKey)
 	gestorSkills := core.NuevoSkillsManager()
 	gestorRoles := core.NuevoRolesManager()
+	gestorEmpresa := core.NuevoGestorEmpresa(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "empresa.json"))
 	tareas := core.NuevoGestorTareas(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "tareas.json"))
 	agenda := core.NuevoGestorAgenda(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "agenda.json"))
 	ordenes := core.NuevoGestorOrdenes(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "ordenes.json"))
@@ -294,7 +297,7 @@ func ejecutarModoServicio() {
 	defer func() { _ = almacen.Cerrar() }()
 	brain := core.NewBrain(hands, core.BrainOpciones{
 		IA: conectorIA, Memoria: almacen,
-		Skills: gestorSkills, Roles: gestorRoles, Procedimientos: procedimientos, MaxHistorialIA: cfg.MaxHistorialIA,
+		Skills: gestorSkills, Roles: gestorRoles, Procedimientos: procedimientos, Empresa: gestorEmpresa, MaxHistorialIA: cfg.MaxHistorialIA,
 	})
 	oidos, err := core.NewEars("")
 	if err != nil {
@@ -365,6 +368,7 @@ func ejecutarWebUI() {
 	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout, cfg.IAURL, cfg.IAAPIKey)
 	gestorSkills := core.NuevoSkillsManager()
 	gestorRoles := core.NuevoRolesManager()
+	gestorEmpresa := core.NuevoGestorEmpresa(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "empresa.json"))
 	hands := core.NewHands(core.HandsOpciones{
 		Apps: cfg.Apps, ClimaKey: cfg.OpenWeatherKey, NewsKey: cfg.NewsAPIKey,
 		Prefs: prefs, Rutinas: rutinas, Tareas: tareas, Agenda: agenda, Ordenes: ordenes, Procedimientos: procedimientos,
@@ -397,7 +401,7 @@ func ejecutarWebUI() {
 	brain := core.NewBrain(hands, core.BrainOpciones{
 		IA: conectorIA, Memoria: almacen,
 		Prefs: prefs, Skills: gestorSkills, Roles: gestorRoles,
-		Procedimientos: procedimientos, MaxHistorialIA: cfg.MaxHistorialIA,
+		Procedimientos: procedimientos, Empresa: gestorEmpresa, MaxHistorialIA: cfg.MaxHistorialIA,
 	})
 	if pendientes := tareas.TextoPendientes(); pendientes != "" {
 		fmt.Printf("[TAREAS] %s\n", pendientes)
@@ -414,6 +418,7 @@ func ejecutarWebUI() {
 		Auditor:       hands,
 		Skills:        gestorSkills,
 		Roles:         gestorRoles,
+		Empresa:       gestorEmpresa,
 		ContrasenaHash: cfg.LoginPasswordHash,
 		RutaHistorial: filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "historial-web.json"),
 	})
