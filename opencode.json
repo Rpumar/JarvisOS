@@ -1,0 +1,42 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": ["AGENTS.md"],
+  "mcp": {
+    "gh_grep": {
+      "type": "remote",
+      "url": "https://mcp.grep.app"
+    },
+    "context7": {
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp"
+    }
+  },
+  "permission": {
+    "edit": "allow",
+    "bash": {
+      "go build*": "allow",
+      "go vet*": "allow",
+      "go test*": "allow",
+      "go mod*": "allow",
+      "go fmt*": "allow",
+      "git status*": "allow",
+      "git diff*": "allow",
+      "git log*": "allow",
+      "git add*": "allow",
+      "git commit*": "allow",
+      "rm *": "deny",
+      "rmdir *": "deny",
+      "del *": "deny",
+      "Remove-Item*": "deny",
+      "format*": "deny",
+      "shutdown*": "deny",
+      "restart*": "deny",
+      "*": "ask"
+    },
+    "external_directory": {
+      "~/JarvisOS-datos/config.json": "deny",
+      "~/JarvisOS-datos/**": "ask",
+      "*": "allow"
+    }
+  }
+}
