@@ -444,6 +444,9 @@ Procedimientos: procedimientos, Empresa: gestorEmpresa, Perfil: gestorPerfil, Ma
 		Empresa:       gestorEmpresa,
 		Perfil:        gestorPerfil,
 		ContrasenaHash: cfg.LoginPasswordHash,
+		PINHash:        cfg.PINHash,
+		PINSetter:      func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
+		ContrasenaSetter: func(hash string) bool { cfg.LoginPasswordHash = hash; return cfg.Save() == nil },
 		RutaHistorial: filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "historial-web.json"),
 	})
 	if err := servidor.Iniciar(); err != nil {

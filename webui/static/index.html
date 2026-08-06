@@ -312,8 +312,8 @@
 <div id="conn-banner">Se perdió la conexión con JarvisOS en <span id="conn-url"></span>. Reintentando...</div>
 <header>
   <div>
-    <h1>J.A.R.V.I.S</h1>
-    <span>Asistente personal</span>
+    <h1>J.A.R.V.I.S.</h1>
+    <span>Su empleado digital · Cumple, no descansa, rinde cuentas</span>
   </div>
   <div id="header-actions">
     <button class="clear-btn" onclick="abrirPanel()" title="Panel del dueño: órdenes, actividad y estado">📊 Panel del dueño</button>
@@ -430,6 +430,14 @@
       <button class="clear-btn" onclick="cerrarPerfil()">✕</button>
     </div>
     <div class="modal-body" id="perfil-body"><div class="typing">Cargando perfiles, señor...</div></div>
+  </div>
+</div>
+<div id="onboarding-modal" class="modal" style="display:none;background:rgba(3,12,20,.96)">
+  <div class="modal-box" style="max-width:520px">
+    <div class="modal-head">
+      <h2>🛠 Primera configuración</h2>
+    </div>
+    <div class="modal-body" id="onboarding-body"><div class="typing">Preparando la primera configuración, señor...</div></div>
   </div>
 </div>
 <div id="status-bar">
@@ -864,6 +872,7 @@ document.getElementById('btn-empresa').style.display = esAdmin ? '' : 'none';
   actualizarEstado();
   setInterval(actualizarEstado, 5000);
   actualizarSesion();
+  verificarOnboarding();
   verificarAprobaciones(false);
   setInterval(() => verificarAprobaciones(false), 4000);
 
@@ -1263,6 +1272,69 @@ document.getElementById('btn-empresa').style.display = esAdmin ? '' : 'none';
   }
 
   cargarHistorial();
+
+  // ----- Onboarding: primera configuración guiada -----
+  async function verificarOnboarding() {
+    try {
+      const res = await fetch('/api/onboarding');
+      const data = await res.json();
+      if (data.completo === false && data.primer_arranque) {
+        abrirOnboarding(data);
+      }
+    } catch (e) { /* sin conexión todavía; se reintenta en el próximo load */ }
+  }
+
+  function abrirOnboarding(data) {
+    const modal = document.getElementById('onboarding-modal');
+    modal.style.display = 'flex';
+    const body = document.getElementById('onboarding-body');
+    const pasos = (data.pasos_faltantes || []).map(p => '<li>' + escAttr(p) + '</li>').join('');
+    body.innerHTML =
+      '<div class="aux-line" style="margin-bottom:8px">Bienvenido, señor. Vamos a dejar listo a JarvisOS para su empresa en un minuto. Complete lo que corresponda:</div>' +
+      '<div class="aux-line" style="margin-bottom:12px">Pendientes:<ul>' + pasos + '</ul></div>' +
+      '<div class="perfil-form">' +
+      '<input class="emp-input" id="ob-empresa" placeholder="Nombre de la empresa" style="flex:2">' +
+      '<input class="emp-input" id="ob-rubro" placeholder="Rubro / sector" style="flex:2">' +
+      '<input class="emp-input" id="ob-dueno" placeholder="Nombre del dueño" style="flex:2">' +
+      '<input class="emp-input" id="ob-pin" placeholder="PIN (4-6 dígitos)" inputmode="numeric" style="flex:1">' +
+      '<input class="emp-input" id="ob-clave" type="password" placeholder="Contraseña panel (6-32)" style="flex:2">' +
+      '</div>' +
+      '<button class="ges-nuevo" onclick="aplicarOnboarding()">✅ Terminar configuración</button>' +
+      '<div id="ob-msj"></div>';
+  }
+
+  function aplicarOnboarding() {
+    const payload = {
+      empresa: document.getElementById('ob-empresa').value.trim(),
+      rubro: document.getElementById('ob-rubro').value.trim(),
+      dueno: document.getElementById('ob-dueno').value.trim(),
+      pin: document.getElementById('ob-pin').value.trim(),
+      contrasena: document.getElementById('ob-clave').value
+    };
+    fetch('/api/onboarding', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+      .then(r => r.json())
+      .then(data => {
+        const msj = document.getElementById('ob-msj');
+        if (data.ok && data.estado && data.estado.completo) {
+          document.getElementById('onboarding-modal').style.display = 'none';
+          addMsg('jarvis', 'Configuración completa, señor. Bienvenido a su empleado digital.');
+          actualizarSesion();
+        } else {
+          const faltan = (data.estado && data.estado.pasos_faltantes || []).join('; ');
+          msj.textContent = '❌ Aún faltan: ' + (faltan || 'revise los datos');
+          msj.style.color = data.estado && data.estado.completo ? '#7dffb0' : '#ffd700';
+        }
+      })
+      .catch(e => {
+        const msj = document.getElementById('ob-msj');
+        if (msj) msj.textContent = '❌ ' + e.message;
+      });
+  }
+  // Fin onboarding
 </script>
 </body>
 </html>

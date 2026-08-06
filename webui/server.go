@@ -114,6 +114,10 @@ type ServidorWeb struct {
 	contrasenaHash string
 	sesionesMu     sync.Mutex
 	sesiones       map[string]time.Time
+
+	pinHash   string
+	pinSetter func(hash string) bool
+	contrasenaSetter func(hash string) bool
 }
 
 type HistorialEntry struct {
@@ -160,6 +164,15 @@ func NuevoServidor(brain ProcesadorChat, port int, opciones ...ServidorOpciones)
 		if o.ContrasenaHash != "" {
 			s.contrasenaHash = o.ContrasenaHash
 		}
+		if o.PINHash != "" {
+			s.pinHash = o.PINHash
+		}
+		if o.PINSetter != nil {
+			s.pinSetter = o.PINSetter
+		}
+		if o.ContrasenaSetter != nil {
+			s.contrasenaSetter = o.ContrasenaSetter
+		}
 	}
 	s.cargarHistorial()
 	return s
@@ -176,6 +189,9 @@ type ServidorOpciones struct {
 	Perfil         GestorPerfil
 	RutaHistorial  string
 	ContrasenaHash string
+	PINHash        string
+	PINSetter      func(hash string) bool
+	ContrasenaSetter func(hash string) bool
 }
 
 type AprobacionRequest struct {
@@ -204,6 +220,7 @@ func (s *ServidorWeb) Iniciar() error {
 	mux.HandleFunc("/api/empresa", s.manejarEmpresa)
 	mux.HandleFunc("/api/perfil", s.manejarPerfil)
 	mux.HandleFunc("/api/dashboard", s.manejarDashboard)
+	mux.HandleFunc("/api/onboarding", s.manejarOnboarding)
 
 	mux.Handle("/", http.FileServer(http.FS(archivosEstaticos)))
 
@@ -576,6 +593,147 @@ func (s *ServidorWeb) manejarRoles(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, "método no permitido", http.StatusMethodNotAllowed)
 	}
+}
+
+// estadoOnboarding describe qué falta configurar en el primer arranque.
+func (s *ServidorWeb) estadoOnboarding() map[string]interface{} {
+	empresaConfigurada := s.perfil != nil && len(s.perfil.Usuarios()) > 0
+	empresaNombre := ""
+	if s.empresa != nil {
+		empresaNombre = s.empresa.Obtener().Nombre
+	}
+	con := make([]string, 0)
+	if empresaNombre == "" {
+		con = append(con, "Cargar el perfil de la empresa")
+	}
+	if !empresaConfigurada {
+		con = append(con, "Registrar al dueño")
+	}
+	if s.pinHash == "" {
+		con = append(con, "Fijar el PIN de aprobaciones")
+	}
+	if s.contrasenaHash == "" {
+		con = append(con, "Definir la contraseña del panel")
+	}
+	return map[string]interface{}{
+		"paso_empresa":    empresaNombre != "",
+		"paso_dueno":      empresaConfigurada,
+		"paso_pin":        s.pinHash != "",
+		"paso_contrasena": s.contrasenaHash != "",
+		"empresa":         empresaNombre,
+		"primer_arranque": s.pinHash == "" && s.contrasenaHash == "",
+		"pasos_faltantes": con,
+		"completo":        len(con) == 0,
+	}
+}
+
+// manejarOnboarding guía la primera configuración: GET informa el estado y
+// POST aplica empresa, dueño, PIN y contraseña en un solo paso. En primer
+// arranque la escritura está abierta (no hay credenciales aún).
+func (s *ServidorWeb) manejarOnboarding(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	switch r.Method {
+	case http.MethodGet:
+		_ = json.NewEncoder(w).Encode(s.estadoOnboarding())
+	case http.MethodPut, http.MethodPost:
+		if s.contrasenaHash != "" || s.pinHash != "" {
+			if !s.exigePermiso(r, w, security.PermisoAprobar) {
+				return
+			}
+		}
+		var req struct {
+			Empresa    string `json:"empresa"`
+			Rubro      string `json:"rubro"`
+			Dueno      string `json:"dueno"`
+			PIN        string `json:"pin"`
+			Contrasena string `json:"contrasena"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "request inválido"})
+			return
+		}
+		errs := s.aplicarOnboarding(&req)
+		if len(errs) > 0 {
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": false, "errores": errs})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "estado": s.estadoOnboarding()})
+	default:
+		http.Error(w, "método no permitido", http.StatusMethodNotAllowed)
+	}
+}
+
+// aplicarOnboarding persiste cada paso opcional del asistente y devuelve los
+// errores que hubiera (p. ej. PIN inválido).
+func (s *ServidorWeb) aplicarOnboarding(req *struct {
+	Empresa    string `json:"empresa"`
+	Rubro      string `json:"rubro"`
+	Dueno      string `json:"dueno"`
+	PIN        string `json:"pin"`
+	Contrasena string `json:"contrasena"`
+}) []string {
+	var errs []string
+	if s.empresa != nil && (req.Empresa != "" || req.Rubro != "") {
+		p := s.empresa.Obtener()
+		if req.Empresa != "" {
+			p.Nombre = req.Empresa
+		}
+		if req.Rubro != "" {
+			p.Rubro = req.Rubro
+		}
+		if err := s.empresa.Reemplazar(p); err != nil {
+			errs = append(errs, "No pude guardar el perfil de empresa: "+err.Error())
+		}
+	}
+	if req.Dueno != "" && s.perfil != nil {
+		s.perfil.AgregarUsuario(req.Dueno, "dirección", core.PerfilDueno)
+		s.perfil.Seleccionar(req.Dueno)
+	}
+	if req.PIN != "" && s.pinSetter != nil {
+		if hash, ok := s.hashPIN(req.PIN); ok {
+			if !s.pinSetter(hash) {
+				errs = append(errs, "No pude guardar el PIN")
+			}
+			s.pinHash = hash
+		} else {
+			errs = append(errs, "El PIN debe tener entre 4 y 6 dígitos")
+		}
+	}
+	if req.Contrasena != "" && s.contrasenaSetter != nil {
+		if hash, ok := s.hashContrasena(req.Contrasena); ok {
+			if s.contrasenaSetter(hash) {
+				s.contrasenaHash = hash
+			} else {
+				errs = append(errs, "No pude guardar la contraseña")
+			}
+		} else {
+			errs = append(errs, "La contraseña debe tener entre 6 y 32 caracteres")
+		}
+	}
+	return errs
+}
+
+// hashPIN valida y hashea un PIN numérico de 4-6 dígitos.
+func (s *ServidorWeb) hashPIN(pin string) (string, bool) {
+	pin = strings.TrimSpace(pin)
+	if len(pin) < 4 || len(pin) > 6 {
+		return "", false
+	}
+	for _, c := range pin {
+		if c < '0' || c > '9' {
+			return "", false
+		}
+	}
+	return core.HashTexto(pin), true
+}
+
+// hashContrasena valida y hashea una contraseña de 6-32 caracteres.
+func (s *ServidorWeb) hashContrasena(clave string) (string, bool) {
+	clave = strings.ToLower(strings.TrimSpace(clave))
+	if len(clave) < 6 || len(clave) > 32 {
+		return "", false
+	}
+	return core.HashTexto(clave), true
 }
 
 // manejarEmpresa expone el perfil de la empresa: GET lo consulta y POST lo
