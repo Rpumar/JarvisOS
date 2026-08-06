@@ -182,7 +182,7 @@ func main() {
 	}()
 
 	var wg sync.WaitGroup
-	wg.Add(3)
+	wg.Add(4)
 	go func() {
 		defer wg.Done()
 		vigilarRecordatorios(almacen, hands, apagar)
@@ -194,6 +194,10 @@ func main() {
 	go func() {
 		defer wg.Done()
 		vigilarOrdenes(hands, apagar)
+	}()
+	go func() {
+		defer wg.Done()
+		vigilarInforme(hands, apagar)
 	}()
 
 loop:
@@ -318,6 +322,7 @@ func ejecutarModoServicio() {
 	}()
 	go vigilarAprobaciones(hands, nil)
 	go vigilarOrdenes(hands, nil)
+	go vigilarInforme(hands, nil)
 
 	fmt.Println("[SERVICE] JarvisOS iniciado en modo servicio.")
 
@@ -417,6 +422,7 @@ func ejecutarWebUI() {
 	}
 	go vigilarAprobaciones(hands, nil)
 	go vigilarOrdenes(hands, nil)
+	go vigilarInforme(hands, nil)
 	servidor := webui.NuevoServidor(brain, 8080, webui.ServidorOpciones{
 		Estado:        hands,
 		Diagnostico:   hands,
@@ -508,4 +514,74 @@ func vigilarRecordatorios(almacen *memoria.Almacen, hands *core.Hands, done <-ch
 			}
 		}
 	}
+}
+
+// ultimoInformeLeido guarda la fecha del último informe emitido, para que el
+// vigía no lo repita (persiste a disco entre reinicios).
+var ultimoInformeMu sync.Mutex
+var ultimoInformeFech = ""
+
+// vigilarInforme emite una vez al día, pasadas las HH:00, el informe del día
+// que termina: qué órdenes se cumplieron, qué sigue en juego, tareas
+// pendientes, actividad auditada y agenda de mañana. Lo guarda en el
+// historial de informes para que quede auditable.
+func vigilarInforme(hands *core.Hands, done <-chan struct{}) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("[ADVERTENCIA] El vigía de informe diario se detuvo por un error inesperado: %v\n", r)
+		}
+	}()
+
+	datosDir := filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos")
+	informesDir := filepath.Join(datosDir, "informes")
+
+	ticker := time.NewTicker(60 * time.Second)
+	defer ticker.Stop()
+
+	ultimoInformeMu.Lock()
+	ultimoInformeFech = leerArchivoInforme(filepath.Join(informesDir, "ultimo-emitido.txt"))
+	ultimoInformeMu.Unlock()
+
+	for {
+		select {
+		case <-done:
+			return
+		case <-ticker.C:
+			ahora := time.Now()
+			hoy := ahora.Format("2006-01-02")
+			if ahora.Hour() < core.HoraInformeDiario {
+				continue
+			}
+			ultimoInformeMu.Lock()
+			if ultimoInformeFech == hoy {
+				ultimoInformeMu.Unlock()
+				continue
+			}
+			ultimoInformeMu.Unlock()
+
+			datos := hands.RecolectarInformeDiario(ahora)
+			informe := core.GenerarInformeDiario(datos)
+
+			ruta, err := core.GuardarInformeDiario(informesDir, hoy, informe)
+			if err != nil {
+				fmt.Printf("[INFORME] No pude guardar el informe: %v\n", err)
+			} else {
+				fmt.Printf("[INFORME] Informe diario emitido -> %s\n", ruta)
+			}
+			if err := os.WriteFile(filepath.Join(informesDir, "ultimo-emitido.txt"), []byte(hoy), 0o600); err != nil {
+				fmt.Printf("[INFORME] No pude registrar la emisión: %v\n", err)
+			}
+			ultimoInformeMu.Lock()
+			ultimoInformeFech = hoy
+			ultimoInformeMu.Unlock()
+		}
+	}
+}
+
+func leerArchivoInforme(ruta string) string {
+	datos, err := os.ReadFile(ruta)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(datos))
 }
