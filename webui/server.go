@@ -186,6 +186,7 @@ func (s *ServidorWeb) Iniciar() error {
 	mux.HandleFunc("/api/skills", s.manejarSkills)
 	mux.HandleFunc("/api/roles", s.manejarRoles)
 	mux.HandleFunc("/api/empresa", s.manejarEmpresa)
+	mux.HandleFunc("/api/dashboard", s.manejarDashboard)
 
 	mux.Handle("/", http.FileServer(http.FS(archivosEstaticos)))
 
@@ -593,8 +594,82 @@ func (s *ServidorWeb) manejarEmpresa(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// PanelResumen es el payload agregado del panel del dueño: junta qué está
+// en juego (órdenes), qué hizo hoy (auditoría) y el estado de la PC, para
+// que el dashboard no haga varias llamadas.
+type PanelResumen struct {
+	Hora              string           `json:"hora"`
+	Fecha             string           `json:"fecha"`
+	OrdenesActivas    int              `json:"ordenes_activas"`
+	EsperandoAprob    int              `json:"esperando_aprobacion"`
+	Bloqueadas        int              `json:"bloqueadas"`
+	AuditoriaHoy      int              `json:"auditoria_hoy"`
+	Estados           map[string]int   `json:"estados"`
+	Ordenes           []OrdenPanel     `json:"ordenes"`
+	ActividadReciente []audit.Entrada  `json:"actividad_reciente"`
+	Estado            core.EstadoPanel `json:"estado"`
+}
+
+// manejarDashboard entrega el material del panel del dueño. Es de solo
+// lectura y no exige rol: el dueño ve la radiografía sin iniciar sesión,
+// igual que /api/estado.
+func (s *ServidorWeb) manejarDashboard(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if s.aprobador == nil && s.auditor == nil {
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "sin datos de panel"})
+		return
+	}
+
+	res := PanelResumen{
+		Hora:    time.Now().Format("15:04:05"),
+		Fecha:   time.Now().Format("02/01/2006"),
+		Estados: make(map[string]int),
+	}
+
+	if s.estado != nil {
+		res.Estado = s.estado.EstadoPanel()
+	}
+
+	ordenes := []OrdenPanel{}
+	if s.aprobador != nil {
+		for _, o := range s.aprobador.OrdenesParaPanel() {
+			res.OrdenesActivas++
+			res.Estados[o.Estado]++
+			switch o.Estado {
+			case core.OrdenEsperandoAprobacion:
+				res.EsperandoAprob++
+			case core.OrdenBloqueada:
+				res.Bloqueadas++
+			}
+			ordenes = append(ordenes, OrdenPanel{
+				ID:                   o.ID,
+				Objetivo:             o.Objetivo,
+				Estado:               o.Estado,
+				PendienteAccion:      o.PendienteAccion,
+				PendienteDescripcion: o.PendienteDescripcion,
+			})
+		}
+	}
+	res.Ordenes = ordenes
+
+	if s.auditor != nil {
+		hoy := time.Now().Format("2006-01-02")
+		entradas := s.auditor.AuditoriaPanel()
+		for _, e := range entradas {
+			if strings.HasPrefix(e.Momento, hoy) {
+				res.AuditoriaHoy++
+			}
+		}
+		if n := len(entradas); n > 12 {
+			entradas = entradas[n-12:]
+		}
+		res.ActividadReciente = entradas
+	}
+
+	_ = json.NewEncoder(w).Encode(res)
+}
+
 // rolActual resuelve el rol del pedido: Admin si tiene una sesión válida (o
-// si no hay contraseña configurada); Operador en cualquier otro caso.
 func (s *ServidorWeb) rolActual(r *http.Request) security.Rol {
 	if s.contrasenaHash == "" {
 		return security.RolAdmin

@@ -216,6 +216,27 @@
   .diag-row span:last-child { color: #c8d6e5; white-space: nowrap; }
   .problema { border-left: 3px solid #ff4444; padding: 6px 10px; margin: 6px 0; background: #1a0f14; border-radius: 4px; font-size: 13px; }
   .problema .fix { color: #7a8699; font-size: 12px; margin-top: 3px; }
+  .panel-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .panel-kpi { background: #161b22; border: 1px solid #262c36; border-radius: 8px; padding: 10px 12px; text-align: center; }
+  .panel-kpi .t { font-size: 11px; color: #7a8699; text-transform: uppercase; letter-spacing: .5px; }
+  .panel-kpi .v { font-size: 26px; font-weight: 700; margin-top: 2px; }
+  .panel-kpi .v.azul { color: #00d4ff; }
+  .panel-kpi .v.naranja { color: #ffb300; }
+  .panel-kpi .v.rojo { color: #ff4444; }
+  .panel-kpi .v.verde { color: #00e06a; }
+  .panel-orden { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid #262c36; border-radius: 8px; margin-bottom: 8px; background: #0f141a; }
+  .panel-orden .oid { color: #00d4ff; font-weight: 700; min-width: 32px; }
+  .panel-orden .obj { flex: 1; color: #c8d6e5; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .panel-orden .est { font-size: 11px; padding: 3px 8px; border-radius: 10px; white-space: nowrap; }
+  .panel-orden .est.pendiente { background: #1a3a5c; color: #7fd4ff; }
+  .panel-orden .est.en_progreso { background: #2b2b1a; color: #ffd166; }
+  .panel-orden .est.esperando_aprobacion { background: #3a1a1a; color: #ff8888; }
+  .panel-orden .est.bloqueada { background: #3a1a1a; color: #ff8888; }
+  .panel-orden .est.terminada { background: #0f2b1a; color: #00e06a; }
+  .panel-sec { margin-top: 14px; }
+  .panel-sec h3 { font-size: 13px; color: #00d4ff; margin: 0 0 8px; letter-spacing: 1px; text-transform: uppercase; }
+  .panel-vacio { color: #7a8699; font-size: 13px; padding: 8px 0; }
+  .panel-accion { font-size: 12px; color: #ffb300; margin-top: 2px; }
   .aprob-box { background: #1a1a2e; border: 1px solid #3a3a5e; border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; }
   .aprob-box .t { font-size: 11px; color: #ffb300; text-transform: uppercase; letter-spacing: .5px; }
   .aprob-box .accion { font-size: 15px; color: #fff; margin: 6px 0 2px; word-break: break-word; }
@@ -295,6 +316,7 @@
     <span>Asistente personal</span>
   </div>
   <div id="header-actions">
+    <button class="clear-btn" onclick="abrirPanel()" title="Panel del dueño: órdenes, actividad y estado">📊 Panel del dueño</button>
     <button class="clear-btn" onclick="modoPresentacion()" title="Modo presentación fullscreen">🎦 Presentación</button>
     <button class="clear-btn" id="btn-gestion" onclick="abrirGestion()" style="display:none">🪄 Skills y roles</button>
 <button class="clear-btn" id="btn-empresa" onclick="abrirEmpresa()" style="display:none">🏢 Empresa</button>
@@ -389,6 +411,15 @@
       <button class="clear-btn" onclick="cerrarAuditoria()">✕</button>
     </div>
     <div class="modal-body" id="audit-body"><div class="typing">Leyendo el registro, señor...</div></div>
+  </div>
+</div>
+<div id="panel-modal" class="modal" onclick="if(event.target===this)cerrarPanel()">
+  <div class="modal-box" style="max-width:760px">
+    <div class="modal-head">
+      <h2>📊 Panel del dueño</h2>
+      <button class="clear-btn" onclick="cerrarPanel()">✕</button>
+    </div>
+    <div class="modal-body" id="panel-body"><div class="typing">Preparando el resumen, señor...</div></div>
   </div>
 </div>
 <div id="status-bar">
@@ -545,15 +576,99 @@ document.getElementById('btn-empresa').style.display = esAdmin ? '' : 'none';
     }
   }
 
-  function modoPresentacion() {
-    document.getElementById('holo').classList.add('activo');
-    actualizarEstado();
-    const intervalo = setInterval(actualizarEstado, 2000);
-    document.getElementById('holo').onclick = () => { clearInterval(intervalo); salirPresentacion(); };
-  }
-
   function salirPresentacion() {
     document.getElementById('holo').classList.remove('activo');
+  }
+
+  let panelIntervalo = null;
+
+  function abrirPanel() {
+    document.getElementById('panel-modal').classList.add('abierto');
+    cargarPanel();
+    if (panelIntervalo) clearInterval(panelIntervalo);
+    panelIntervalo = setInterval(cargarPanel, 8000);
+  }
+
+  function cerrarPanel() {
+    document.getElementById('panel-modal').classList.remove('abierto');
+    if (panelIntervalo) { clearInterval(panelIntervalo); panelIntervalo = null; }
+  }
+
+  function estClase(est) {
+    const map = { pendiente: 'pendiente', en_progreso: 'en_progreso', esperando_aprobacion: 'esperando_aprobacion', bloqueada: 'bloqueada', terminada: 'terminada' };
+    return map[est] || 'pendiente';
+  }
+
+  async function cargarPanel() {
+    const body = document.getElementById('panel-body');
+    if (!body) return;
+    try {
+      const res = await fetch('/api/dashboard');
+      const d = await res.json();
+      if (d.error) { body.innerHTML = '<div class="error">' + d.error + '</div>'; return; }
+
+      const estados = d.estados || {};
+      const pendientes = estados.pendiente || 0;
+      const enProg = estados.en_progreso || 0;
+      const espera = d.esperando_aprobacion || 0;
+      const bloqueadas = d.bloqueadas || 0;
+      const cumplidas = estados.terminada || 0;
+
+      let html = '<div class="panel-kpis">' +
+        '<div class="panel-kpi"><div class="t">Órdenes activas</div><div class="v azul">' + d.ordenes_activas + '</div></div>' +
+        '<div class="panel-kpi"><div class="t">Pendientes</div><div class="v">' + pendientes + '</div></div>' +
+        '<div class="panel-kpi"><div class="t">En progreso</div><div class="v naranja">' + enProg + '</div></div>' +
+        '<div class="panel-kpi"><div class="t">Aprobación</div><div class="v rojo">' + espera + '</div></div>' +
+        '<div class="panel-kpi"><div class="t">Bloqueadas</div><div class="v rojo">' + bloqueadas + '</div></div>' +
+        '<div class="panel-kpi"><div class="t">Actividad hoy</div><div class="v verde">' + d.auditoria_hoy + '</div></div>' +
+        '</div>';
+
+      html += '<div class="panel-sec"><h3>Órdenes (#id · estado · objetivo)</h3>';
+      const ordenes = d.ordenes || [];
+      if (!ordenes.length) {
+        html += '<div class="panel-vacio">Sin órdenes activas, señor. Todo cumplido.</div>';
+      } else {
+        for (const o of ordenes) {
+          html += '<div class="panel-orden"><span class="oid">#' + o.id + '</span>' +
+            '<span class="obj">' + o.objetivo + '</span>' +
+            '<span class="est ' + estClase(o.estado) + '">' + o.estado + '</span></div>';
+          if (o.pendiente_descripcion) {
+            html += '<div class="panel-accion">↳ Aguarda aprobación: ' + o.pendiente_descripcion + '</div>';
+          }
+        }
+      }
+      html += '</div>';
+
+      const audit = d.actividad_reciente || [];
+      html += '<div class="panel-sec"><h3>Actividad reciente</h3>';
+      if (!audit.length) {
+        html += '<div class="panel-vacio">Sin actividad registrada todavía.</div>';
+      } else {
+        html += '<div class="diag-grid">';
+        for (const e of audit) {
+          html += '<div class="diag-card"><div class="t">' + (e.momento || '') + ' · ' + (e.rol || '-') + '</div>' +
+            '<div class="v" style="white-space:normal;word-break:break-word">' + (e.comando || '-') + '</div>' +
+            '<div style="font-size:11px;color:#7a8699;margin-top:3px">' + (e.resultado || '') + '</div></div>';
+        }
+        html += '</div>';
+      }
+      html += '</div>';
+
+      if (d.estado) {
+        const e = d.estado;
+        html += '<div class="panel-sec"><h3>Sistema</h3><div class="diag-grid">' +
+          card('RAM', (e.ram_usada || '-') + ' / ' + (e.ram_total || '-') + ' GB (' + (e.ram_porcentaje || '-') + '%)') +
+          card('Batería', e.bateria || '-') +
+          card('Uptime', e.uptime || '-') +
+          card('Procesos', e.procesos || '-') +
+          card('IP', e.ip_local || '-') +
+          card('Actualizado', e.hora || '-') +
+          '</div></div>';
+      }
+      body.innerHTML = html;
+    } catch (err) {
+      body.innerHTML = '<div class="error">Error al cargar el panel: ' + err.message + '</div>';
+    }
   }
 
   function abrirDiag() {

@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"JarvisOS/core"
+	"JarvisOS/core/audit"
 	"JarvisOS/core/security"
 )
 
@@ -248,6 +249,53 @@ func TestManejarOrdenes(t *testing.T) {
 	if o.ID != 3 || o.Objetivo != "limpiar temp" || o.Estado != "esperando_aprobacion" ||
 		o.PendienteAccion != "rm" || o.PendienteDescripcion != "limpiar" {
 		t.Errorf("orden del panel incorrecta: %+v", o)
+	}
+}
+
+func TestManejarDashboard(t *testing.T) {
+	aprob := &fakeAprobadorConDatos{ordenes: []core.Orden{
+		{ID: 1, Objetivo: "preparar informe", Estado: "pendiente"},
+		{ID: 2, Objetivo: "enviar correo", Estado: "esperando_aprobacion", PendienteDescripcion: "enviar correo al cliente"},
+		{ID: 3, Objetivo: "auditar servidores", Estado: "bloqueada"},
+	}}
+	aud := &fakeAuditor{entradas: []audit.Entrada{
+		{Momento: "hoy 10:00", Comando: "abrir word", Rol: "dueño"},
+		{Momento: "ayer 15:00", Comando: "listar procesos", Rol: "operador"},
+	}}
+	s := NuevoServidor(nil, 0, ServidorOpciones{
+		Aprobador: aprob,
+		Auditor:   aud,
+		Estado:    &fakeEstado{e: core.EstadoPanel{Hora: "10:00:00"}},
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/dashboard", nil)
+	rr := httptest.NewRecorder()
+	s.manejarDashboard(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("dashboard: status %d", rr.Code)
+	}
+
+	var res PanelResumen
+	if err := json.NewDecoder(rr.Body).Decode(&res); err != nil {
+		t.Fatal(err)
+	}
+	if res.OrdenesActivas != 3 {
+		t.Errorf("ordenes_activas = %d, esperaba 3", res.OrdenesActivas)
+	}
+	if res.EsperandoAprob != 1 {
+		t.Errorf("esperando_aprobacion = %d, esperaba 1", res.EsperandoAprob)
+	}
+	if res.Bloqueadas != 1 {
+		t.Errorf("bloqueadas = %d, esperaba 1", res.Bloqueadas)
+	}
+	if len(res.Ordenes) != 3 {
+		t.Errorf("ordenes = %d, esperaba 3", len(res.Ordenes))
+	}
+	if len(res.ActividadReciente) != 2 {
+		t.Errorf("actividad_reciente = %d, esperaba 2", len(res.ActividadReciente))
+	}
+	if res.Estado.Hora == "" {
+		t.Error("estado del sistema debería venir poblado")
 	}
 }
 
