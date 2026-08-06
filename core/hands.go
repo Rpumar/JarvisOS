@@ -114,6 +114,12 @@ type Hands struct {
 	vigilanciaStop    chan struct{}
 	vigilanciaActiva  bool
 	vigilanciaAlertas map[string]time.Time
+
+	// ejecucionMu serializa los caminos que ejecutan MUCHOS comandos en
+	// secuencia (bucle del agente IA y el paso-a-paso de procedimientos).
+	// Impide que el bucle de segundo plano (vigilarOrdenes) se pise con una
+	// orden que el dueño dispara por voz o por el panel web.
+	ejecucionMu sync.Mutex
 }
 
 type cacheEntry struct {

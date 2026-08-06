@@ -48,6 +48,9 @@ func (h *Hands) verificarOrdenConIA(orden Orden, prompt string, ejecutadas []str
 // responde JSON malformado, se le re-pide con el error en el prompt
 // (hasta maxErroresJSON veces antes de bloquear).
 func (h *Hands) bucleAgente(orden Orden, prompt string, ejecutadasPrevias []string) string {
+	h.ejecucionMu.Lock()
+	defer h.ejecucionMu.Unlock()
+
 	h.ordenes.CambiarEstado(orden.ID, OrdenEnProgreso)
 	h.ordenes.RegistrarAccion(orden.ID, "iniciar orden con IA", orden.Objetivo)
 

@@ -149,7 +149,7 @@ func main() {
 
 	if pendientesOrdenes := ordenes.TextoPendientes(); pendientesOrdenes != "" {
 		fmt.Printf("[ORDENES] %s\n", pendientesOrdenes)
-		fmt.Println("[ORDENES] Las órdenes no se abandonan. Diga 'retomá las órdenes' para seguir trabajándolas.")
+		fmt.Println("[ORDENES] Las órdenes no se abandonan. Las retomaré automáticamente.")
 	}
 
 	if conectorIA.Disponible() {
@@ -182,7 +182,7 @@ func main() {
 	}()
 
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(3)
 	go func() {
 		defer wg.Done()
 		vigilarRecordatorios(almacen, hands, apagar)
@@ -190,6 +190,10 @@ func main() {
 	go func() {
 		defer wg.Done()
 		vigilarAprobaciones(hands, apagar)
+	}()
+	go func() {
+		defer wg.Done()
+		vigilarOrdenes(hands, apagar)
 	}()
 
 loop:
@@ -313,6 +317,7 @@ func ejecutarModoServicio() {
 		vigilarRecordatoriosService(almacen, hands)
 	}()
 	go vigilarAprobaciones(hands, nil)
+	go vigilarOrdenes(hands, nil)
 
 	fmt.Println("[SERVICE] JarvisOS iniciado en modo servicio.")
 
@@ -408,9 +413,10 @@ func ejecutarWebUI() {
 	}
 	if pendientesOrdenes := ordenes.TextoPendientes(); pendientesOrdenes != "" {
 		fmt.Printf("[ORDENES] %s\n", pendientesOrdenes)
-		fmt.Println("[ORDENES] Las órdenes no se abandonan. Diga 'retomá las órdenes' para seguir trabajándolas.")
+		fmt.Println("[ORDENES] Las órdenes no se abandonan. Las retomaré automáticamente.")
 	}
 	go vigilarAprobaciones(hands, nil)
+	go vigilarOrdenes(hands, nil)
 	servidor := webui.NuevoServidor(brain, 8080, webui.ServidorOpciones{
 		Estado:        hands,
 		Diagnostico:   hands,
@@ -444,6 +450,36 @@ func vigilarAprobaciones(hands *core.Hands, done <-chan struct{}) {
 			return
 		case <-ticker.C:
 			hands.ExpirarAprobacionesAntiguas(core.TiempoMaximoAprobacion)
+		}
+	}
+}
+
+// vigilarOrdenes es el bucle de recuperación del "empleado que no
+// abandona". Cada cierto periodo (y una vez al arrancar) retoma las
+// órdenes que siguen pendientes, en progreso o bloqueadas: las cumple
+// con los pasos conocidos o con el agente IA, y solo las cierra cuando
+// el resultado queda verificado. Las órdenes que esperan aprobación
+// del dueño se dejan intactas hasta que él decida.
+func vigilarOrdenes(hands *core.Hands, done <-chan struct{}) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("[ADVERTENCIA] El vigía de órdenes se detuvo por un error inesperado: %v\n", r)
+		}
+	}()
+
+	// Al arrancar se retoman las pendientes (principio de F1: una orden
+	// sigue viva aunque la PC se haya reiniciado).
+	hands.RetomarOrdenes()
+
+	ticker := time.NewTicker(core.IntervaloRetomarOrdenes)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-done:
+			return
+		case <-ticker.C:
+			hands.RetomarOrdenes()
 		}
 	}
 }

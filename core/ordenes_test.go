@@ -178,3 +178,56 @@ func TestEscribirJSONAtomico(t *testing.T) {
 		t.Fatalf("contenido inesperado: %s err=%v", datos, err)
 	}
 }
+
+// TestRetomarOrdenes_VerificaYRespetaAprobacion verifica que la pasada
+// automática del bucle (RetomarOrdenes) termina su trabajo con
+// procedimiento conocido y que una orden en espera de aprobación quede
+// intacta (no se cierra sola).
+func TestRetomarOrdenes_VerificaYRespetaAprobacion(t *testing.T) {
+	dir := t.TempDir()
+	h := &Hands{
+		ordenes:        NuevoGestorOrdenes(filepath.Join(dir, "ordenes.json")),
+		procedimientos: NuevoGestorProcedimientos(filepath.Join(dir, "procedimientos.json")),
+	}
+	h.procedimientos.Crear("preparar informe", []string{"eco hola"})
+
+	o1 := h.ordenes.Agregar("preparar informe", "dueño")
+	o2 := h.ordenes.Agregar("enviar correo sensible", "dueño")
+	h.ordenes.SolicitarAprobacion(o2.ID, "enviar email", "enviar correo al cliente")
+
+	resumen := h.RetomarOrdenes()
+
+	if !strings.Contains(resumen, "cumplidas") {
+		t.Fatalf("el resumen debería mencionar las cumplidas, obtuve: %q", resumen)
+	}
+	terminada, _ := h.ordenes.Obtener(o1.ID)
+	if terminada.Estado != OrdenTerminada {
+		t.Fatalf("la orden cumplible debería terminar, está: %s", terminada.Estado)
+	}
+	esperando, _ := h.ordenes.Obtener(o2.ID)
+	if esperando.Estado != OrdenEsperandoAprobacion {
+		t.Fatalf("la orden debe seguir esperando aprobación, está: %s", esperando.Estado)
+	}
+}
+
+// TestRetomarOrdenes_SinIA_NoCierraFalso: sin procedimiento conocido y
+// sin IA, la orden queda bloqueada para que el dueño la revise; el bucle
+// nunca la marca como cumplida de forma falsa.
+func TestRetomarOrdenes_SinIA_NoCierraFalso(t *testing.T) {
+	dir := t.TempDir()
+	h := &Hands{
+		ordenes:        NuevoGestorOrdenes(filepath.Join(dir, "ordenes.json")),
+		procedimientos: NuevoGestorProcedimientos(filepath.Join(dir, "procedimientos.json")),
+	}
+	h.ordenes.Agregar("auditar infraestructura", "dueño")
+
+	_ = h.RetomarOrdenes()
+
+	o, _ := h.ordenes.Obtener(1)
+	if o.Estado != OrdenBloqueada {
+		t.Fatalf("sin procedimiento ni IA la orden debería bloquearse, está: %s", o.Estado)
+	}
+	if o.Estado == OrdenTerminada {
+		t.Fatal("el bucle no debe marcar una orden como cumplida sin verificación")
+	}
+}

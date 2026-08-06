@@ -27,6 +27,10 @@ const (
 	OrdenExpirada            = "expirada"
 )
 
+// IntervaloRetomarOrdenes es cada cuánto el bucle de segundo plano
+// (ver vigilarOrdenes en main.go) retoma las órdenes pendientes.
+const IntervaloRetomarOrdenes = 5 * time.Minute
+
 type AccionOrden struct {
 	Momento   string `json:"momento"`
 	Accion    string `json:"accion"`
@@ -473,6 +477,13 @@ func (h *Hands) listarOrdenes(todas bool) string {
 		b.WriteString(fmt.Sprintf("\n  #%d [%s] %s", o.ID, o.Estado, o.Objetivo))
 	}
 	return b.String()
+}
+
+// RetomarOrdenes (exportado) permite que el bucle de segundo plano (ver main.go)
+// o el web paneles reinicien las órdenes pendientes sin intervención del
+// usuario. Devuelve un resumen textual con lo que se hizo en esta pasada.
+func (h *Hands) RetomarOrdenes() string {
+	return h.retomarOrdenes()
 }
 
 func (h *Hands) retomarOrdenes() string {
