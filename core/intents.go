@@ -34,6 +34,18 @@ func NuevoClasificador() *Clasificador {
 			Handler:  func(cmd string, h *Hands) string { return h.manejarPDF(cmd) },
 		},
 		{
+			Nombre: "formulario",
+			Frases: []string{
+				"creá un formulario", "crea un formulario", "nuevo formulario", "nueva plantilla",
+				"agregá el campo", "agrega el campo", "rellenar el formulario", "rellená el formulario",
+				"rellena el formulario", "completá el formulario", "completa el formulario",
+				"qué formularios", "que formularios", "mis formularios", "mis plantillas",
+				"borrar formulario", "borrá el formulario", "borra el formulario",
+			},
+			Palabras: []string{"formulario", "plantilla", "campos", "autocompletar"},
+			Handler:  func(cmd string, h *Hands) string { return h.manejarFormulario(cmd) },
+		},
+		{
 			Nombre: "orden",
 			Frases: []string{"agendá una orden", "agenda una orden", "nueva orden", "registrá la orden", "registra la orden", "qué órdenes tengo", "que ordenes tengo", "órdenes pendientes", "ordenes pendientes", "todas las órdenes", "todas las ordenes", "retomá las órdenes", "retoma las ordenes", "ejecutá la orden", "ejecuta la orden", "tomá la orden", "toma la orden", "reportá la orden", "reporta la orden", "reporte de la orden", "terminá la orden", "termina la orden", "marcar la orden", "bloquear la orden", "bloqueá la orden", "bloquea la orden", "cancelar la orden", "cancela la orden", "cancelá la orden", "aprobar la orden", "aprobar orden", "denegar la orden", "rechazar la orden", "mis órdenes", "mis ordenes"},
 			Palabras: []string{"orden", "órdenes", "ordenes"},

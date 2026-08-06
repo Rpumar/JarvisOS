@@ -72,6 +72,7 @@ func main() {
 	agenda := core.NuevoGestorAgenda(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "agenda.json"))
 	ordenes := core.NuevoGestorOrdenes(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "ordenes.json"))
 	procedimientos := core.NuevoGestorProcedimientos(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "procedimientos.json"))
+	formularios := core.NuevoGestorFormularios(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "formularios.json"))
 	auditoria := audit.NuevoRegistro(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "auditoria.jsonl"))
 
 	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout, cfg.IAURL, cfg.IAAPIKey)
@@ -89,6 +90,7 @@ func main() {
 		Agenda:          agenda,
 		Ordenes:         ordenes,
 		Procedimientos:  procedimientos,
+		Formularios:     formularios,
 		WorkspaceRoot:   cfg.WorkspaceRoot,
 		IA:             conectorIA,
 		Skills:          gestorSkills,
@@ -267,6 +269,7 @@ func ejecutarModoServicio() {
 	agenda := core.NuevoGestorAgenda(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "agenda.json"))
 	ordenes := core.NuevoGestorOrdenes(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "ordenes.json"))
 	procedimientos := core.NuevoGestorProcedimientos(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "procedimientos.json"))
+	formularios := core.NuevoGestorFormularios(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "formularios.json"))
 	auditoria := audit.NuevoRegistro(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "auditoria.jsonl"))
 	hands := core.NewHands(core.HandsOpciones{
 		Apps:            cfg.Apps,
@@ -279,6 +282,7 @@ func ejecutarModoServicio() {
 		Agenda:          agenda,
 		Ordenes:         ordenes,
 		Procedimientos:  procedimientos,
+		Formularios:     formularios,
 		Auditoria:       auditoria,
 		Perfil:          gestorPerfil,
 		PINHash:         cfg.PINHash,
@@ -379,6 +383,7 @@ func ejecutarWebUI() {
 	agenda := core.NuevoGestorAgenda(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "agenda.json"))
 	ordenes := core.NuevoGestorOrdenes(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "ordenes.json"))
 	procedimientos := core.NuevoGestorProcedimientos(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "procedimientos.json"))
+	formularios := core.NuevoGestorFormularios(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "formularios.json"))
 	auditoria := audit.NuevoRegistro(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "auditoria.jsonl"))
 	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout, cfg.IAURL, cfg.IAAPIKey)
 	gestorSkills := core.NuevoSkillsManager()
@@ -387,7 +392,7 @@ func ejecutarWebUI() {
 	gestorPerfil := core.NuevoGestorPerfil(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "perfil.json"))
 	hands := core.NewHands(core.HandsOpciones{
 		Apps: cfg.Apps, ClimaKey: cfg.OpenWeatherKey, NewsKey: cfg.NewsAPIKey,
-		Prefs: prefs, Rutinas: rutinas, Tareas: tareas, Agenda: agenda, Ordenes: ordenes, Procedimientos: procedimientos,
+		Prefs: prefs, Rutinas: rutinas, Tareas: tareas, Agenda: agenda, Ordenes: ordenes, Procedimientos: procedimientos, Formularios: formularios,
 		WorkspaceRoot: cfg.WorkspaceRoot, IA: conectorIA, Skills: gestorSkills,
 		Auditoria: auditoria, Perfil: gestorPerfil, PINHash: cfg.PINHash,
 		PINSetter: func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },

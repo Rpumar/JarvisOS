@@ -75,6 +75,7 @@ type Hands struct {
 	procedimientoPendiente string
 	clasif   *Clasificador
 	perfil   *GestorPerfil
+	formularios *GestorFormularios
 
 	WorkspaceRoot   string
 	IA              ConectorIA
@@ -138,7 +139,8 @@ type HandsOpciones struct {
 	Agenda   *GestorAgenda
 	Ordenes  *GestorOrdenes
 	Procedimientos *GestorProcedimientos
-	Perfil   *GestorPerfil
+	Perfil         *GestorPerfil
+	Formularios    *GestorFormularios
 
 	WorkspaceRoot   string
 	IA              ConectorIA
@@ -184,6 +186,7 @@ func NewHands(opciones ...HandsOpciones) *Hands {
 h.ordenes = opciones[0].Ordenes
 	h.procedimientos = opciones[0].Procedimientos
 	h.perfil = opciones[0].Perfil
+	h.formularios = opciones[0].Formularios
 		h.WorkspaceRoot = opciones[0].WorkspaceRoot
 		h.IA = opciones[0].IA
 		h.Skills = opciones[0].Skills
