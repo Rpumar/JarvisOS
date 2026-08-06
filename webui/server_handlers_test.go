@@ -532,3 +532,58 @@ func TestManejareEmpresaPutAdmin(t *testing.T) {
 		t.Errorf("el perfil no se guardó: %+v", fe.perf)
 	}
 }
+
+type fakePerfil struct {
+	us    []core.PerfilUsuario
+	activo string
+}
+
+func (f *fakePerfil) Usuarios() []core.PerfilUsuario    { return f.us }
+func (f *fakePerfil) Activo() string                    { return f.activo }
+func (f *fakePerfil) ActivoRol() string                 { return core.PerfilDueno }
+func (f *fakePerfil) Seleccionar(texto string) bool     { f.activo = texto; return true }
+func (f *fakePerfil) AgregarUsuario(n, a, r string) bool { f.us = append(f.us, core.PerfilUsuario{Nombre: n, Area: a, Rol: r}); return true }
+func (f *fakePerfil) Eliminar(nombre string) bool       { return true }
+
+func TestManejarPerfil_Get(t *testing.T) {
+	s := NuevoServidor(&fakeBrain{}, 0, ServidorOpciones{
+		Perfil: &fakePerfil{activo: core.PerfilDueno},
+	})
+	rr := httptest.NewRecorder()
+	s.manejarPerfil(rr, httptest.NewRequest(http.MethodGet, "/api/perfil", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("GET debería ser 200, fue %d", rr.Code)
+	}
+	var res map[string]interface{}
+	json.NewDecoder(rr.Body).Decode(&res)
+	if res["activo"] != core.PerfilDueno {
+		t.Errorf("activo inesperado: %v", res)
+	}
+}
+
+func TestManejarPerfil_PostRequiereAdmin(t *testing.T) {
+	s := NuevoServidor(&fakeBrain{}, 0, ServidorOpciones{
+		Perfil:         &fakePerfil{},
+		ContrasenaHash: "h",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/perfil", bytes.NewBufferString(`{"seleccionar":"admin"}`))
+	rr := httptest.NewRecorder()
+	s.manejarPerfil(rr, req)
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("sin sesión debería ser 403, fue %d", rr.Code)
+	}
+}
+
+func TestManejarPerfil_Seleccionar(t *testing.T) {
+	fp := &fakePerfil{}
+	s := NuevoServidor(&fakeBrain{}, 0, ServidorOpciones{Perfil: fp})
+	req := httptest.NewRequest(http.MethodPost, "/api/perfil", bytes.NewBufferString(`{"seleccionar":"admin"}`))
+	rr := httptest.NewRecorder()
+	s.manejarPerfil(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("seleccionar debería ser 200, fue %d (%s)", rr.Code, rr.Body.String())
+	}
+	if fp.activo != "admin" {
+		t.Errorf("perfil activo = %q, esperaba admin", fp.activo)
+	}
+}

@@ -16,6 +16,7 @@ type Brain struct {
 	roles  *RolesManager
 	procs  *GestorProcedimientos
 	empresa *GestorEmpresa
+	perfil  *GestorPerfil
 
 	ultimaApp      string
 	ultimaBusqueda string
@@ -32,7 +33,7 @@ type accionConfirmable struct {
 }
 
 func NewBrain(h EjecutorComandos, opciones BrainOpciones) *Brain {
-	b := &Brain{hands: h, ia: opciones.IA, mem: opciones.Memoria, prefs: opciones.Prefs, skills: opciones.Skills, roles: opciones.Roles, procs: opciones.Procedimientos, empresa: opciones.Empresa, maxHistorialIA: 5}
+	b := &Brain{hands: h, ia: opciones.IA, mem: opciones.Memoria, prefs: opciones.Prefs, skills: opciones.Skills, roles: opciones.Roles, procs: opciones.Procedimientos, empresa: opciones.Empresa, perfil: opciones.Perfil, maxHistorialIA: 5}
 	if opciones.MaxHistorialIA > 0 {
 		b.maxHistorialIA = opciones.MaxHistorialIA
 	}
@@ -106,6 +107,10 @@ func (b *Brain) procesarInterno(input string) string {
 	}
 
 	if respuesta, atendido := b.manejarRoles(entrada); atendido {
+		return respuesta
+	}
+
+	if respuesta, atendido := b.manejarPerfil(entrada); atendido {
 		return respuesta
 	}
 

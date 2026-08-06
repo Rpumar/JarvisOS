@@ -78,6 +78,7 @@ func main() {
 	gestorSkills := core.NuevoSkillsManager()
 	gestorRoles := core.NuevoRolesManager()
 	gestorEmpresa := core.NuevoGestorEmpresa(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "empresa.json"))
+	gestorPerfil := core.NuevoGestorPerfil(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "perfil.json"))
 	hands := core.NewHands(core.HandsOpciones{
 		Apps:            cfg.Apps,
 		ClimaKey:        cfg.OpenWeatherKey,
@@ -92,6 +93,7 @@ func main() {
 		IA:             conectorIA,
 		Skills:          gestorSkills,
 		Auditoria:       auditoria,
+		Perfil:          gestorPerfil,
 		PINHash:         cfg.PINHash,
 		PINSetter:       func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
 		ContrasenaHash:   cfg.LoginPasswordHash,
@@ -140,6 +142,7 @@ func main() {
 		Roles:           gestorRoles,
 		Procedimientos:  procedimientos,
 		Empresa:         gestorEmpresa,
+		Perfil:          gestorPerfil,
 		MaxHistorialIA: cfg.MaxHistorialIA,
 	})
 
@@ -259,6 +262,7 @@ func ejecutarModoServicio() {
 	gestorSkills := core.NuevoSkillsManager()
 	gestorRoles := core.NuevoRolesManager()
 	gestorEmpresa := core.NuevoGestorEmpresa(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "empresa.json"))
+	gestorPerfil := core.NuevoGestorPerfil(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "perfil.json"))
 	tareas := core.NuevoGestorTareas(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "tareas.json"))
 	agenda := core.NuevoGestorAgenda(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "agenda.json"))
 	ordenes := core.NuevoGestorOrdenes(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "ordenes.json"))
@@ -276,6 +280,7 @@ func ejecutarModoServicio() {
 		Ordenes:         ordenes,
 		Procedimientos:  procedimientos,
 		Auditoria:       auditoria,
+		Perfil:          gestorPerfil,
 		PINHash:         cfg.PINHash,
 		PINSetter:       func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
 		ContrasenaHash:   cfg.LoginPasswordHash,
@@ -305,7 +310,7 @@ func ejecutarModoServicio() {
 	defer func() { _ = almacen.Cerrar() }()
 	brain := core.NewBrain(hands, core.BrainOpciones{
 		IA: conectorIA, Memoria: almacen,
-		Skills: gestorSkills, Roles: gestorRoles, Procedimientos: procedimientos, Empresa: gestorEmpresa, MaxHistorialIA: cfg.MaxHistorialIA,
+		Skills: gestorSkills, Roles: gestorRoles, Procedimientos: procedimientos, Empresa: gestorEmpresa, Perfil: gestorPerfil, MaxHistorialIA: cfg.MaxHistorialIA,
 	})
 	oidos, err := core.NewEars("")
 	if err != nil {
@@ -379,11 +384,12 @@ func ejecutarWebUI() {
 	gestorSkills := core.NuevoSkillsManager()
 	gestorRoles := core.NuevoRolesManager()
 	gestorEmpresa := core.NuevoGestorEmpresa(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "empresa.json"))
+	gestorPerfil := core.NuevoGestorPerfil(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "perfil.json"))
 	hands := core.NewHands(core.HandsOpciones{
 		Apps: cfg.Apps, ClimaKey: cfg.OpenWeatherKey, NewsKey: cfg.NewsAPIKey,
 		Prefs: prefs, Rutinas: rutinas, Tareas: tareas, Agenda: agenda, Ordenes: ordenes, Procedimientos: procedimientos,
 		WorkspaceRoot: cfg.WorkspaceRoot, IA: conectorIA, Skills: gestorSkills,
-		Auditoria: auditoria, PINHash: cfg.PINHash,
+		Auditoria: auditoria, Perfil: gestorPerfil, PINHash: cfg.PINHash,
 		PINSetter: func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
 		ContrasenaHash: cfg.LoginPasswordHash,
 		ContrasenaSetter: func(hash string) bool { cfg.LoginPasswordHash = hash; return cfg.Save() == nil },
@@ -411,7 +417,7 @@ func ejecutarWebUI() {
 	brain := core.NewBrain(hands, core.BrainOpciones{
 		IA: conectorIA, Memoria: almacen,
 		Prefs: prefs, Skills: gestorSkills, Roles: gestorRoles,
-		Procedimientos: procedimientos, Empresa: gestorEmpresa, MaxHistorialIA: cfg.MaxHistorialIA,
+Procedimientos: procedimientos, Empresa: gestorEmpresa, Perfil: gestorPerfil, MaxHistorialIA: cfg.MaxHistorialIA,
 	})
 	if pendientes := tareas.TextoPendientes(); pendientes != "" {
 		fmt.Printf("[TAREAS] %s\n", pendientes)
@@ -431,6 +437,7 @@ func ejecutarWebUI() {
 		Skills:        gestorSkills,
 		Roles:         gestorRoles,
 		Empresa:       gestorEmpresa,
+		Perfil:        gestorPerfil,
 		ContrasenaHash: cfg.LoginPasswordHash,
 		RutaHistorial: filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "historial-web.json"),
 	})

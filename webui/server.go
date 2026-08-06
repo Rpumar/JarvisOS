@@ -79,6 +79,17 @@ type GestorEmpresa interface {
 	Resumen() string
 }
 
+// GestorPerfil expone quién opera JarvisOS para verlo y seleccionarlo desde
+// la WebUI (dueño, admin, empleado o un usuario registrado).
+type GestorPerfil interface {
+	Usuarios() []core.PerfilUsuario
+	Activo() string
+	ActivoRol() string
+	Seleccionar(texto string) bool
+	AgregarUsuario(nombre, area, rol string) bool
+	Eliminar(nombre string) bool
+}
+
 // nombreCookieSesion identifica la cookie de sesión del panel.
 const nombreCookieSesion = "jarvis_sesion"
 
@@ -94,6 +105,7 @@ type ServidorWeb struct {
 	skills      GestorSkills
 	roles       GestorRoles
 	empresa     GestorEmpresa
+	perfil      GestorPerfil
 	historial   []HistorialEntry
 	mu          sync.Mutex
 	port        int
@@ -139,6 +151,9 @@ func NuevoServidor(brain ProcesadorChat, port int, opciones ...ServidorOpciones)
 		if o.Empresa != nil {
 			s.empresa = o.Empresa
 		}
+		if o.Perfil != nil {
+			s.perfil = o.Perfil
+		}
 		if o.RutaHistorial != "" {
 			s.rutaHist = o.RutaHistorial
 		}
@@ -158,6 +173,7 @@ type ServidorOpciones struct {
 	Skills         GestorSkills
 	Roles          GestorRoles
 	Empresa        GestorEmpresa
+	Perfil         GestorPerfil
 	RutaHistorial  string
 	ContrasenaHash string
 }
@@ -186,6 +202,7 @@ func (s *ServidorWeb) Iniciar() error {
 	mux.HandleFunc("/api/skills", s.manejarSkills)
 	mux.HandleFunc("/api/roles", s.manejarRoles)
 	mux.HandleFunc("/api/empresa", s.manejarEmpresa)
+	mux.HandleFunc("/api/perfil", s.manejarPerfil)
 	mux.HandleFunc("/api/dashboard", s.manejarDashboard)
 
 	mux.Handle("/", http.FileServer(http.FS(archivosEstaticos)))
@@ -589,6 +606,61 @@ func (s *ServidorWeb) manejarEmpresa(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		_ = json.NewEncoder(w).Encode(map[string]string{"ok": "perfil de empresa guardado"})
+	default:
+		http.Error(w, "método no permitido", http.StatusMethodNotAllowed)
+	}
+}
+
+// manejarPerfil expone quién opera JarvisOS: GET consulta usuarios y perfil
+// activo; POST selecciona el activo o registra/elimina usuarios (Admin).
+func (s *ServidorWeb) manejarPerfil(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if s.perfil == nil {
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "sin gestor de perfil"})
+		return
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"usuarios": s.perfil.Usuarios(),
+			"activo":   s.perfil.Activo(),
+			"rol":      s.perfil.ActivoRol(),
+		})
+	case http.MethodPut, http.MethodPost:
+		if !s.exigePermiso(r, w, security.PermisoAprobar) {
+			return
+		}
+		var req struct {
+			Seleccionar string `json:"seleccionar"`
+			Nombre       string `json:"nombre"`
+			Area         string `json:"area"`
+			Rol          string `json:"rol"`
+			Eliminar     string `json:"eliminar"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "request inválido"})
+			return
+		}
+		switch {
+		case req.Eliminar != "":
+			if s.perfil.Eliminar(req.Eliminar) {
+				_ = json.NewEncoder(w).Encode(map[string]string{"ok": "usuario eliminado"})
+			} else {
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": "usuario no encontrado"})
+			}
+		case req.Nombre != "":
+			s.perfil.AgregarUsuario(req.Nombre, req.Area, req.Rol)
+			_ = json.NewEncoder(w).Encode(map[string]string{"ok": "usuario guardado"})
+		case req.Seleccionar != "":
+			if s.perfil.Seleccionar(req.Seleccionar) {
+				_ = json.NewEncoder(w).Encode(map[string]string{"ok": "perfil activado"})
+			} else {
+				_ = json.NewEncoder(w).Encode(map[string]string{"error": "perfil no encontrado"})
+			}
+		default:
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "falta acción"})
+		}
 	default:
 		http.Error(w, "método no permitido", http.StatusMethodNotAllowed)
 	}

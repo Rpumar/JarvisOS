@@ -320,6 +320,7 @@
     <button class="clear-btn" onclick="modoPresentacion()" title="Modo presentación fullscreen">🎦 Presentación</button>
     <button class="clear-btn" id="btn-gestion" onclick="abrirGestion()" style="display:none">🪄 Skills y roles</button>
 <button class="clear-btn" id="btn-empresa" onclick="abrirEmpresa()" style="display:none">🏢 Empresa</button>
+    <button class="clear-btn" id="btn-perfil" onclick="abrirPerfil()" style="display:none">👤 Perfil</button>
     <button class="clear-btn" onclick="limpiarHistorial()">Limpiar</button>
     <button class="clear-btn" id="btn-auditoria" onclick="abrirAuditoria()" style="display:none">📜 Auditoría</button>
     <button class="clear-btn" id="btn-sesion" onclick="abrirLogin()" style="display:none">🔑 Iniciar sesión</button>
@@ -422,6 +423,15 @@
     <div class="modal-body" id="panel-body"><div class="typing">Preparando el resumen, señor...</div></div>
   </div>
 </div>
+<div id="perfil-modal" class="modal" onclick="if(event.target===this)cerrarPerfil()">
+  <div class="modal-box" style="max-width:520px">
+    <div class="modal-head">
+      <h2>👤 Perfil de usuario</h2>
+      <button class="clear-btn" onclick="cerrarPerfil()">✕</button>
+    </div>
+    <div class="modal-body" id="perfil-body"><div class="typing">Cargando perfiles, señor...</div></div>
+  </div>
+</div>
 <div id="status-bar">
   <div class="stat"><div class="label">Hora</div><div class="value" id="st-hora">--:--:--</div></div>
   <div class="stat"><div class="label">Fecha</div><div class="value" id="st-fecha">--/--/----</div></div>
@@ -491,6 +501,7 @@
     document.getElementById('btn-auditoria').style.display = esAdmin ? '' : 'none';
     document.getElementById('btn-gestion').style.display = esAdmin ? '' : 'none';
 document.getElementById('btn-empresa').style.display = esAdmin ? '' : 'none';
+    document.getElementById('btn-perfil').style.display = esAdmin ? '' : 'none';
     document.getElementById('btn-login').style.display = (esAdmin || !requiereLogin) ? 'none' : '';
     document.getElementById('btn-logout').style.display = esAdmin ? '' : 'none';
     const badge = document.getElementById('rol-badge');
@@ -1008,6 +1019,84 @@ document.getElementById('btn-empresa').style.display = esAdmin ? '' : 'none';
         else { msj.textContent = '❌ ' + (data.error || 'error'); msj.style.color = '#ff6b6b'; }
       })
       .catch(e => { document.getElementById('emp-msj').textContent = '❌ ' + e.message; });
+  }
+
+  function abrirPerfil() {
+    document.getElementById('perfil-modal').classList.add('abierto');
+    cargarPerfil();
+  }
+
+  function cerrarPerfil() {
+    document.getElementById('perfil-modal').classList.remove('abierto');
+  }
+
+  const rolPerfilTxt = { 'dueno': 'Dueño', 'admin': 'Admin', 'empleado': 'Empleado' };
+
+  function cargarPerfil() {
+    const body = document.getElementById('perfil-body');
+    body.innerHTML = '<div class="typing">Cargando perfiles, señor...</div>';
+    fetch('/api/perfil')
+      .then(r => r.json())
+      .then(data => {
+        let html = '<div class="aux-line">Perfil activo: <b>' + escAttr(rolPerfilTxt[data.rol] || data.activo) + '</b></div>';
+        html += '<div class="ges-tabs"><button class="activa">Usuarios</button></div>';
+        const us = data.usuarios || [];
+        if (us.length === 0) {
+          html += '<div class="audit-vacio">No hay usuarios registrados.</div>';
+        }
+        for (const u of us) {
+          const activo = (data.activo === u.nombre) ? ' · <b>activo</b>' : '';
+          html += '<div class="ges-item"><div class="campo"><label>' + escAttr(u.nombre) +
+            (u.area ? ' · ' + escAttr(u.area) : '') + '</label><div class="aux-line">' + escAttr(rolPerfilTxt[u.rol] || u.rol) + activo + '</div></div>' +
+            '<div class="ges-item-acciones"><button class="ges-nuevo" onclick="seleccionarPerfil(\'' + escAttr(u.nombre).replace(/'/g, '\\\'') + '\')">Activar</button>' +
+            '<button class="ges-nuevo" onclick="eliminarPerfil(\'' + escAttr(u.nombre).replace(/'/g, '\\\'') + '\')">Eliminar</button></div>';
+        }
+        html += '<div class="ges-item"><div class="campo"><label>Nuevo usuario</label></div></div>' +
+          '<div class="perfil-form">' +
+          '<input class="emp-input" id="per-nombre" placeholder="Nombre" style="flex:2">' +
+          '<input class="emp-input" id="per-area" placeholder="Área" style="flex:2">' +
+          '<select class="emp-input" id="per-rol" style="flex:1">' +
+          '<option value="dueno">Dueño</option><option value="admin">Admin</option><option value="empleado" selected>Empleado</option>' +
+          '</select></div>' +
+          '<button class="ges-nuevo" onclick="agregarPerfil()">➕ Agregar usuario</button>' +
+          '<div id="per-msj"></div>';
+        body.innerHTML = html;
+      })
+      .catch(e => { body.innerHTML = '<div class="audit-vacio">Error: ' + e.message + '</div>'; });
+  }
+
+  function seleccionarPerfil(nombre) {
+    guardarPerfil({ seleccionar: nombre });
+  }
+
+  function agregarPerfil() {
+    const nombre = document.getElementById('per-nombre').value.trim();
+    const area = document.getElementById('per-area').value.trim();
+    const rol = document.getElementById('per-rol').value;
+    if (!nombre) { return; }
+    guardarPerfil({ nombre: nombre, area: area, rol: rol });
+  }
+
+  function eliminarPerfil(nombre) {
+    guardarPerfil({ eliminar: nombre });
+  }
+
+  function guardarPerfil(payload) {
+    fetch('/api/perfil', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+      .then(r => r.json())
+      .then(data => {
+        const msj = document.getElementById('per-msj');
+        if (msj) {
+          if (data.ok) { msj.textContent = '✅ ' + data.ok; msj.style.color = '#7dffb0'; }
+          else { msj.textContent = '❌ ' + (data.error || 'error'); msj.style.color = '#ff6b6b'; }
+        }
+        cargarPerfil();
+      })
+      .catch(e => { if (document.getElementById('per-msj')) document.getElementById('per-msj').textContent = '❌ ' + e.message; });
   }
 
   function abrirGestion() {
