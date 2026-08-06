@@ -6,7 +6,7 @@ con la voz: apps, búsquedas, memoria, recordatorios, tareas, órdenes,
 email, documentos de Office, agenda y PDF — todo sin librerías externas
 más allá de la estándar y PowerShell.
 
-**Versión:** 0.13.0+ (F1–F2 completas, F3 en curso).
+**Versión:** 0.14.0+ (F1–F4 completas, F5 en curso).
 **Ver `PROGRESO_JARVISOS.md`** para el historial técnico detallado y
 **`INSTALACION.md`** para la guía de instalación.
 
@@ -69,8 +69,8 @@ Cobertura aproximada: **security 100%**, **audit 96%**, **config 85%**, **webui 
 - **F1 — Base**: ✅ completa (personalidad, micrófono, comandos de sistema, IA de respaldo).
 - **F2 — Confiabilidad B2B** ✅ *completa*: paquetes `security` (clasificación de riesgo) y `audit` (registro inmutable); **aprobación por PIN/panel con reanudación automática** para acciones sensibles; **timeout de aprobación de 5 min** (la orden expira sola) y **rotación automática de la auditoría** a 10 MB; **timeout de ejecución de comandos externos** de 30 s; **acceso con roles** (Operador vs Admin) con **contraseña de acceso**, sesión web, **visor de auditoría** en el panel y aprobación solo para Admin. Decisión: la auditoría se consume por pantalla, no por voz (la voz no puede autenticar quién pide el dato).
 - **F3 — Integraciones de oficina** *(en curso)*: **email completo (envío SMTP + lectura IMAP)** ✅ probado en vivo con cuenta real; **Office por COM (Word/Excel/PPT)** ✅ probado en vivo con Office 16; **calendario/agenda local** ✅ (eventos en `agenda.json` bajo `JarvisOS-datos`, offline, sin credenciales; comandos "agendá una reunión mañana a las 15", "qué tengo hoy", "cancelá el evento X"); **sync con calendario de Outlook por COM** ✅ (exporta la agenda local como citas, sin duplicados; requiere cuenta configurada); **PDF** ✅ (generador puro en Go + conversión Office→PDF por COM); **redes sociales** ✅ (X con OAuth 1.0a sobre stdlib + LinkedIn con Bearer, ambos exigiendo aprobación; validados con vector canónico del RFC 5849 y servidores de prueba; falta smoke real con credenciales del cliente).
-- **F4 — Producto y presencia B2B**: marca corporativa, dashboard, onboarding en <15 min.
-- **F5 — Propuesta comercial**: documento de venta + demo guionizada + pilotos.
+- **F4 — Producto y presencia B2B** ✅ *completa*: marca corporativa ("Jarvis — su empleado digital. Cumple, no descansa, rinde cuentas"), dashboard del dueño con aprobaciones y auditoría, **onboarding guiado de primer arranque** (empresa + dueño + PIN + contraseña en un paso, < 15 min), perfil de empresa estructurado y modo vigilante aparte.
+- **F5 — Propuesta comercial** *(en curso)*: `PROPUESTA-COMERCIAL.md` ✅ (problema, solución, privacidad como ventaja, demo guionizada de 3 escenarios, piloto con métricas de ROI, precios Lite/Pro/Empresa y soporte); demo funcional en vivo = capacidades ya implementadas.
 
 ## 5. Instalación
 

@@ -111,6 +111,10 @@ Objetivo: que el empleado haga el trabajo de oficina real.
 
 **Criterio de salida:** una empresa nueva puede instalar, configurar a su dueño y dar su primera orden en menos de 15 minutos.
 
+**Estado:** ✅ completa. Marca corporativa aplicada (webui, onboarding en primer
+arranque), dashboard del dueño con aprobaciones y auditoría, perfil de empresa
+estructurado (`empresa.json`) y modo vigilante disponible como intención aparte.
+
 ---
 
 ## FASE 5 — Propuesta comercial para venderle a la empresa
@@ -125,6 +129,10 @@ Documento de venta (`PROPUESTA-COMERCIAL.md`):
 7. **Soporte**: instalación guiada, capacitación al dueño, canal de soporte.
 
 **Criterio de salida:** documento listo para presentar + demo funcional en vivo.
+
+**Estado:** ✅ en curso. `PROPUESTA-COMERCIAL.md` completo (problema, solución,
+privacidad, demo guionizada de 3 escenarios, piloto con ROI, precios y soporte).
+Demo funcional en vivo: son las capacidades ya implementadas (F1-F4).
 
 ---
 
