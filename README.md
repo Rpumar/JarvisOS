@@ -7,8 +7,9 @@ email, documentos de Office, agenda y PDF — todo sin librerías externas
 más allá de la estándar y PowerShell.
 
 **Versión:** 0.14.0+ (F1–F4 completas, F5 en curso).
-**Ver `PROGRESO_JARVISOS.md`** para el historial técnico detallado y
-**`INSTALACION.md`** para la guía de instalación.
+**Ver `PROGRESO_JARVISOS.md`** para el historial técnico detallado,
+**`INSTALACION.md`** para la guía de instalación y **`CHANGELOG.md`**
+para el registro de cambios por versión.
 
 ## 1. Funcionalidades
 

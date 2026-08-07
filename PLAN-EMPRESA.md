@@ -26,7 +26,7 @@
    - Paquetes desacoplados: `core` (empleado), `auditoria`, `integraciones`, `web`, `control`.
    - Escritura de datos atómica (temp + rename) para que un crash no corrompa memoria/tareas/órdenes.
    - Backups automáticos de `JarvisOS-datos` con rotación (al arrancar). **Hecho**: `core/backups.go`, se respalda al arrancar (consola y servicio) y por voz (`hacé un respaldo`, `qué respaldos tengo`); rota a 7 backups.
-   - Versionado semántico + CHANGELOG.
+   - Versionado semántico + CHANGELOG. **Hecho**: `CHANGELOG.md` (formato Keep a Changelog) con el historial v0.7 → v0.14.
    - Recuperación ante crash: órdenes pendientes se retoman (nunca se abandonan).
 4. **Escalabilidad comercial:**
    - Clave de licencia por instalación con límite de puestos.
