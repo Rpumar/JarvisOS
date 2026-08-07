@@ -92,7 +92,10 @@ func (b *Brain) procesarInterno(input string) string {
 		case esPalabraExacta(entrada, "sí") || esPalabraExacta(entrada, "si") || entrada == "confirmar" || entrada == "confirmo" || entrada == "dale":
 			accion := b.confirmacionPendiente
 			b.confirmacionPendiente = nil
-			return accion.ejecutar()
+			if respuesta := accion.ejecutar(); respuesta != ComandoNoReconocido {
+				return respuesta
+			}
+			return "Confirmado, pero todavía no sé ejecutar esa acción, señor. Puede enseñarme cómo: 'aprendé que para hacer [eso]: paso 1, paso 2'."
 		case esPalabraExacta(entrada, "no") || strings.Contains(entrada, "cancelar") || strings.Contains(entrada, "cancelo") || strings.Contains(entrada, "para") || strings.Contains(entrada, "detener"):
 			b.confirmacionPendiente = nil
 			return "Cancelado, señor. No se realizó ninguna acción."

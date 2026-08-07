@@ -925,3 +925,34 @@ func TestCorporativoConfirmarCancela(t *testing.T) {
 		t.Error("al cancelar no debe ejecutarse el comando traducido")
 	}
 }
+
+func TestConfirmarAccionPeligrosaNoImplementada(t *testing.T) {
+	// Reproduce el bug de la demo: "borrar la carpeta de respaldos" es una
+	// acción peligrosa que pide confirmación, pero no está implementada en
+	// RunCommand. Tras confirmar "si" no debe devolver el marcador crudo
+	// ComandoNoReconocido, sino una guía para enseñarle a Jarvis.
+	manos := &manosFalsas{respuesta: ComandoNoReconocido}
+	b := NewBrain(manos, BrainOpciones{})
+
+	got := b.Process("borrar la carpeta de respaldos")
+	if b.confirmacionPendiente == nil {
+		t.Fatal("la acción peligrosa debía quedar pendiente de confirmación")
+	}
+	if !strings.Contains(got, "¿Está seguro") {
+		t.Errorf("debía pedir confirmación, obtuve: %q", got)
+	}
+
+	resp := b.Process("si")
+	if resp == ComandoNoReconocido {
+		t.Fatal("no debe devolver el marcador crudo __NO_RECONOCIDO__ tras confirmar")
+	}
+	if !strings.Contains(resp, "aprendé") {
+		t.Errorf("tras confirmar una acción no implementada se esperaba la guía, obtuve: %q", resp)
+	}
+	if b.confirmacionPendiente != nil {
+		t.Error("tras confirmar no debe quedar nada pendiente")
+	}
+	if manos.comandoRecibido != "borrar la carpeta de respaldos" {
+		t.Errorf("RunCommand debía recibir el comando confirmado, recibió: %q", manos.comandoRecibido)
+	}
+}

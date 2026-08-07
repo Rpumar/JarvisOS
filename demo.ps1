@@ -228,6 +228,7 @@ if ($emailEnabled) {
 } else {
     Write-Host "    [Email desactivado: pase -EmailHost, -EmailUser y -EmailPass para mostrarlo.]" -ForegroundColor Red
     Write-Host "    Mientras tanto: 'borrar la carpeta de respaldos' muestra la confirmacion del dueno."
+    Write-Host "    Confirme con 'si': Jarvis respondera que aun no sabe ejecutarla y como ensenarle."
 }
 Write-Host ""
 Write-Host "  ESCENARIO 3 - Panel del dueno + informe de piloto (ROI)" -ForegroundColor Yellow
