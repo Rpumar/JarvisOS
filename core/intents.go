@@ -317,6 +317,12 @@ func NuevoClasificador() *Clasificador {
 			Handler:  func(cmd string, h *Hands) string { return h.limpiarTemporales() },
 		},
 		{
+			Nombre:   "plano_control",
+			Frases:   []string{"estado del plano de control", "plano de control", "estado del control", "conecta al plano de control", "conectá al plano de control", "sincronizá la licencia", "sincroniza la licencia", "reportá al plano de control", "reporta al plano de control"},
+			Palabras: []string{"plano de control", "control en la nube"},
+			Handler:  func(cmd string, h *Hands) string { return h.estadoPlanoControl() },
+		},
+		{
 			Nombre:   "backup",
 			Frases:   []string{"hacé un respaldo", "hace un respaldo", "hacer un respaldo", "creá un respaldo", "crea un respaldo", "crear un respaldo", "respalda mis datos", "respaldo de datos", "qué respaldos tengo", "que respaldos tengo", "mis respaldos", "ver respaldos", "listar respaldos", "cuántos respaldos tengo", "cuantos respaldos tengo"},
 			Palabras: []string{"respaldo", "backup"},

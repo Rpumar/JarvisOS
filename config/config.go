@@ -1,6 +1,8 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -71,6 +73,13 @@ type Config struct {
 	// LicenseKey es la clave de licencia local (JARVIS-PLAN-PUESTOS-NONCE-
 	// FIRMA). Vacía = modo piloto (1 puesto). Se valida al arrancar.
 	LicenseKey string `json:"license_key"`
+
+	// ControlURL es la URL del plano de control en la nube (licencias,
+	// heartbeat y puestos). Vacía = sin plano de control (100% local).
+	ControlURL string `json:"control_url"`
+	// IdInstalacion identifica de forma única esta instalación ante el
+	// plano de control. Se genera una vez y se persiste.
+	IdInstalacion string `json:"id_instalacion"`
 }
 
 // DatosDir devuelve el directorio de datos persistente del usuario. Por
@@ -145,6 +154,7 @@ func Load() *Config {
 	contenido, err := os.ReadFile(cfg.RutaConfig)
 	if err != nil {
 		if os.IsNotExist(err) {
+			cfg.garantizarIdInstalacion()
 			_ = cfg.Save()
 			return cfg
 		}
@@ -185,6 +195,8 @@ func Load() *Config {
 		LinkedInToken          string            `json:"linkedin_token"`
 		LinkedInAuthor         string            `json:"linkedin_author"`
 		LicenseKey             string            `json:"license_key"`
+		ControlURL             string            `json:"control_url"`
+		IdInstalacion          string            `json:"id_instalacion"`
 	}
 
 	var alias configAlias
@@ -285,8 +297,30 @@ func Load() *Config {
 	if alias.LicenseKey != "" {
 		cfg.LicenseKey = alias.LicenseKey
 	}
+	if alias.ControlURL != "" {
+		cfg.ControlURL = alias.ControlURL
+	}
+	if alias.IdInstalacion != "" {
+		cfg.IdInstalacion = alias.IdInstalacion
+	}
+	cfg.garantizarIdInstalacion()
 
 	return cfg
+}
+
+// garantizarIdInstalacion genera y persiste un identificador único de esta
+// instalación (para el plano de control) si todavía no existe.
+func (c *Config) garantizarIdInstalacion() {
+	if c.IdInstalacion != "" {
+		return
+	}
+	aleatorio := make([]byte, 12)
+	if _, err := rand.Read(aleatorio); err != nil {
+		c.IdInstalacion = fmt.Sprintf("inst-%d", time.Now().UnixNano())
+	} else {
+		c.IdInstalacion = "inst-" + hex.EncodeToString(aleatorio)
+	}
+	_ = c.Save()
 }
 
 func (c *Config) Save() error {
@@ -323,6 +357,8 @@ func (c *Config) Save() error {
 		"linkedin_token":           c.LinkedInToken,
 		"linkedin_author":          c.LinkedInAuthor,
 		"license_key":              c.LicenseKey,
+		"control_url":              c.ControlURL,
+		"id_instalacion":           c.IdInstalacion,
 	}
 
 	contenido, err := json.MarshalIndent(datos, "", "  ")

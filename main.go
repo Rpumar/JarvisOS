@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"JarvisOS/config"
+	"JarvisOS/control"
 	"JarvisOS/core"
 	"JarvisOS/core/audit"
 	"JarvisOS/ia"
@@ -55,6 +56,9 @@ func main() {
 			return
 		case "--web":
 			ejecutarWebUI()
+			return
+		case "--control":
+			ejecutarPlanoControl()
 			return
 		}
 	}
@@ -141,6 +145,8 @@ func main() {
 	}
 	p := prefs.Get()
 	nombre := p.Nombre
+	hands.Control = nuevoClienteControl(cfg, nombre)
+	activarControl(hands.Control)
 	if nombre != "" {
 		fmt.Printf("[JARVIS] Bienvenido de nuevo, %s. %s\n", nombre, prefs.String())
 	} else {
@@ -198,7 +204,7 @@ func main() {
 	}()
 
 	var wg sync.WaitGroup
-	wg.Add(4)
+	wg.Add(5)
 	go func() {
 		defer wg.Done()
 		vigilarRecordatorios(almacen, hands, apagar)
@@ -214,6 +220,10 @@ func main() {
 	go func() {
 		defer wg.Done()
 		vigilarInforme(hands, apagar)
+	}()
+	go func() {
+		defer wg.Done()
+		vigilarControl(hands.Control, gestorPerfil, apagar)
 	}()
 
 loop:
@@ -331,7 +341,9 @@ func ejecutarModoServicio() {
 		fmt.Fprintf(os.Stderr, "[SERVICE] Error fatal: %v\n", err)
 		os.Exit(1)
 	}
-	defer func() { _ = almacen.Cerrar() }()
+		defer func() { _ = almacen.Cerrar() }()
+	hands.Control = nuevoClienteControl(cfg, "servicio")
+	activarControl(hands.Control)
 	brain := core.NewBrain(hands, core.BrainOpciones{
 		IA: conectorIA, Memoria: almacen,
 		Skills: gestorSkills, Roles: gestorRoles, Procedimientos: procedimientos, Empresa: gestorEmpresa, Perfil: gestorPerfil, MaxHistorialIA: cfg.MaxHistorialIA,
@@ -352,6 +364,7 @@ func ejecutarModoServicio() {
 	go vigilarAprobaciones(hands, nil)
 	go vigilarOrdenes(hands, nil)
 	go vigilarInforme(hands, nil)
+	go vigilarControl(hands.Control, gestorPerfil, nil)
 
 	fmt.Println("[SERVICE] JarvisOS iniciado en modo servicio.")
 
@@ -442,6 +455,8 @@ func ejecutarWebUI() {
 	if almacen != nil {
 		defer func() { _ = almacen.Cerrar() }()
 	}
+	hands.Control = nuevoClienteControl(cfg, "web")
+	activarControl(hands.Control)
 	brain := core.NewBrain(hands, core.BrainOpciones{
 		IA: conectorIA, Memoria: almacen,
 		Prefs: prefs, Skills: gestorSkills, Roles: gestorRoles,
@@ -457,6 +472,7 @@ func ejecutarWebUI() {
 	go vigilarAprobaciones(hands, nil)
 	go vigilarOrdenes(hands, nil)
 	go vigilarInforme(hands, nil)
+	go vigilarControl(hands.Control, gestorPerfil, nil)
 	servidor := webui.NuevoServidor(brain, 8080, webui.ServidorOpciones{
 		Estado:           hands,
 		Diagnostico:      hands,
@@ -622,4 +638,78 @@ func leerArchivoInforme(ruta string) string {
 		return ""
 	}
 	return strings.TrimSpace(string(datos))
+}
+
+// ejecutarPlanoControl arranca el servidor del plano de control en la nube
+// (licencias, heartbeat, puestos). El token maestra se lee de la variable de
+// entorno JARVISOS_CONTROL_TOKEN; sin él, los endpoints de administración
+// quedan bloqueados. Los datos viven en JarvisOS-datos/control/.
+func ejecutarPlanoControl() {
+	gestor := control.NuevoGestorControl(filepath.Join(config.DatosDir(), "control"))
+	servidor := control.NuevoServidor(gestor, control.Opciones{
+		Token: control.TokenDesdeEntorno(),
+		Dir:   filepath.Join(config.DatosDir(), "control"),
+	})
+	fmt.Printf("[CONTROL] Datos del plano de control en: %s\n", filepath.Join(config.DatosDir(), "control"))
+	if err := servidor.Iniciar(); err != nil {
+		fmt.Fprintf(os.Stderr, "[CONTROL] Error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+// nuevoClienteControl construye el cliente del agente hacia el plano de
+// control, o nil si no hay URL configurada. Lo comparten el modo consola y
+// el modo servicio.
+func nuevoClienteControl(cfg *config.Config, nombre string) *core.ClienteControl {
+	if strings.TrimSpace(cfg.ControlURL) == "" {
+		return nil
+	}
+	return core.NuevoClienteControl(cfg.ControlURL, cfg.LicenseKey, cfg.IdInstalacion, nombre, cfg.Version)
+}
+
+// activarControl registra la instalación en el plano de control al arrancar.
+// Se llama de forma síncrona antes del bucle de comandos para que el estado
+// reportado por voz sea correcto desde el primer momento. Best-effort: si el
+// servidor no responde, el agente sigue funcionando.
+func activarControl(cliente *core.ClienteControl) {
+	if cliente == nil || !cliente.Configurado() {
+		return
+	}
+	if err := cliente.Activar(); err != nil {
+		fmt.Printf("[CONTROL] %v\n", err)
+	} else {
+		fmt.Println("[CONTROL] Instalación registrada en el plano de control.")
+	}
+}
+
+// vigilarControl reporta al plano de control cada cierto periodo: hace
+// heartbeat con los puestos en uso. Best-effort: si el servidor no responde,
+// el agente sigue funcionando.
+func vigilarControl(cliente *core.ClienteControl, perfil *core.GestorPerfil, done <-chan struct{}) {
+	if cliente == nil || !cliente.Configurado() {
+		return
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("[ADVERTENCIA] El vigía de control se detuvo por un error inesperado: %v\n", r)
+		}
+	}()
+
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-done:
+			return
+		case <-ticker.C:
+			puestos := 0
+			if perfil != nil {
+				puestos = len(perfil.Usuarios())
+			}
+			if _, err := cliente.Heartbeat(puestos); err != nil {
+				fmt.Printf("[CONTROL] %v\n", err)
+			}
+		}
+	}
 }

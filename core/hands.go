@@ -100,6 +100,10 @@ type Hands struct {
 	LicenseKey   string
 	LicenseSetter func(clave string) bool
 
+	// Control es el cliente hacia el plano de control en la nube (licencias,
+	// heartbeat, puestos). Puede ser nil si no hay plano configurado.
+	Control *ClienteControl
+
 	EmailEnabled  bool
 	EmailSmtpHost string
 	EmailSmtpPort int
@@ -168,6 +172,9 @@ type HandsOpciones struct {
 	LicenseKey   string
 	LicenseSetter func(clave string) bool
 
+	// Control es el cliente hacia el plano de control en la nube.
+	Control *ClienteControl
+
 	EmailEnabled  bool
 	EmailSmtpHost string
 	EmailSmtpPort int
@@ -211,6 +218,7 @@ func NewHands(opciones ...HandsOpciones) *Hands {
 		h.ContrasenaSetter = opciones[0].ContrasenaSetter
 		h.LicenseKey = opciones[0].LicenseKey
 		h.LicenseSetter = opciones[0].LicenseSetter
+		h.Control = opciones[0].Control
 		h.EmailEnabled = opciones[0].EmailEnabled
 		h.EmailSmtpHost = opciones[0].EmailSmtpHost
 		h.EmailSmtpPort = opciones[0].EmailSmtpPort

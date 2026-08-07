@@ -11,6 +11,22 @@ cambios se agrupan por versión mayor, con la versión actual reflejada en
 ## [0.14.1] — En curso
 
 ### Agregado
+- Plano de control en la nube (decisión 1, F5+): paquete `control/` con
+  servidor HTTP (`JarvisOS.exe --control`) que emite y gestiona licencias
+  online, registra instalaciones (heartbeat) y controla puestos en uso.
+  Persistencia JSON con escritura atómica, solo librería estándar.
+  - API: `emitir`/`suspender`/`reactivar` (token maestra vía env
+    `JARVISOS_CONTROL_TOKEN`), `activar` y `heartbeat` (el agente se
+    autentica con su licencia), `estado` (panel admin).
+  - El agente reporta al plano de control cuando `control_url` está
+    configurado: activa la instalación al arranque (`id_instalacion`
+    autogenerado y persistido) y hace heartbeat con puestos en uso cada
+    5 min. Todo best-effort: si el servidor no responde, el agente sigue
+    funcionando 100% local.
+  - Comando por voz: "estado del plano de control" / "sincronizá la
+    licencia".
+  - Tests: emisión, activación, límite de puestos, suspensión/reactivación,
+    persistencia, flujo HTTP completo y cliente real contra el servidor.
 - Documentación legal y de privacidad (decisión 5): `EULA.md` (licencia por
   plan/puesto, restricciones, garantía, limitación de responsabilidad) y
   `PRIVACIDAD.md` (datos 100% locales, qué puede salir de la PC y bajo qué

@@ -19,7 +19,7 @@
 
 1. **Despliegue: híbrido agente-local + plano de control en la nube.**
    - El agente corre en la PC de la empresa (privacidad local = argumento de venta).
-   - Un plano de control en la nube (agregable en F5+) gestiona licencias, puestos, actualizaciones y métricas opcionales.
+   - Un plano de control en la nube gestiona licencias, puestos, actualizaciones y métricas opcionales. **En curso (F5+)**: `control/` (servidor HTTP con `JarvisOS.exe --control`, emite/gestiona licencias online, registra instalaciones por heartbeat y controla puestos; token maestra vía `JARVISOS_CONTROL_TOKEN`, datos en `JarvisOS-datos/control/` con JSON atómico). El agente activa la instalación al arranque y hace heartbeat con puestos en uso cuando `control_url` está configurado (best-effort: sin servidor, sigue 100% local).
    - **Ahora**: activación por clave de licencia local (sin servidor). El diseño ya separa datos de empresa (`JarvisOS-datos`) para migrarlos intactos.
 2. **Monetización: suscripción por puesto/mes, 3 planes** (Lite / Pro / Empresa). Precio objetivo inicial: USD 50-150 por puesto/mes según plan.
 3. **Arquitectura estable:**
