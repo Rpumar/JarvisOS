@@ -28,6 +28,15 @@ cambios se agrupan por versión mayor, con la versión actual reflejada en
   - Tests: copia de árbol, no-recursión, rotación, carpetas vacías.
 
 ### Corregido
+- Una orden con procedimiento conocido ya **no se bloquea** cuando la IA
+  falla (error de conexión o respuestas que no son JSON): si los pasos del
+  procedimiento se ejecutaron, la orden se marca cumplida. El bloqueo queda
+  solo para órdenes sin procedimiento.
+- `demo.ps1`: `procedimientos.json` se sembraba como `{"procedimientos": [...]}`
+  (formato que el gestor no lee) y `ConvertTo-Json` en PowerShell 5.1 convierte
+  listas de 1 elemento en objeto suelto. Se sembran ahora listas planas
+  (`EscribirJSONLista`) en `ordenes.json`, `tareas.json`, `agenda.json` y
+  `procedimientos.json`; el escenario 1 de la demo se cumple de verdad.
 - Confirmar una acción peligrosa **no implementada** ahora da una guía
   ("aprendé que para hacer X: paso 1, paso 2") en vez del marcador crudo
   `__NO_RECONOCIDO__`.
