@@ -130,10 +130,17 @@ func (h *Hands) DenegarOrden(id int) string {
 	}
 	h.aprobacionMu.Unlock()
 
-	if !h.ordenes.DenegarAprobacion(id) {
+	if o, ok := h.ordenes.Obtener(id); ok {
+		desc := o.PendienteDescripcion
+		if h.ordenes.DenegarAprobacion(id) {
+			if desc != "" {
+				h.auditar(id, desc, "denegada_por_el_dueño")
+			}
+			return fmt.Sprintf("Orden #%d denegada, señor. La acción sensible no se ejecutó.", id)
+		}
 		return fmt.Sprintf("No encontré la orden #%d, señor.", id)
 	}
-	return fmt.Sprintf("Orden #%d denegada, señor. La acción sensible no se ejecutó.", id)
+	return fmt.Sprintf("No encontré la orden #%d, señor.", id)
 }
 
 // EstablecerPIN configura el PIN del dueño (4-6 dígitos) para las

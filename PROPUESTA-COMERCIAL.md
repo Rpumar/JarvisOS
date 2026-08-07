@@ -177,7 +177,23 @@ testeadas** en el producto (v0.14.0), no a promesas de hoja de ruta:
 - ✅ Auditoría inmutable + aprobaciones obligatorias con PIN/panel.
 - ✅ Panel del dueño en la web + informe diario automático.
 - ✅ Onboarding guiado de primer arranque (< 15 minutos).
+- ✅ Demo guiada (`demo.ps1`) con sandbox de datos y guion de 3 escenarios.
+- ✅ Informe de cierre de piloto por voz ("informe del piloto") con horas
+  ahorradas y aprobadas/denegadas/expiradas.
 - ✅ Suite de tests verde: build/vet/test limpios.
 
 **Próximo paso:** coordinar la demo guionizada con datos del rubro del
 cliente. Preparación: 1 día; duración: 15 minutos en vivo.
+
+## Anexo 2 — Cómo correr la demo y medir el piloto
+
+- **Demo guiada:** `.\demo.ps1` compila, arma una **sandbox de datos** en
+  `%TEMP%\jarvisos-demo-datos` (sin tocar los datos reales del usuario, vía
+  la variable `JARVISOS_DATOS`) y deja el guion de los 3 escenarios en
+  pantalla. Con `-Run` lanza JarvisOS en esa sandbox.
+- **Informe de piloto:** durante el piloto (o al cierre de los 30 días),
+  pedir por voz **"informe del piloto"**: Jarvis agrega órdenes y tareas
+  cumplidas, calcula las **horas manuales ahorradas** (estimación
+  conservadora de 20 min por tarea cumplida) y reporta las acciones
+  **aprobadas / denegadas / expiradas** del período. El informe se guarda en
+  `JarvisOS-datos\informes\piloto-AAAA-MM-DD.txt` (auditable).

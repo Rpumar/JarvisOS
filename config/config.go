@@ -16,13 +16,13 @@ type Config struct {
 	RutaMemoria     string        `json:"ruta_memoria"`
 	RutaConfig      string        `json:"-"`
 
-	MaxHistorialIA      int      `json:"max_historial_ia"`
+	MaxHistorialIA int `json:"max_historial_ia"`
 
-	ModeloIA       string `json:"modelo_ia"`
-	IAURL          string `json:"ia_url"`
-	IAAPIKey       string `json:"ia_api_key"`
-	PINHash        string `json:"pin_hash"`
-	WorkspaceRoot  string `json:"workspace_root"`
+	ModeloIA       string            `json:"modelo_ia"`
+	IAURL          string            `json:"ia_url"`
+	IAAPIKey       string            `json:"ia_api_key"`
+	PINHash        string            `json:"pin_hash"`
+	WorkspaceRoot  string            `json:"workspace_root"`
 	OpenWeatherKey string            `json:"open_weather_key"`
 	NewsAPIKey     string            `json:"news_api_key"`
 	Apps           map[string]string `json:"apps"`
@@ -57,10 +57,10 @@ type Config struct {
 
 	// XApiKey / XApiSecret son las claves de la app de X (Twitter API v2,
 	// OAuth 1.0a). XAccessToken / XAccessSecret son los tokens del usuario.
-	XApiKey        string `json:"x_api_key"`
-	XApiSecret     string `json:"x_api_secret"`
-	XAccessToken   string `json:"x_access_token"`
-	XAccessSecret  string `json:"x_access_secret"`
+	XApiKey       string `json:"x_api_key"`
+	XApiSecret    string `json:"x_api_secret"`
+	XAccessToken  string `json:"x_access_token"`
+	XAccessSecret string `json:"x_access_secret"`
 
 	// LinkedInToken es un token de acceso OAuth 2.0 (Bearer) para la API de
 	// LinkedIn, y LinkedInAuthor es el URN del autor ("urn:li:person:..." o
@@ -69,20 +69,31 @@ type Config struct {
 	LinkedInAuthor string `json:"linkedin_author"`
 }
 
+// DatosDir devuelve el directorio de datos persistente del usuario. Por
+// defecto es %USERPROFILE%\JarvisOS-datos; la variable JARVISOS_DATOS lo
+// sobrescribe (lo usa demo.ps1 para correr una sandbox sin tocar los datos
+// reales).
+func DatosDir() string {
+	if dir := os.Getenv("JARVISOS_DATOS"); dir != "" {
+		return dir
+	}
+	return filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos")
+}
+
 func defaultConfig() *Config {
 	return &Config{
-		AppName:             "JARVISOS",
-		Version:             "0.14.0",
-		RequireApproval:     true,
-		Timeout:             30 * time.Second,
-		RutaMemoria:         filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "memoria.json"),
-		MaxHistorialIA:      20,
-		ModeloIA:            "qwen2.5-coder:7b",
-		IAURL:               "",
-		IAAPIKey:            "",
-		WorkspaceRoot:       filepath.Join(os.Getenv("USERPROFILE"), "Desktop"),
-		OpenWeatherKey:      "",
-		NewsAPIKey:          "",
+		AppName:                "JARVISOS",
+		Version:                "0.14.0",
+		RequireApproval:        true,
+		Timeout:                30 * time.Second,
+		RutaMemoria:            filepath.Join(DatosDir(), "memoria.json"),
+		MaxHistorialIA:         20,
+		ModeloIA:               "qwen2.5-coder:7b",
+		IAURL:                  "",
+		IAAPIKey:               "",
+		WorkspaceRoot:          filepath.Join(os.Getenv("USERPROFILE"), "Desktop"),
+		OpenWeatherKey:         "",
+		NewsAPIKey:             "",
 		ComandoTimeoutSegundos: 30,
 		EmailEnabled:           false,
 		EmailSmtpPort:          587,
@@ -125,7 +136,7 @@ func defaultConfig() *Config {
 
 func Load() *Config {
 	cfg := defaultConfig()
-	cfg.RutaConfig = filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "config.json")
+	cfg.RutaConfig = filepath.Join(DatosDir(), "config.json")
 
 	contenido, err := os.ReadFile(cfg.RutaConfig)
 	if err != nil {
@@ -138,37 +149,37 @@ func Load() *Config {
 	}
 
 	type configAlias struct {
-		AppName             string  `json:"app_name"`
-		Version             string  `json:"version"`
-		RequireApproval     *bool   `json:"require_approval"`
-		TimeoutSegundos     int     `json:"timeout_segundos"`
-		RutaMemoria         string  `json:"ruta_memoria"`
-		MaxHistorialIA      int     `json:"max_historial_ia"`
-		ModeloIA            string  `json:"modelo_ia"`
-		IAURL               string  `json:"ia_url"`
-		IAAPIKey            string  `json:"ia_api_key"`
-		PINHash             string  `json:"pin_hash"`
-		WorkspaceRoot       string  `json:"workspace_root"`
-		OpenWeatherKey      string  `json:"open_weather_key"`
-		NewsAPIKey          string  `json:"news_api_key"`
-		Apps                map[string]string `json:"apps"`
-		ComandoTimeoutSegundos int   `json:"comando_timeout_segundos"`
-		LoginPasswordHash    string `json:"login_password_hash"`
-		EmailEnabled         bool   `json:"email_enabled"`
-		EmailSmtpHost        string `json:"email_smtp_host"`
-		EmailSmtpPort        int    `json:"email_smtp_port"`
-		EmailUsuario         string `json:"email_usuario"`
-		EmailPassword        string `json:"email_password"`
-		EmailDesde           string `json:"email_desde"`
-		EmailImapHost        string `json:"email_imap_host"`
-		EmailImapPort        int    `json:"email_imap_port"`
-		EmailImapMax         int    `json:"email_imap_max"`
-		XApiKey              string `json:"x_api_key"`
-		XApiSecret           string `json:"x_api_secret"`
-		XAccessToken         string `json:"x_access_token"`
-		XAccessSecret        string `json:"x_access_secret"`
-		LinkedInToken        string `json:"linkedin_token"`
-		LinkedInAuthor       string `json:"linkedin_author"`
+		AppName                string            `json:"app_name"`
+		Version                string            `json:"version"`
+		RequireApproval        *bool             `json:"require_approval"`
+		TimeoutSegundos        int               `json:"timeout_segundos"`
+		RutaMemoria            string            `json:"ruta_memoria"`
+		MaxHistorialIA         int               `json:"max_historial_ia"`
+		ModeloIA               string            `json:"modelo_ia"`
+		IAURL                  string            `json:"ia_url"`
+		IAAPIKey               string            `json:"ia_api_key"`
+		PINHash                string            `json:"pin_hash"`
+		WorkspaceRoot          string            `json:"workspace_root"`
+		OpenWeatherKey         string            `json:"open_weather_key"`
+		NewsAPIKey             string            `json:"news_api_key"`
+		Apps                   map[string]string `json:"apps"`
+		ComandoTimeoutSegundos int               `json:"comando_timeout_segundos"`
+		LoginPasswordHash      string            `json:"login_password_hash"`
+		EmailEnabled           bool              `json:"email_enabled"`
+		EmailSmtpHost          string            `json:"email_smtp_host"`
+		EmailSmtpPort          int               `json:"email_smtp_port"`
+		EmailUsuario           string            `json:"email_usuario"`
+		EmailPassword          string            `json:"email_password"`
+		EmailDesde             string            `json:"email_desde"`
+		EmailImapHost          string            `json:"email_imap_host"`
+		EmailImapPort          int               `json:"email_imap_port"`
+		EmailImapMax           int               `json:"email_imap_max"`
+		XApiKey                string            `json:"x_api_key"`
+		XApiSecret             string            `json:"x_api_secret"`
+		XAccessToken           string            `json:"x_access_token"`
+		XAccessSecret          string            `json:"x_access_secret"`
+		LinkedInToken          string            `json:"linkedin_token"`
+		LinkedInAuthor         string            `json:"linkedin_author"`
 	}
 
 	var alias configAlias
@@ -177,57 +188,115 @@ func Load() *Config {
 		return cfg
 	}
 
-	if alias.AppName != "" { cfg.AppName = alias.AppName }
-	if alias.Version != "" { cfg.Version = alias.Version }
+	if alias.AppName != "" {
+		cfg.AppName = alias.AppName
+	}
+	if alias.Version != "" {
+		cfg.Version = alias.Version
+	}
 	cfg.RequireApproval = alias.RequireApproval == nil || *alias.RequireApproval
-	if alias.TimeoutSegundos > 0 { cfg.Timeout = time.Duration(alias.TimeoutSegundos) * time.Second }
-	if alias.RutaMemoria != "" { cfg.RutaMemoria = alias.RutaMemoria }
-	if alias.MaxHistorialIA > 0 { cfg.MaxHistorialIA = alias.MaxHistorialIA }
-	if alias.ModeloIA != "" { cfg.ModeloIA = alias.ModeloIA }
-	if alias.IAURL != "" { cfg.IAURL = alias.IAURL }
-	if alias.IAAPIKey != "" { cfg.IAAPIKey = alias.IAAPIKey }
-	if alias.PINHash != "" { cfg.PINHash = alias.PINHash }
-	if alias.WorkspaceRoot != "" { cfg.WorkspaceRoot = alias.WorkspaceRoot }
-	if alias.OpenWeatherKey != "" { cfg.OpenWeatherKey = alias.OpenWeatherKey }
-	if alias.NewsAPIKey != "" { cfg.NewsAPIKey = alias.NewsAPIKey }
-	if alias.Apps != nil { cfg.Apps = alias.Apps }
-	if alias.ComandoTimeoutSegundos > 0 { cfg.ComandoTimeoutSegundos = alias.ComandoTimeoutSegundos }
-	if alias.LoginPasswordHash != "" { cfg.LoginPasswordHash = alias.LoginPasswordHash }
+	if alias.TimeoutSegundos > 0 {
+		cfg.Timeout = time.Duration(alias.TimeoutSegundos) * time.Second
+	}
+	if alias.RutaMemoria != "" {
+		cfg.RutaMemoria = alias.RutaMemoria
+	}
+	if alias.MaxHistorialIA > 0 {
+		cfg.MaxHistorialIA = alias.MaxHistorialIA
+	}
+	if alias.ModeloIA != "" {
+		cfg.ModeloIA = alias.ModeloIA
+	}
+	if alias.IAURL != "" {
+		cfg.IAURL = alias.IAURL
+	}
+	if alias.IAAPIKey != "" {
+		cfg.IAAPIKey = alias.IAAPIKey
+	}
+	if alias.PINHash != "" {
+		cfg.PINHash = alias.PINHash
+	}
+	if alias.WorkspaceRoot != "" {
+		cfg.WorkspaceRoot = alias.WorkspaceRoot
+	}
+	if alias.OpenWeatherKey != "" {
+		cfg.OpenWeatherKey = alias.OpenWeatherKey
+	}
+	if alias.NewsAPIKey != "" {
+		cfg.NewsAPIKey = alias.NewsAPIKey
+	}
+	if alias.Apps != nil {
+		cfg.Apps = alias.Apps
+	}
+	if alias.ComandoTimeoutSegundos > 0 {
+		cfg.ComandoTimeoutSegundos = alias.ComandoTimeoutSegundos
+	}
+	if alias.LoginPasswordHash != "" {
+		cfg.LoginPasswordHash = alias.LoginPasswordHash
+	}
 	cfg.EmailEnabled = alias.EmailEnabled
-	if alias.EmailSmtpHost != "" { cfg.EmailSmtpHost = alias.EmailSmtpHost }
-	if alias.EmailSmtpPort > 0 { cfg.EmailSmtpPort = alias.EmailSmtpPort }
-	if alias.EmailUsuario != "" { cfg.EmailUsuario = alias.EmailUsuario }
-	if alias.EmailPassword != "" { cfg.EmailPassword = alias.EmailPassword }
-	if alias.EmailDesde != "" { cfg.EmailDesde = alias.EmailDesde }
-	if alias.EmailImapHost != "" { cfg.EmailImapHost = alias.EmailImapHost }
-	if alias.EmailImapPort > 0 { cfg.EmailImapPort = alias.EmailImapPort }
-	if alias.EmailImapMax > 0 { cfg.EmailImapMax = alias.EmailImapMax }
-	if alias.XApiKey != "" { cfg.XApiKey = alias.XApiKey }
-	if alias.XApiSecret != "" { cfg.XApiSecret = alias.XApiSecret }
-	if alias.XAccessToken != "" { cfg.XAccessToken = alias.XAccessToken }
-	if alias.XAccessSecret != "" { cfg.XAccessSecret = alias.XAccessSecret }
-	if alias.LinkedInToken != "" { cfg.LinkedInToken = alias.LinkedInToken }
-	if alias.LinkedInAuthor != "" { cfg.LinkedInAuthor = alias.LinkedInAuthor }
+	if alias.EmailSmtpHost != "" {
+		cfg.EmailSmtpHost = alias.EmailSmtpHost
+	}
+	if alias.EmailSmtpPort > 0 {
+		cfg.EmailSmtpPort = alias.EmailSmtpPort
+	}
+	if alias.EmailUsuario != "" {
+		cfg.EmailUsuario = alias.EmailUsuario
+	}
+	if alias.EmailPassword != "" {
+		cfg.EmailPassword = alias.EmailPassword
+	}
+	if alias.EmailDesde != "" {
+		cfg.EmailDesde = alias.EmailDesde
+	}
+	if alias.EmailImapHost != "" {
+		cfg.EmailImapHost = alias.EmailImapHost
+	}
+	if alias.EmailImapPort > 0 {
+		cfg.EmailImapPort = alias.EmailImapPort
+	}
+	if alias.EmailImapMax > 0 {
+		cfg.EmailImapMax = alias.EmailImapMax
+	}
+	if alias.XApiKey != "" {
+		cfg.XApiKey = alias.XApiKey
+	}
+	if alias.XApiSecret != "" {
+		cfg.XApiSecret = alias.XApiSecret
+	}
+	if alias.XAccessToken != "" {
+		cfg.XAccessToken = alias.XAccessToken
+	}
+	if alias.XAccessSecret != "" {
+		cfg.XAccessSecret = alias.XAccessSecret
+	}
+	if alias.LinkedInToken != "" {
+		cfg.LinkedInToken = alias.LinkedInToken
+	}
+	if alias.LinkedInAuthor != "" {
+		cfg.LinkedInAuthor = alias.LinkedInAuthor
+	}
 
 	return cfg
 }
 
 func (c *Config) Save() error {
 	datos := map[string]interface{}{
-		"app_name":               c.AppName,
-		"version":                c.Version,
-		"require_approval":       c.RequireApproval,
-		"timeout_segundos":       int(c.Timeout.Seconds()),
-		"ruta_memoria":           c.RutaMemoria,
-		"max_historial_ia":       c.MaxHistorialIA,
-		"modelo_ia":              c.ModeloIA,
-		"ia_url":                 c.IAURL,
-		"ia_api_key":             c.IAAPIKey,
-		"pin_hash":               c.PINHash,
-		"workspace_root":         c.WorkspaceRoot,
-		"open_weather_key":       c.OpenWeatherKey,
-		"news_api_key":           c.NewsAPIKey,
-		"apps":                   c.Apps,
+		"app_name":                 c.AppName,
+		"version":                  c.Version,
+		"require_approval":         c.RequireApproval,
+		"timeout_segundos":         int(c.Timeout.Seconds()),
+		"ruta_memoria":             c.RutaMemoria,
+		"max_historial_ia":         c.MaxHistorialIA,
+		"modelo_ia":                c.ModeloIA,
+		"ia_url":                   c.IAURL,
+		"ia_api_key":               c.IAAPIKey,
+		"pin_hash":                 c.PINHash,
+		"workspace_root":           c.WorkspaceRoot,
+		"open_weather_key":         c.OpenWeatherKey,
+		"news_api_key":             c.NewsAPIKey,
+		"apps":                     c.Apps,
 		"comando_timeout_segundos": c.ComandoTimeoutSegundos,
 		"login_password_hash":      c.LoginPasswordHash,
 		"email_enabled":            c.EmailEnabled,
@@ -236,15 +305,15 @@ func (c *Config) Save() error {
 		"email_usuario":            c.EmailUsuario,
 		"email_password":           c.EmailPassword,
 		"email_desde":              c.EmailDesde,
-		"email_imap_host":         c.EmailImapHost,
-		"email_imap_port":         c.EmailImapPort,
-		"email_imap_max":          c.EmailImapMax,
-		"x_api_key":               c.XApiKey,
-		"x_api_secret":            c.XApiSecret,
-		"x_access_token":          c.XAccessToken,
-		"x_access_secret":         c.XAccessSecret,
-		"linkedin_token":          c.LinkedInToken,
-		"linkedin_author":         c.LinkedInAuthor,
+		"email_imap_host":          c.EmailImapHost,
+		"email_imap_port":          c.EmailImapPort,
+		"email_imap_max":           c.EmailImapMax,
+		"x_api_key":                c.XApiKey,
+		"x_api_secret":             c.XApiSecret,
+		"x_access_token":           c.XAccessToken,
+		"x_access_secret":          c.XAccessSecret,
+		"linkedin_token":           c.LinkedInToken,
+		"linkedin_author":          c.LinkedInAuthor,
 	}
 
 	contenido, err := json.MarshalIndent(datos, "", "  ")

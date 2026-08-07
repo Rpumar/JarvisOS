@@ -133,6 +133,9 @@ Documento de venta (`PROPUESTA-COMERCIAL.md`):
 **Estado:** ✅ en curso. `PROPUESTA-COMERCIAL.md` completo (problema, solución,
 privacidad, demo guionizada de 3 escenarios, piloto con ROI, precios y soporte).
 Demo funcional en vivo: son las capacidades ya implementadas (F1-F4).
+Completado: `demo.ps1` (demo guiada con sandbox de datos vía `JARVISOS_DATOS`)
+y el **informe de cierre de piloto** por voz ("informe del piloto") con horas
+ahorradas y aprobadas/denegadas/expiradas.
 
 ---
 

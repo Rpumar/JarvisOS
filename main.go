@@ -66,38 +66,39 @@ func main() {
 	fmt.Println(" El que maneja el total de la PC")
 	fmt.Println("=================================")
 
-	prefs := memoria.NuevoGestorPreferencias(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "preferencias.json"))
-	rutinas := core.NuevoRutinaManager(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "rutinas.json"))
-	tareas := core.NuevoGestorTareas(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "tareas.json"))
-	agenda := core.NuevoGestorAgenda(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "agenda.json"))
-	ordenes := core.NuevoGestorOrdenes(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "ordenes.json"))
-	procedimientos := core.NuevoGestorProcedimientos(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "procedimientos.json"))
-	formularios := core.NuevoGestorFormularios(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "formularios.json"))
-	auditoria := audit.NuevoRegistro(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "auditoria.jsonl"))
+	prefs := memoria.NuevoGestorPreferencias(filepath.Join(config.DatosDir(), "preferencias.json"))
+	rutinas := core.NuevoRutinaManager(filepath.Join(config.DatosDir(), "rutinas.json"))
+	tareas := core.NuevoGestorTareas(filepath.Join(config.DatosDir(), "tareas.json"))
+	agenda := core.NuevoGestorAgenda(filepath.Join(config.DatosDir(), "agenda.json"))
+	ordenes := core.NuevoGestorOrdenes(filepath.Join(config.DatosDir(), "ordenes.json"))
+	procedimientos := core.NuevoGestorProcedimientos(filepath.Join(config.DatosDir(), "procedimientos.json"))
+	formularios := core.NuevoGestorFormularios(filepath.Join(config.DatosDir(), "formularios.json"))
+	auditoria := audit.NuevoRegistro(filepath.Join(config.DatosDir(), "auditoria.jsonl"))
 
 	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout, cfg.IAURL, cfg.IAAPIKey)
 	gestorSkills := core.NuevoSkillsManager()
 	gestorRoles := core.NuevoRolesManager()
-	gestorEmpresa := core.NuevoGestorEmpresa(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "empresa.json"))
-	gestorPerfil := core.NuevoGestorPerfil(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "perfil.json"))
+	gestorEmpresa := core.NuevoGestorEmpresa(filepath.Join(config.DatosDir(), "empresa.json"))
+	gestorPerfil := core.NuevoGestorPerfil(filepath.Join(config.DatosDir(), "perfil.json"))
 	hands := core.NewHands(core.HandsOpciones{
-		Apps:            cfg.Apps,
-		ClimaKey:        cfg.OpenWeatherKey,
-		NewsKey:         cfg.NewsAPIKey,
-		Prefs:           prefs,
-		Rutinas:         rutinas,
-		Tareas:          tareas,
-		Agenda:          agenda,
-		Ordenes:         ordenes,
-		Procedimientos:  procedimientos,
-		Formularios:     formularios,
-		WorkspaceRoot:   cfg.WorkspaceRoot,
-		IA:             conectorIA,
-		Skills:          gestorSkills,
-		Auditoria:       auditoria,
-		Perfil:          gestorPerfil,
-		PINHash:         cfg.PINHash,
-		PINSetter:       func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
+		Apps:             cfg.Apps,
+		ClimaKey:         cfg.OpenWeatherKey,
+		NewsKey:          cfg.NewsAPIKey,
+		Prefs:            prefs,
+		Rutinas:          rutinas,
+		Tareas:           tareas,
+		Agenda:           agenda,
+		Ordenes:          ordenes,
+		Procedimientos:   procedimientos,
+		Formularios:      formularios,
+		WorkspaceRoot:    cfg.WorkspaceRoot,
+		DatosDir:         config.DatosDir(),
+		IA:               conectorIA,
+		Skills:           gestorSkills,
+		Auditoria:        auditoria,
+		Perfil:           gestorPerfil,
+		PINHash:          cfg.PINHash,
+		PINSetter:        func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
 		ContrasenaHash:   cfg.LoginPasswordHash,
 		ContrasenaSetter: func(hash string) bool { cfg.LoginPasswordHash = hash; return cfg.Save() == nil },
 		EmailEnabled:     cfg.EmailEnabled,
@@ -115,7 +116,7 @@ func main() {
 		XAccessSecret:    cfg.XAccessSecret,
 		LinkedInToken:    cfg.LinkedInToken,
 		LinkedInAuthor:   cfg.LinkedInAuthor,
-		LimiteComando:   time.Duration(cfg.ComandoTimeoutSegundos) * time.Second,
+		LimiteComando:    time.Duration(cfg.ComandoTimeoutSegundos) * time.Second,
 	})
 
 	almacen, err := memoria.NuevoAlmacen(cfg.RutaMemoria)
@@ -139,12 +140,12 @@ func main() {
 	brain := core.NewBrain(hands, core.BrainOpciones{
 		IA:             conectorIA,
 		Memoria:        almacen,
-		Prefs:           prefs,
-		Skills:          gestorSkills,
-		Roles:           gestorRoles,
-		Procedimientos:  procedimientos,
-		Empresa:         gestorEmpresa,
-		Perfil:          gestorPerfil,
+		Prefs:          prefs,
+		Skills:         gestorSkills,
+		Roles:          gestorRoles,
+		Procedimientos: procedimientos,
+		Empresa:        gestorEmpresa,
+		Perfil:         gestorPerfil,
 		MaxHistorialIA: cfg.MaxHistorialIA,
 	})
 
@@ -250,7 +251,7 @@ loop:
 func ejecutarModoServicio() {
 	_ = os.Stdin.Close()
 	logF, err := os.OpenFile(
-		filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "service.log"),
+		filepath.Join(config.DatosDir(), "service.log"),
 		os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600,
 	)
 	if err == nil {
@@ -263,30 +264,31 @@ func ejecutarModoServicio() {
 	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout, cfg.IAURL, cfg.IAAPIKey)
 	gestorSkills := core.NuevoSkillsManager()
 	gestorRoles := core.NuevoRolesManager()
-	gestorEmpresa := core.NuevoGestorEmpresa(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "empresa.json"))
-	gestorPerfil := core.NuevoGestorPerfil(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "perfil.json"))
-	tareas := core.NuevoGestorTareas(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "tareas.json"))
-	agenda := core.NuevoGestorAgenda(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "agenda.json"))
-	ordenes := core.NuevoGestorOrdenes(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "ordenes.json"))
-	procedimientos := core.NuevoGestorProcedimientos(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "procedimientos.json"))
-	formularios := core.NuevoGestorFormularios(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "formularios.json"))
-	auditoria := audit.NuevoRegistro(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "auditoria.jsonl"))
+	gestorEmpresa := core.NuevoGestorEmpresa(filepath.Join(config.DatosDir(), "empresa.json"))
+	gestorPerfil := core.NuevoGestorPerfil(filepath.Join(config.DatosDir(), "perfil.json"))
+	tareas := core.NuevoGestorTareas(filepath.Join(config.DatosDir(), "tareas.json"))
+	agenda := core.NuevoGestorAgenda(filepath.Join(config.DatosDir(), "agenda.json"))
+	ordenes := core.NuevoGestorOrdenes(filepath.Join(config.DatosDir(), "ordenes.json"))
+	procedimientos := core.NuevoGestorProcedimientos(filepath.Join(config.DatosDir(), "procedimientos.json"))
+	formularios := core.NuevoGestorFormularios(filepath.Join(config.DatosDir(), "formularios.json"))
+	auditoria := audit.NuevoRegistro(filepath.Join(config.DatosDir(), "auditoria.jsonl"))
 	hands := core.NewHands(core.HandsOpciones{
-		Apps:            cfg.Apps,
-		ClimaKey:        cfg.OpenWeatherKey,
-		NewsKey:         cfg.NewsAPIKey,
-		WorkspaceRoot:   cfg.WorkspaceRoot,
-		IA:             conectorIA,
-		Skills:          gestorSkills,
-		Tareas:          tareas,
-		Agenda:          agenda,
-		Ordenes:         ordenes,
-		Procedimientos:  procedimientos,
-		Formularios:     formularios,
-		Auditoria:       auditoria,
-		Perfil:          gestorPerfil,
-		PINHash:         cfg.PINHash,
-		PINSetter:       func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
+		Apps:             cfg.Apps,
+		ClimaKey:         cfg.OpenWeatherKey,
+		NewsKey:          cfg.NewsAPIKey,
+		WorkspaceRoot:    cfg.WorkspaceRoot,
+		DatosDir:         config.DatosDir(),
+		IA:               conectorIA,
+		Skills:           gestorSkills,
+		Tareas:           tareas,
+		Agenda:           agenda,
+		Ordenes:          ordenes,
+		Procedimientos:   procedimientos,
+		Formularios:      formularios,
+		Auditoria:        auditoria,
+		Perfil:           gestorPerfil,
+		PINHash:          cfg.PINHash,
+		PINSetter:        func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
 		ContrasenaHash:   cfg.LoginPasswordHash,
 		ContrasenaSetter: func(hash string) bool { cfg.LoginPasswordHash = hash; return cfg.Save() == nil },
 		EmailEnabled:     cfg.EmailEnabled,
@@ -304,7 +306,7 @@ func ejecutarModoServicio() {
 		XAccessSecret:    cfg.XAccessSecret,
 		LinkedInToken:    cfg.LinkedInToken,
 		LinkedInAuthor:   cfg.LinkedInAuthor,
-		LimiteComando:   time.Duration(cfg.ComandoTimeoutSegundos) * time.Second,
+		LimiteComando:    time.Duration(cfg.ComandoTimeoutSegundos) * time.Second,
 	})
 	almacen, err := memoria.NuevoAlmacen(cfg.RutaMemoria)
 	if err != nil {
@@ -377,26 +379,26 @@ func vigilarRecordatoriosService(almacen *memoria.Almacen, hands *core.Hands) {
 
 func ejecutarWebUI() {
 	cfg := config.Load()
-	prefs := memoria.NuevoGestorPreferencias(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "preferencias.json"))
-	rutinas := core.NuevoRutinaManager(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "rutinas.json"))
-	tareas := core.NuevoGestorTareas(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "tareas.json"))
-	agenda := core.NuevoGestorAgenda(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "agenda.json"))
-	ordenes := core.NuevoGestorOrdenes(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "ordenes.json"))
-	procedimientos := core.NuevoGestorProcedimientos(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "procedimientos.json"))
-	formularios := core.NuevoGestorFormularios(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "formularios.json"))
-	auditoria := audit.NuevoRegistro(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "auditoria.jsonl"))
+	prefs := memoria.NuevoGestorPreferencias(filepath.Join(config.DatosDir(), "preferencias.json"))
+	rutinas := core.NuevoRutinaManager(filepath.Join(config.DatosDir(), "rutinas.json"))
+	tareas := core.NuevoGestorTareas(filepath.Join(config.DatosDir(), "tareas.json"))
+	agenda := core.NuevoGestorAgenda(filepath.Join(config.DatosDir(), "agenda.json"))
+	ordenes := core.NuevoGestorOrdenes(filepath.Join(config.DatosDir(), "ordenes.json"))
+	procedimientos := core.NuevoGestorProcedimientos(filepath.Join(config.DatosDir(), "procedimientos.json"))
+	formularios := core.NuevoGestorFormularios(filepath.Join(config.DatosDir(), "formularios.json"))
+	auditoria := audit.NuevoRegistro(filepath.Join(config.DatosDir(), "auditoria.jsonl"))
 	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout, cfg.IAURL, cfg.IAAPIKey)
 	gestorSkills := core.NuevoSkillsManager()
 	gestorRoles := core.NuevoRolesManager()
-	gestorEmpresa := core.NuevoGestorEmpresa(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "empresa.json"))
-	gestorPerfil := core.NuevoGestorPerfil(filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "perfil.json"))
+	gestorEmpresa := core.NuevoGestorEmpresa(filepath.Join(config.DatosDir(), "empresa.json"))
+	gestorPerfil := core.NuevoGestorPerfil(filepath.Join(config.DatosDir(), "perfil.json"))
 	hands := core.NewHands(core.HandsOpciones{
 		Apps: cfg.Apps, ClimaKey: cfg.OpenWeatherKey, NewsKey: cfg.NewsAPIKey,
 		Prefs: prefs, Rutinas: rutinas, Tareas: tareas, Agenda: agenda, Ordenes: ordenes, Procedimientos: procedimientos, Formularios: formularios,
-		WorkspaceRoot: cfg.WorkspaceRoot, IA: conectorIA, Skills: gestorSkills,
+		WorkspaceRoot: cfg.WorkspaceRoot, IA: conectorIA, Skills: gestorSkills, DatosDir: config.DatosDir(),
 		Auditoria: auditoria, Perfil: gestorPerfil, PINHash: cfg.PINHash,
-		PINSetter: func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
-		ContrasenaHash: cfg.LoginPasswordHash,
+		PINSetter:        func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
+		ContrasenaHash:   cfg.LoginPasswordHash,
 		ContrasenaSetter: func(hash string) bool { cfg.LoginPasswordHash = hash; return cfg.Save() == nil },
 		EmailEnabled:     cfg.EmailEnabled,
 		EmailSmtpHost:    cfg.EmailSmtpHost,
@@ -413,7 +415,7 @@ func ejecutarWebUI() {
 		XAccessSecret:    cfg.XAccessSecret,
 		LinkedInToken:    cfg.LinkedInToken,
 		LinkedInAuthor:   cfg.LinkedInAuthor,
-		LimiteComando: time.Duration(cfg.ComandoTimeoutSegundos) * time.Second,
+		LimiteComando:    time.Duration(cfg.ComandoTimeoutSegundos) * time.Second,
 	})
 	almacen, _ := memoria.NuevoAlmacen(cfg.RutaMemoria)
 	if almacen != nil {
@@ -422,7 +424,7 @@ func ejecutarWebUI() {
 	brain := core.NewBrain(hands, core.BrainOpciones{
 		IA: conectorIA, Memoria: almacen,
 		Prefs: prefs, Skills: gestorSkills, Roles: gestorRoles,
-Procedimientos: procedimientos, Empresa: gestorEmpresa, Perfil: gestorPerfil, MaxHistorialIA: cfg.MaxHistorialIA,
+		Procedimientos: procedimientos, Empresa: gestorEmpresa, Perfil: gestorPerfil, MaxHistorialIA: cfg.MaxHistorialIA,
 	})
 	if pendientes := tareas.TextoPendientes(); pendientes != "" {
 		fmt.Printf("[TAREAS] %s\n", pendientes)
@@ -435,19 +437,19 @@ Procedimientos: procedimientos, Empresa: gestorEmpresa, Perfil: gestorPerfil, Ma
 	go vigilarOrdenes(hands, nil)
 	go vigilarInforme(hands, nil)
 	servidor := webui.NuevoServidor(brain, 8080, webui.ServidorOpciones{
-		Estado:        hands,
-		Diagnostico:   hands,
-		Aprobador:     hands,
-		Auditor:       hands,
-		Skills:        gestorSkills,
-		Roles:         gestorRoles,
-		Empresa:       gestorEmpresa,
-		Perfil:        gestorPerfil,
-		ContrasenaHash: cfg.LoginPasswordHash,
-		PINHash:        cfg.PINHash,
-		PINSetter:      func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
+		Estado:           hands,
+		Diagnostico:      hands,
+		Aprobador:        hands,
+		Auditor:          hands,
+		Skills:           gestorSkills,
+		Roles:            gestorRoles,
+		Empresa:          gestorEmpresa,
+		Perfil:           gestorPerfil,
+		ContrasenaHash:   cfg.LoginPasswordHash,
+		PINHash:          cfg.PINHash,
+		PINSetter:        func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
 		ContrasenaSetter: func(hash string) bool { cfg.LoginPasswordHash = hash; return cfg.Save() == nil },
-		RutaHistorial: filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos", "historial-web.json"),
+		RutaHistorial:    filepath.Join(config.DatosDir(), "historial-web.json"),
 	})
 	if err := servidor.Iniciar(); err != nil {
 		fmt.Fprintf(os.Stderr, "[WEBUI] Error: %v\n", err)
@@ -547,7 +549,7 @@ func vigilarInforme(hands *core.Hands, done <-chan struct{}) {
 		}
 	}()
 
-	datosDir := filepath.Join(os.Getenv("USERPROFILE"), "JarvisOS-datos")
+	datosDir := config.DatosDir()
 	informesDir := filepath.Join(datosDir, "informes")
 
 	ticker := time.NewTicker(60 * time.Second)

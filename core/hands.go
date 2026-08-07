@@ -61,25 +61,30 @@ const (
 // Hands ejecuta acciones reales sobre Windows: abrir/cerrar apps, volumen,
 // multimedia, navegador, sistema de archivos, capturas y voz (TTS).
 type Hands struct {
-	muCache  sync.Mutex
-	cache    map[string]cacheEntry
-	Apps     map[string]string
-	ClimaKey string
-	NewsKey  string
-	Prefs    RegistroPreferencias
-	rutinas  *RutinaManager
-	tareas   *GestorTareas
-	agenda   *GestorAgenda
-	ordenes  *GestorOrdenes
-	procedimientos *GestorProcedimientos
+	muCache                sync.Mutex
+	cache                  map[string]cacheEntry
+	Apps                   map[string]string
+	ClimaKey               string
+	NewsKey                string
+	Prefs                  RegistroPreferencias
+	rutinas                *RutinaManager
+	tareas                 *GestorTareas
+	agenda                 *GestorAgenda
+	ordenes                *GestorOrdenes
+	procedimientos         *GestorProcedimientos
 	procedimientoPendiente string
-	clasif   *Clasificador
-	perfil   *GestorPerfil
-	formularios *GestorFormularios
+	clasif                 *Clasificador
+	perfil                 *GestorPerfil
+	formularios            *GestorFormularios
 
-	WorkspaceRoot   string
-	IA              ConectorIA
-	Skills          *SkillsManager
+	WorkspaceRoot string
+	IA            ConectorIA
+	Skills        *SkillsManager
+
+	// DatosDir es el directorio de datos persistentes (empresa, ordenes,
+	// informes...). Lo fija main.go desde config.DatosDir(); se usa para
+	// guardar informes y respetar la sandbox de demo.
+	DatosDir string
 
 	// LimiteComando es el timeout de ejecución de comandos externos; si es 0
 	// se usa TimeoutComandoDefault (30 s).
@@ -109,7 +114,7 @@ type Hands struct {
 	LinkedInToken  string
 	LinkedInAuthor string
 
-	aprobacionMu      sync.Mutex
+	aprobacionMu        sync.Mutex
 	aprobacionPendiente *aprobacionOrden
 
 	vigilanciaMu      sync.Mutex
@@ -130,21 +135,23 @@ type cacheEntry struct {
 }
 
 type HandsOpciones struct {
-	Apps      map[string]string
-	ClimaKey string
-	NewsKey  string
-	Prefs    RegistroPreferencias
-	Rutinas  *RutinaManager
-	Tareas   *GestorTareas
-	Agenda   *GestorAgenda
-	Ordenes  *GestorOrdenes
+	Apps           map[string]string
+	ClimaKey       string
+	NewsKey        string
+	Prefs          RegistroPreferencias
+	Rutinas        *RutinaManager
+	Tareas         *GestorTareas
+	Agenda         *GestorAgenda
+	Ordenes        *GestorOrdenes
 	Procedimientos *GestorProcedimientos
 	Perfil         *GestorPerfil
 	Formularios    *GestorFormularios
 
-	WorkspaceRoot   string
-	IA              ConectorIA
-	Skills          *SkillsManager
+	WorkspaceRoot string
+	IA            ConectorIA
+	Skills        *SkillsManager
+
+	DatosDir string
 
 	LimiteComando time.Duration
 
@@ -180,16 +187,17 @@ func NewHands(opciones ...HandsOpciones) *Hands {
 		h.ClimaKey = opciones[0].ClimaKey
 		h.NewsKey = opciones[0].NewsKey
 		h.Prefs = opciones[0].Prefs
-	h.rutinas = opciones[0].Rutinas
-	h.tareas = opciones[0].Tareas
-	h.agenda = opciones[0].Agenda
-h.ordenes = opciones[0].Ordenes
-	h.procedimientos = opciones[0].Procedimientos
-	h.perfil = opciones[0].Perfil
-	h.formularios = opciones[0].Formularios
+		h.rutinas = opciones[0].Rutinas
+		h.tareas = opciones[0].Tareas
+		h.agenda = opciones[0].Agenda
+		h.ordenes = opciones[0].Ordenes
+		h.procedimientos = opciones[0].Procedimientos
+		h.perfil = opciones[0].Perfil
+		h.formularios = opciones[0].Formularios
 		h.WorkspaceRoot = opciones[0].WorkspaceRoot
 		h.IA = opciones[0].IA
 		h.Skills = opciones[0].Skills
+		h.DatosDir = opciones[0].DatosDir
 		h.Auditoria = opciones[0].Auditoria
 		h.PINHash = opciones[0].PINHash
 		h.PINSetter = opciones[0].PINSetter
