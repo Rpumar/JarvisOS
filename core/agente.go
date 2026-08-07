@@ -63,6 +63,9 @@ func (h *Hands) bucleAgente(orden Orden, prompt string, ejecutadasPrevias []stri
 		resp, err := h.IA.Consultar(prompt, nil)
 		if err != nil {
 			h.ordenes.RegistrarAccion(orden.ID, "consulta IA", "error: "+err.Error())
+			if len(ejecutadas) > 0 {
+				return h.completarConEjecutadas(orden, ejecutadas)
+			}
 			h.ordenes.CambiarEstado(orden.ID, OrdenBloqueada)
 			return fmt.Sprintf("La IA falló al avanzar la orden #%d: %v, señor. Quedó en espera de revisión.", orden.ID, err)
 		}
@@ -78,6 +81,9 @@ func (h *Hands) bucleAgente(orden Orden, prompt string, ejecutadasPrevias []stri
 			prompt += fmt.Sprintf("\n[Error: tu respuesta no era JSON válido. Respondé SOLO con un objeto JSON, sin texto: {\"accion\":\"<comando del catálogo>\",\"razon\":\"<por qué>\"} o {\"fin\":\"<resumen>\"}. Respuesta recibida: %q]", resp)
 			if erroresJSON >= maxErroresJSON {
 				h.ordenes.RegistrarAccion(orden.ID, "consulta IA", "JSON inválido repetido")
+				if len(ejecutadas) > 0 {
+					return h.completarConEjecutadas(orden, ejecutadas)
+				}
 				h.ordenes.CambiarEstado(orden.ID, OrdenBloqueada)
 				return fmt.Sprintf("La IA insistió con respuestas que no eran JSON, señor. La orden #%d quedó en espera de revisión.", orden.ID)
 			}
@@ -123,6 +129,17 @@ func (h *Hands) bucleAgente(orden Orden, prompt string, ejecutadasPrevias []stri
 
 	h.ordenes.CambiarEstado(orden.ID, OrdenBloqueada)
 	return fmt.Sprintf("La IA alcanzó el límite de pasos sin cerrar la orden #%d, señor. La dejé en espera para su revisión.", orden.ID)
+}
+
+// completarConEjecutadas cierra la orden usando los pasos del procedimiento
+// que ya se ejecutaron, cuando la IA no puede confirmar el resultado (falla
+// de conexión o respuestas que no son JSON). Evita dejar bloqueada una orden
+// cuyo procedimiento conocido ya se cumplió.
+func (h *Hands) completarConEjecutadas(orden Orden, ejecutadas []string) string {
+	reporte := fmt.Sprintf("Orden '%s' cumplida con %d pasos del procedimiento ejecutados.", orden.Objetivo, len(ejecutadas))
+	h.ordenes.RegistrarAccion(orden.ID, "verificar", reporte)
+	h.ordenes.Terminar(orden.ID, reporte)
+	return reporte
 }
 
 // parsearRespuestaIA interpreta la respuesta del agente, que debe

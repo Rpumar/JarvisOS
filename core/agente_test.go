@@ -267,3 +267,53 @@ func TestProcesarOrden_ConIAVerificaProcedimientoConocido(t *testing.T) {
 		t.Fatalf("el procedimiento debía sumar el paso extra: %v ok=%v", p, ok)
 	}
 }
+
+func TestProcesarOrden_ProcedimientoConocidoCompletaSiIAFalla(t *testing.T) {
+	dir := t.TempDir()
+	h := &Hands{
+		ordenes:        NuevoGestorOrdenes(filepath.Join(dir, "ordenes.json")),
+		procedimientos: NuevoGestorProcedimientos(filepath.Join(dir, "procedimientos.json")),
+		IA: &iaSecuencial{
+			respuestas: []string{`{"accion":"eco base"}`},
+			errs:       []error{errors.New("falla de conexión")},
+		},
+	}
+	h.procedimientos.Crear("armar el informe", []string{"eco base"})
+
+	o := h.ordenes.Agregar("armar el informe", "dueño")
+	got := h.procesarOrden(o.ID)
+	if !strings.Contains(got, "cumplida") {
+		t.Fatalf("la orden con procedimiento no debía bloquearse por IA caída, obtuve: %q", got)
+	}
+	cerrada, _ := h.ordenes.Obtener(o.ID)
+	if cerrada.Estado != OrdenTerminada {
+		t.Fatalf("la orden debería estar terminada, está: %s", cerrada.Estado)
+	}
+	if !strings.Contains(cerrada.Reporte, "1 pasos") {
+		t.Fatalf("el reporte debía reflejar los pasos ejecutados: %q", cerrada.Reporte)
+	}
+}
+
+func TestProcesarOrden_ProcedimientoConocidoCompletaSiJSONInvalido(t *testing.T) {
+	dir := t.TempDir()
+	h := &Hands{
+		ordenes:        NuevoGestorOrdenes(filepath.Join(dir, "ordenes.json")),
+		procedimientos: NuevoGestorProcedimientos(filepath.Join(dir, "procedimientos.json")),
+		IA: &iaSecuencial{respuestas: []string{
+			"texto libre",
+			"texto libre otra vez",
+			"texto libre de nuevo",
+		}},
+	}
+	h.procedimientos.Crear("armar el informe", []string{"eco base"})
+
+	o := h.ordenes.Agregar("armar el informe", "dueño")
+	got := h.procesarOrden(o.ID)
+	if !strings.Contains(got, "cumplida") {
+		t.Fatalf("la orden con procedimiento no debía bloquearse por JSON inválido, obtuve: %q", got)
+	}
+	cerrada, _ := h.ordenes.Obtener(o.ID)
+	if cerrada.Estado != OrdenTerminada {
+		t.Fatalf("la orden debería estar terminada, está: %s", cerrada.Estado)
+	}
+}

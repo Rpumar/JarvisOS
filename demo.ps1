@@ -56,6 +56,17 @@ function EscribirJSON([string]$ruta, $obj) {
     $json = $obj | ConvertTo-Json -Depth 6
     [System.IO.File]::WriteAllText($ruta, $json, [System.Text.UTF8Encoding]::new($false))
 }
+# EscribirJSONLista fuerza formato de array aunque tenga 1 solo elemento
+# (ConvertTo-Json en Windows PowerShell 5.1 convierte una lista de 1 item en
+# objeto suelto, y los gestores de Go esperan arrays).
+function EscribirJSONLista([string]$ruta, $obj) {
+    $json = $obj | ConvertTo-Json -Depth 6
+    $json = $json.TrimStart()
+    if (-not $json.StartsWith("[")) {
+        $json = "[`n$json`n]"
+    }
+    [System.IO.File]::WriteAllText($ruta, $json, [System.Text.UTF8Encoding]::new($false))
+}
 function EscribirJSONL([string]$ruta, [object[]]$lineas) {
     $sb = New-Object System.Text.StringBuilder
     foreach ($l in $lineas) {
@@ -161,32 +172,32 @@ $ordenes = @(
         historial = @(@{ momento = "08:31"; accion = "iniciar orden"; resultado = "preparar la presentacion mensual" })
     }
 )
-EscribirJSON (Join-Path $DemoDir "ordenes.json") $ordenes
+EscribirJSONLista (Join-Path $DemoDir "ordenes.json") $ordenes
 
 # Tareas de demo.
 $tareas = @(
     @{ id = 1; nombre = "enviar el presupuesto al cliente"; detalle = ""; fecha = ""; hecha = $true; creada = $hoy.AddDays(-2).ToString("yyyy-MM-dd") + " 11:00"; completada = $hoy.AddDays(-2).ToString("yyyy-MM-dd") + " 11:30" },
     @{ id = 2; nombre = "repasar la agenda de manana"; detalle = ""; fecha = ""; hecha = $false; creada = $hoy.ToString("yyyy-MM-dd") + " 09:00"; completada = "" }
 )
-EscribirJSON (Join-Path $DemoDir "tareas.json") $tareas
+EscribirJSONLista (Join-Path $DemoDir "tareas.json") $tareas
 
 # Agenda de demo: reunion manana.
 $agenda = @(
     @{ id = 1; titulo = "Reunion con el cliente"; inicio = $hoy.AddDays(1).ToString("yyyy-MM-dd") + " 15:00"; ubicacion = ""; cancelado = $false }
 )
-EscribirJSON (Join-Path $DemoDir "agenda.json") $agenda
+EscribirJSONLista (Join-Path $DemoDir "agenda.json") $agenda
 
 # Procedimientos de demo: el dueno ya le enseno a Jarvis como se hace la
-# presentacion mensual (escenario 1 se cumple de verdad).
-$procs = @{
-    procedimientos = @(
-        @{
-            nombre = "preparar la presentacion mensual"
-            pasos = @("crear archivo presentacion-mensual", "buscar archivo presupuesto")
-        }
-    )
-}
-EscribirJSON (Join-Path $DemoDir "procedimientos.json") $procs
+# presentacion mensual (escenario 1 se cumple de verdad). El gestor espera
+# una lista JSON plana (no un objeto con clave "procedimientos").
+$procs = @(
+    @{
+        nombre = "preparar la presentacion mensual"
+        pasos = @("crear archivo presentacion-mensual", "buscar archivo presupuesto")
+        creado = $hoy.AddDays(-10).ToString("yyyy-MM-dd") + " 09:00"
+    }
+)
+EscribirJSONLista (Join-Path $DemoDir "procedimientos.json") $procs
 
 # Auditoria de demo: acciones del periodo (aprobadas, denegada, expirada)
 # para que el informe de piloto muestre numeros reales.
