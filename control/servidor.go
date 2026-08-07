@@ -45,6 +45,7 @@ func (s *Servidor) Iniciar() error {
 	mux.HandleFunc("/api/v1/activar", s.manejarActivar)
 	mux.HandleFunc("/api/v1/heartbeat", s.manejarHeartbeat)
 	mux.HandleFunc("/api/v1/estado", s.manejarEstado)
+	mux.HandleFunc("/api/v1/version", s.manejarVersion)
 	mux.HandleFunc("/salud", s.manejarSalud)
 
 	var listener net.Listener
@@ -191,7 +192,7 @@ func (s *Servidor) manejarHeartbeat(w http.ResponseWriter, r *http.Request) {
 		escribirError(w, http.StatusBadRequest, "cuerpo JSON inválido")
 		return
 	}
-	activa, plan, tope, err := s.gestor.Heartbeat(cuerpo.Clave, cuerpo.IDInstalacion, cuerpo.Version, cuerpo.PuestosUsados)
+	activa, plan, tope, latest, err := s.gestor.Heartbeat(cuerpo.Clave, cuerpo.IDInstalacion, cuerpo.Version, cuerpo.PuestosUsados)
 	if err != nil {
 		status := http.StatusBadRequest
 		if err == ErrLicenciaInactiva {
@@ -200,7 +201,31 @@ func (s *Servidor) manejarHeartbeat(w http.ResponseWriter, r *http.Request) {
 		escribirError(w, status, err.Error())
 		return
 	}
-	responder(w, http.StatusOK, map[string]interface{}{"ok": true, "activa": activa, "plan": plan, "puestos": tope})
+	responder(w, http.StatusOK, map[string]interface{}{"ok": true, "activa": activa, "plan": plan, "puestos": tope, "latest_version": latest})
+}
+
+// manejarVersion publica la última versión (POST, admin) o la consulta (GET).
+func (s *Servidor) manejarVersion(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		responder(w, http.StatusOK, map[string]interface{}{"latest_version": s.gestor.UltimaVersion()})
+	case http.MethodPost:
+		if !s.peticionAdminValida(r) {
+			escribirError(w, http.StatusUnauthorized, "token de administración inválido")
+			return
+		}
+		var cuerpo struct {
+			Version string `json:"version"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&cuerpo); err != nil {
+			escribirError(w, http.StatusBadRequest, "cuerpo JSON inválido")
+			return
+		}
+		s.gestor.PublicarVersion(cuerpo.Version)
+		responder(w, http.StatusOK, map[string]interface{}{"ok": true, "latest_version": s.gestor.UltimaVersion()})
+	default:
+		escribirError(w, http.StatusMethodNotAllowed, "use GET o POST")
+	}
 }
 
 func (s *Servidor) manejarEstado(w http.ResponseWriter, r *http.Request) {

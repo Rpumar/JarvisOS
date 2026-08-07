@@ -25,8 +25,13 @@ cambios se agrupan por versión mayor, con la versión actual reflejada en
     funcionando 100% local.
   - Comando por voz: "estado del plano de control" / "sincronizá la
     licencia".
+  - Actualizaciones (F5+): el servidor publica la última versión
+    (`POST /api/v1/version` con token admin, `GET /api/v1/version` público)
+    y el heartbeat la entrega al agente; por voz se avisa cuando hay una
+    actualización disponible ("Hay una actualización disponible: versión X").
   - Tests: emisión, activación, límite de puestos, suspensión/reactivación,
-    persistencia, flujo HTTP completo y cliente real contra el servidor.
+    persistencia, flujo HTTP completo, cliente real contra el servidor y
+    publicación/consulta de versión.
 - Documentación legal y de privacidad (decisión 5): `EULA.md` (licencia por
   plan/puesto, restricciones, garantía, limitación de responsabilidad) y
   `PRIVACIDAD.md` (datos 100% locales, qué puede salir de la PC y bajo qué

@@ -40,7 +40,7 @@ func TestEmitirActivarYHeartbeat(t *testing.T) {
 		t.Fatalf("re-activar instalación existente falló: %v", err)
 	}
 
-	activa, plan, tope, err := g.Heartbeat(clave, "inst-1", "0.14.2", 1)
+	activa, plan, tope, _, err := g.Heartbeat(clave, "inst-1", "0.14.2", 1)
 	if err != nil {
 		t.Fatalf("heartbeat falló: %v", err)
 	}
@@ -70,7 +70,7 @@ func TestSuspenderReactivar(t *testing.T) {
 	if err := g.Activar(clave, "inst-1", "PC", "0.14.1"); err != ErrLicenciaInactiva {
 		t.Fatalf("esperaba ErrLicenciaInactiva, obtuve: %v", err)
 	}
-	if _, _, _, err := g.Heartbeat(clave, "inst-1", "0.14.1", 0); err != ErrLicenciaInactiva {
+	if _, _, _, _, err := g.Heartbeat(clave, "inst-1", "0.14.1", 0); err != ErrLicenciaInactiva {
 		t.Fatalf("heartbeat de licencia suspendida debía fallar, obtuve: %v", err)
 	}
 	if !g.Reactivar(clave) {
@@ -227,6 +227,96 @@ func TestServidorTokenDesdeEntorno(t *testing.T) {
 	t.Setenv("JARVISOS_CONTROL_TOKEN", "  abc  ")
 	if got := TokenDesdeEntorno(); got != "abc" {
 		t.Fatalf("TokenDesdeEntorno debía recortar el token, dio %q", got)
+	}
+}
+
+func TestPublicarYConsultarVersion(t *testing.T) {
+	dir := t.TempDir()
+	g := NuevoGestorControl(dir)
+	if v := g.UltimaVersion(); v != "" {
+		t.Fatalf("sin publicar debía estar vacía, dio %q", v)
+	}
+	g.PublicarVersion("0.15.0")
+	if v := g.UltimaVersion(); v != "0.15.0" {
+		t.Fatalf("después de publicar debía ser 0.15.0, dio %q", v)
+	}
+
+	g2 := NuevoGestorControl(dir)
+	if v := g2.UltimaVersion(); v != "0.15.0" {
+		t.Fatalf("la versión debía persistir tras recargar, dio %q", v)
+	}
+}
+
+func TestVersionEnHeartbeatYEndpoint(t *testing.T) {
+	dir := t.TempDir()
+	g := NuevoGestorControl(dir)
+	clave, _ := g.Emitir("pro", 5, "Cliente")
+	g.PublicarVersion("0.15.0")
+
+	s := NuevoServidor(g, Opciones{Token: "maestra", Dir: dir})
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v1/heartbeat", s.manejarHeartbeat)
+	mux.HandleFunc("/api/v1/version", s.manejarVersion)
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	// El heartbeat debe devolver la última versión publicada.
+	hb := map[string]interface{}{"clave": clave, "id_instalacion": "inst-9", "version": "0.14.1", "puestos_usados": 1}
+	datos, _ := json.Marshal(hb)
+	resp, err := http.Post(srv.URL+"/api/v1/heartbeat", "application/json", bytes.NewReader(datos))
+	if err != nil {
+		t.Fatalf("heartbeat: %v", err)
+	}
+	var hbResp struct {
+		Ok           bool   `json:"ok"`
+		LatestVersion string `json:"latest_version"`
+	}
+	_ = json.NewDecoder(resp.Body).Decode(&hbResp)
+	resp.Body.Close()
+	if !hbResp.Ok || hbResp.LatestVersion != "0.15.0" {
+		t.Fatalf("heartbeat debía reportar 0.15.0, dio %+v", hbResp)
+	}
+
+	// GET público devuelve la versión.
+	resp, err = http.Get(srv.URL + "/api/v1/version")
+	if err != nil {
+		t.Fatalf("GET version: %v", err)
+	}
+	var vResp struct {
+		LatestVersion string `json:"latest_version"`
+	}
+	_ = json.NewDecoder(resp.Body).Decode(&vResp)
+	resp.Body.Close()
+	if vResp.LatestVersion != "0.15.0" {
+		t.Fatalf("GET version debía devolver 0.15.0, dio %+v", vResp)
+	}
+
+	// POST sin token debe dar 401; con token, publica.
+	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/api/v1/version",
+		bytes.NewBufferString(`{"version":"0.16.0"}`))
+	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("POST version sin token: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("POST sin token debía dar 401, dio %d", resp.StatusCode)
+	}
+
+	req, _ = http.NewRequest(http.MethodPost, srv.URL+"/api/v1/version",
+		bytes.NewBufferString(`{"version":"0.16.0"}`))
+	req.Header.Set("Authorization", "Bearer maestra")
+	req.Header.Set("Content-Type", "application/json")
+	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("POST version con token: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("POST con token debía dar 200, dio %d", resp.StatusCode)
+	}
+	if v := g.UltimaVersion(); v != "0.16.0" {
+		t.Fatalf("después del POST debía ser 0.16.0, dio %q", v)
 	}
 }
 

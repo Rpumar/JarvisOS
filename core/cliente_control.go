@@ -15,16 +15,17 @@ import (
 // agente sigue funcionando con la licencia local; los errores se guardan
 // para reportarlos por voz sin cortar la operación.
 type ClienteControl struct {
-	mu        sync.Mutex
-	baseURL   string
-	http      *http.Client
-	clave     string
-	idInst    string
-	nombre    string
-	version   string
-	ultimoMsg string
-	ultimoOK  bool
-	ultimoAt  time.Time
+	mu           sync.Mutex
+	baseURL      string
+	http         *http.Client
+	clave        string
+	idInst       string
+	nombre       string
+	version      string
+	ultimaVers   string
+	ultimoMsg    string
+	ultimoOK     bool
+	ultimoAt     time.Time
 }
 
 // NuevoClienteControl crea el cliente con un timeout corto de red (no debe
@@ -59,7 +60,22 @@ func (c *ClienteControl) EstadoReporta() string {	if c == nil || c.baseURL == ""
 	if c.ultimoOK {
 		estado = "operativo"
 	}
-	return fmt.Sprintf("Plano de control en %s: %s (último contacto %s). %s", c.baseURL, estado, c.ultimoAt.Format("15:04:05"), c.ultimoMsg)
+	aviso := c.ultimoMsg
+	if avisoActualizacion := c.avisoActualizacion(); avisoActualizacion != "" {
+		aviso = aviso + " " + avisoActualizacion
+	}
+	return fmt.Sprintf("Plano de control en %s: %s (último contacto %s). %s", c.baseURL, estado, c.ultimoAt.Format("15:04:05"), aviso)
+}
+
+// avisoActualizacion compara la versión local con la última publicada por el
+// servidor; devuelve un aviso si hay una actualización, o vacío.
+func (c *ClienteControl) avisoActualizacion() string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.ultimaVers == "" || c.ultimaVers == c.version {
+		return ""
+	}
+	return fmt.Sprintf("Hay una actualización disponible: versión %s (estás en %s).", c.ultimaVers, c.version)
 }
 
 // Activar registra esta instalación contra la licencia. Best-effort: devuelve
@@ -111,17 +127,21 @@ func (c *ClienteControl) Heartbeat(puestosUsados int) (bool, error) {
 		return true, err
 	}
 	var respuesta struct {
-		Ok      bool   `json:"ok"`
-		Activa  bool   `json:"activa"`
-		Plan    string `json:"plan"`
-		Puestos int    `json:"puestos"`
-		Error   string `json:"error"`
+		Ok           bool   `json:"ok"`
+		Activa       bool   `json:"activa"`
+		Plan         string `json:"plan"`
+		Puestos      int    `json:"puestos"`
+		LatestVersion string `json:"latest_version"`
+		Error        string `json:"error"`
 	}
 	status, err := c.llamar("POST", "/api/v1/heartbeat", cuerpo, &respuesta)
 	if err != nil {
 		c.registrar(resultado{err: err, status: status, msg: respuesta.Error})
 		return true, fmt.Errorf("heartbeat sin respuesta del plano de control: %w", err)
 	}
+	c.mu.Lock()
+	c.ultimaVers = respuesta.LatestVersion
+	c.mu.Unlock()
 	c.registrar(resultado{ok: respuesta.Ok && respuesta.Activa, status: status, msg: fmt.Sprintf("Heartbeat ok (plan %s, %d puestos).", respuesta.Plan, respuesta.Puestos)})
 	return respuesta.Activa, nil
 }

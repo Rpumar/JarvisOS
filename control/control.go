@@ -57,6 +57,7 @@ type Gestor struct {
 	dir       string
 	licencias map[string]*Licencia
 	clientes  map[string]*Cliente
+	latestVersion string
 }
 
 // NuevoGestorControl carga el estado persistido desde dir.
@@ -83,6 +84,36 @@ func (g *Gestor) cargar() {
 			g.clientes[k] = v
 		}
 	}
+	var v struct {
+		LatestVersion string `json:"latest_version"`
+	}
+	if leerJSON(filepath.Join(g.dir, "version.json"), &v) == nil {
+		g.latestVersion = v.LatestVersion
+	}
+}
+
+// PublicarVersion registra la última versión disponible del agente.
+func (g *Gestor) PublicarVersion(version string) {
+	version = strings.TrimSpace(version)
+	if version == "" {
+		return
+	}
+	g.mu.Lock()
+	g.latestVersion = version
+	g.mu.Unlock()
+	g.guardarVersion()
+}
+
+// UltimaVersion devuelve la última versión publicada (vacía si ninguna).
+func (g *Gestor) UltimaVersion() string {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.latestVersion
+}
+
+func (g *Gestor) guardarVersion() {
+	_ = os.MkdirAll(g.dir, 0o700)
+	escribirJSON(filepath.Join(g.dir, "version.json"), map[string]string{"latest_version": g.latestVersion})
 }
 
 // Emitir crea una clave nueva para plan/puestos y la registra como activa.
@@ -186,8 +217,9 @@ func (g *Gestor) Activar(clave, idInstalacion, nombre, version string) error {
 }
 
 // Heartbeat actualiza el último aviso de una instalación y devuelve si la
-// licencia sigue activa. El agente lo envía periódicamente.
-func (g *Gestor) Heartbeat(clave, idInstalacion, version string, puestosUsados int) (activa bool, plan string, topePuestos int, err error) {
+// licencia sigue activa, el plan, el tope de puestos y la última versión
+// publicada. El agente lo envía periódicamente.
+func (g *Gestor) Heartbeat(clave, idInstalacion, version string, puestosUsados int) (activa bool, plan string, topePuestos int, latestVersion string, err error) {
 	clave = strings.TrimSpace(clave)
 	idInstalacion = strings.TrimSpace(idInstalacion)
 	g.mu.Lock()
@@ -195,7 +227,7 @@ func (g *Gestor) Heartbeat(clave, idInstalacion, version string, puestosUsados i
 
 	l, ok := g.licencias[clave]
 	if !ok {
-		return false, "", 0, ErrClaveNoExiste
+		return false, "", 0, "", ErrClaveNoExiste
 	}
 	if c, existe := g.clientes[idInstalacion]; existe && c.Clave == clave {
 		c.Version = version
@@ -204,9 +236,9 @@ func (g *Gestor) Heartbeat(clave, idInstalacion, version string, puestosUsados i
 		g.guardarLocked()
 	}
 	if l.Estado != LicenciaActiva {
-		return false, l.Plan, l.Puestos, ErrLicenciaInactiva
+		return false, l.Plan, l.Puestos, g.latestVersion, ErrLicenciaInactiva
 	}
-	return true, l.Plan, l.Puestos, nil
+	return true, l.Plan, l.Puestos, g.latestVersion, nil
 }
 
 // tienePuestoLibreLocked indica si la licencia aún acepta instalaciones
