@@ -67,6 +67,10 @@ type Config struct {
 	// "urn:li:organization:...").
 	LinkedInToken  string `json:"linkedin_token"`
 	LinkedInAuthor string `json:"linkedin_author"`
+
+	// LicenseKey es la clave de licencia local (JARVIS-PLAN-PUESTOS-NONCE-
+	// FIRMA). Vacía = modo piloto (1 puesto). Se valida al arrancar.
+	LicenseKey string `json:"license_key"`
 }
 
 // DatosDir devuelve el directorio de datos persistente del usuario. Por
@@ -180,6 +184,7 @@ func Load() *Config {
 		XAccessSecret          string            `json:"x_access_secret"`
 		LinkedInToken          string            `json:"linkedin_token"`
 		LinkedInAuthor         string            `json:"linkedin_author"`
+		LicenseKey             string            `json:"license_key"`
 	}
 
 	var alias configAlias
@@ -277,6 +282,9 @@ func Load() *Config {
 	if alias.LinkedInAuthor != "" {
 		cfg.LinkedInAuthor = alias.LinkedInAuthor
 	}
+	if alias.LicenseKey != "" {
+		cfg.LicenseKey = alias.LicenseKey
+	}
 
 	return cfg
 }
@@ -314,6 +322,7 @@ func (c *Config) Save() error {
 		"x_access_secret":          c.XAccessSecret,
 		"linkedin_token":           c.LinkedInToken,
 		"linkedin_author":          c.LinkedInAuthor,
+		"license_key":              c.LicenseKey,
 	}
 
 	contenido, err := json.MarshalIndent(datos, "", "  ")

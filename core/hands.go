@@ -97,6 +97,9 @@ type Hands struct {
 	ContrasenaHash   string
 	ContrasenaSetter func(hash string) bool
 
+	LicenseKey   string
+	LicenseSetter func(clave string) bool
+
 	EmailEnabled  bool
 	EmailSmtpHost string
 	EmailSmtpPort int
@@ -162,6 +165,9 @@ type HandsOpciones struct {
 	ContrasenaHash   string
 	ContrasenaSetter func(hash string) bool
 
+	LicenseKey   string
+	LicenseSetter func(clave string) bool
+
 	EmailEnabled  bool
 	EmailSmtpHost string
 	EmailSmtpPort int
@@ -203,6 +209,8 @@ func NewHands(opciones ...HandsOpciones) *Hands {
 		h.PINSetter = opciones[0].PINSetter
 		h.ContrasenaHash = opciones[0].ContrasenaHash
 		h.ContrasenaSetter = opciones[0].ContrasenaSetter
+		h.LicenseKey = opciones[0].LicenseKey
+		h.LicenseSetter = opciones[0].LicenseSetter
 		h.EmailEnabled = opciones[0].EmailEnabled
 		h.EmailSmtpHost = opciones[0].EmailSmtpHost
 		h.EmailSmtpPort = opciones[0].EmailSmtpPort

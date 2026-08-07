@@ -88,6 +88,8 @@ type GestorPerfil interface {
 	Seleccionar(texto string) bool
 	AgregarUsuario(nombre, area, rol string) bool
 	Eliminar(nombre string) bool
+	LimiteAlcanzado() bool
+	Obtener(nombre string) (string, bool)
 }
 
 // nombreCookieSesion identifica la cookie de sesión del panel.
@@ -808,6 +810,12 @@ func (s *ServidorWeb) manejarPerfil(w http.ResponseWriter, r *http.Request) {
 				_ = json.NewEncoder(w).Encode(map[string]string{"error": "usuario no encontrado"})
 			}
 		case req.Nombre != "":
+			if s.perfil.LimiteAlcanzado() {
+				if _, yaExiste := s.perfil.Obtener(req.Nombre); !yaExiste {
+					_ = json.NewEncoder(w).Encode(map[string]string{"error": "límite de puestos de la licencia alcanzado"})
+					return
+				}
+			}
 			s.perfil.AgregarUsuario(req.Nombre, req.Area, req.Rol)
 			_ = json.NewEncoder(w).Encode(map[string]string{"ok": "usuario guardado"})
 		case req.Seleccionar != "":

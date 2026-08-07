@@ -61,6 +61,66 @@ func TestGestorPerfil_NivelesDirectos(t *testing.T) {
 	}
 }
 
+func TestGestorPerfil_LimitePuestos(t *testing.T) {
+	g := NuevoGestorPerfil(filepath.Join(t.TempDir(), "perfil.json"))
+	g.LimitePuestos = 2
+	if !g.AgregarUsuario("Ana", "", "admin") {
+		t.Fatal("no se pudo agregar a Ana (puesto 1)")
+	}
+	if !g.AgregarUsuario("Pedro", "", "empleado") {
+		t.Fatal("no se pudo agregar a Pedro (puesto 2)")
+	}
+	if g.AgregarUsuario("Luis", "", "empleado") {
+		t.Fatal("el puesto 3 debe rechazarse con límite de 2")
+	}
+	if !g.LimiteAlcanzado() {
+		t.Fatal("LimiteAlcanzado debe ser true con 2/2")
+	}
+	if len(g.Usuarios()) != 2 {
+		t.Fatalf("usuarios = %d, esperaba 2", len(g.Usuarios()))
+	}
+	// Actualizar a alguien existente no debe chocar con el límite.
+	if g.AgregarUsuario("Ana", "Ventas", "admin") {
+		t.Fatal("Ana ya existía; debía devolver false (actualización)")
+	}
+	if len(g.Usuarios()) != 2 {
+		t.Fatalf("usuarios tras actualizar = %d, esperaba 2", len(g.Usuarios()))
+	}
+}
+
+func TestGestorPerfil_SinLimitePermiteTodos(t *testing.T) {
+	g := NuevoGestorPerfil(filepath.Join(t.TempDir(), "perfil.json"))
+	g.LimitePuestos = 0
+	if !g.AgregarUsuario("Ana", "", "admin") {
+		t.Fatal("sin límite debe aceptar a Ana")
+	}
+	if g.LimiteAlcanzado() {
+		t.Fatal("sin límite nunca debe reportar alcanzado")
+	}
+	if libres := g.PuestosLibres(); libres != -1 {
+		t.Fatalf("PuestosLibres = %d, esperaba -1 (sin límite)", libres)
+	}
+}
+
+func TestBrain_PerfilLimitePuestosPorVoz(t *testing.T) {
+	g := NuevoGestorPerfil(filepath.Join(t.TempDir(), "perfil.json"))
+	g.LimitePuestos = 1
+	b := NewBrain(&manosFalsas{}, BrainOpciones{Perfil: g})
+
+	got := b.Process("agregá al usuario Ana como admin")
+	if !contains(got, "Ana") {
+		t.Fatalf("primer registro = %q, esperaba mención a Ana", got)
+	}
+
+	got = b.Process("agregá al usuario Pedro como empleado")
+	if !contains(got, "licencia") && !contains(got, "puestos") {
+		t.Fatalf("segundo registro con límite = %q, esperaba aviso de licencia/puestos", got)
+	}
+	if len(g.Usuarios()) != 1 {
+		t.Fatalf("usuarios = %d, esperaba 1", len(g.Usuarios()))
+	}
+}
+
 func TestGestorPerfil_EliminarVuelveADueno(t *testing.T) {
 	g := NuevoGestorPerfil(filepath.Join(t.TempDir(), "perfil.json"))
 	g.AgregarUsuario("Ana", "", "admin")

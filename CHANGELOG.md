@@ -11,6 +11,13 @@ cambios se agrupan por versión mayor, con la versión actual reflejada en
 ## [0.14.1] — En curso
 
 ### Agregado
+- Clave de licencia por instalación con límite de puestos (decisión 4.1):
+  `core/licencia.go` genera y valida claves `JARVIS-PLAN-PUESTOS-NONCE-FIRMA`
+  firmadas con HMAC-SHA256 (plan lite 1 puesto / pro 5 / empresa 50). Se valida
+  al arrancar (banner `[LICENCIA]`), por voz ("activá la licencia ..." /
+  "qué licencia tengo") y desde el panel web. Sin clave = modo piloto sin
+  límite; con clave, registrar usuarios por voz o panel respeta el tope de
+  puestos.
 - Backups automáticos de `JarvisOS-datos` con rotación a 7 (`core/backups.go`).
   - Se respalda al arrancar (consola y modo servicio) de forma best-effort.
   - Comando por voz: "hacé un respaldo" crea uno, "qué respaldos tengo" lista.

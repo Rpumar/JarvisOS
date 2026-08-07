@@ -297,6 +297,20 @@ func NuevoClasificador() *Clasificador {
 			Handler:  func(cmd string, h *Hands) string { return h.infoBateriaDetallada() },
 		},
 		{
+			Nombre:   "licencia",
+			Frases:   []string{"activá la licencia", "activa la licencia", "activar la licencia", "activo la licencia", "qué licencia tengo", "que licencia tengo", "mi licencia", "estado de la licencia", "cual es mi licencia", "cuál es mi licencia", "activa mi plan", "activá mi plan", "activar mi plan"},
+			Palabras: []string{"licencia"},
+			Handler: func(cmd string, h *Hands) string {
+				if clave := extraerLicenciaDelComando(cmd); clave != "" {
+					return h.activarLicencia(cmd)
+				}
+				if strings.Contains(cmd, "activ") {
+					return "¿Cuál es la clave, señor? Dígala completa: 'activá la licencia JARVIS-PLAN-PUESTOS-NONCE-FIRMA'."
+				}
+				return h.consultarLicencia()
+			},
+		},
+		{
 			Nombre:   "limpiar_temporales",
 			Frases:   []string{"limpiar temporales", "limpiar archivos temporales", "borrar temporales", "limpiar archivos basura", "borrar archivos temporales", "liberar espacio temporal"},
 			Palabras: []string{"temporales"},

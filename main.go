@@ -65,6 +65,7 @@ func main() {
 	fmt.Printf(" %s v%s ACTIVADO\n", cfg.AppName, cfg.Version)
 	fmt.Println(" El que maneja el total de la PC")
 	fmt.Println("=================================")
+	fmt.Printf("[LICENCIA] %s\n", core.EstadoLicencia(cfg.LicenseKey))
 
 	if ruta, err := core.RealizarBackup(config.DatosDir(), core.BackupsMax); err != nil {
 		fmt.Printf("[BACKUP] No pude respaldar los datos: %v\n", err)
@@ -86,6 +87,7 @@ func main() {
 	gestorRoles := core.NuevoRolesManager()
 	gestorEmpresa := core.NuevoGestorEmpresa(filepath.Join(config.DatosDir(), "empresa.json"))
 	gestorPerfil := core.NuevoGestorPerfil(filepath.Join(config.DatosDir(), "perfil.json"))
+	gestorPerfil.LimitePuestos = core.PuestosLicencia(cfg.LicenseKey)
 	hands := core.NewHands(core.HandsOpciones{
 		Apps:             cfg.Apps,
 		ClimaKey:         cfg.OpenWeatherKey,
@@ -107,6 +109,8 @@ func main() {
 		PINSetter:        func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
 		ContrasenaHash:   cfg.LoginPasswordHash,
 		ContrasenaSetter: func(hash string) bool { cfg.LoginPasswordHash = hash; return cfg.Save() == nil },
+		LicenseKey:       cfg.LicenseKey,
+		LicenseSetter:    func(clave string) bool { cfg.LicenseKey = clave; return cfg.Save() == nil },
 		EmailEnabled:     cfg.EmailEnabled,
 		EmailSmtpHost:    cfg.EmailSmtpHost,
 		EmailSmtpPort:    cfg.EmailSmtpPort,
@@ -277,6 +281,7 @@ func ejecutarModoServicio() {
 	gestorRoles := core.NuevoRolesManager()
 	gestorEmpresa := core.NuevoGestorEmpresa(filepath.Join(config.DatosDir(), "empresa.json"))
 	gestorPerfil := core.NuevoGestorPerfil(filepath.Join(config.DatosDir(), "perfil.json"))
+	gestorPerfil.LimitePuestos = core.PuestosLicencia(cfg.LicenseKey)
 	tareas := core.NuevoGestorTareas(filepath.Join(config.DatosDir(), "tareas.json"))
 	agenda := core.NuevoGestorAgenda(filepath.Join(config.DatosDir(), "agenda.json"))
 	ordenes := core.NuevoGestorOrdenes(filepath.Join(config.DatosDir(), "ordenes.json"))
@@ -302,6 +307,8 @@ func ejecutarModoServicio() {
 		PINSetter:        func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
 		ContrasenaHash:   cfg.LoginPasswordHash,
 		ContrasenaSetter: func(hash string) bool { cfg.LoginPasswordHash = hash; return cfg.Save() == nil },
+		LicenseKey:       cfg.LicenseKey,
+		LicenseSetter:    func(clave string) bool { cfg.LicenseKey = clave; return cfg.Save() == nil },
 		EmailEnabled:     cfg.EmailEnabled,
 		EmailSmtpHost:    cfg.EmailSmtpHost,
 		EmailSmtpPort:    cfg.EmailSmtpPort,
@@ -403,6 +410,7 @@ func ejecutarWebUI() {
 	gestorRoles := core.NuevoRolesManager()
 	gestorEmpresa := core.NuevoGestorEmpresa(filepath.Join(config.DatosDir(), "empresa.json"))
 	gestorPerfil := core.NuevoGestorPerfil(filepath.Join(config.DatosDir(), "perfil.json"))
+	gestorPerfil.LimitePuestos = core.PuestosLicencia(cfg.LicenseKey)
 	hands := core.NewHands(core.HandsOpciones{
 		Apps: cfg.Apps, ClimaKey: cfg.OpenWeatherKey, NewsKey: cfg.NewsAPIKey,
 		Prefs: prefs, Rutinas: rutinas, Tareas: tareas, Agenda: agenda, Ordenes: ordenes, Procedimientos: procedimientos, Formularios: formularios,
@@ -411,6 +419,8 @@ func ejecutarWebUI() {
 		PINSetter:        func(hash string) bool { cfg.PINHash = hash; return cfg.Save() == nil },
 		ContrasenaHash:   cfg.LoginPasswordHash,
 		ContrasenaSetter: func(hash string) bool { cfg.LoginPasswordHash = hash; return cfg.Save() == nil },
+		LicenseKey:       cfg.LicenseKey,
+		LicenseSetter:    func(clave string) bool { cfg.LicenseKey = clave; return cfg.Save() == nil },
 		EmailEnabled:     cfg.EmailEnabled,
 		EmailSmtpHost:    cfg.EmailSmtpHost,
 		EmailSmtpPort:    cfg.EmailSmtpPort,

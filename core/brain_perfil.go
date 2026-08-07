@@ -114,6 +114,14 @@ func (b *Brain) registrarPerfil(entrada, original string) string {
 	}
 	rol := extraerPerfilRol(entrada)
 	area := extraerPerfilArea(entrada, original)
+	if b.perfil.LimiteAlcanzado() {
+		if _, yaExiste := b.perfil.Obtener(nombre); yaExiste {
+			b.perfil.AgregarUsuario(nombre, area, rol)
+			return fmt.Sprintf("El usuario %s ya existía y quedó actualizado como %s%s, señor.", nombre, rol, sufijoArea(area))
+		}
+		libres := b.perfil.PuestosLibres()
+		return fmt.Sprintf("No puedo registrar más puestos, señor: su licencia está completa (quedan %d libre(s)). Consulte 'qué licencia tengo' o activen un plan mayor.", libres)
+	}
 	if b.perfil.AgregarUsuario(nombre, area, rol) {
 		return fmt.Sprintf("Usuario %s registrado como %s%s, señor.", nombre, rol, sufijoArea(area))
 	}

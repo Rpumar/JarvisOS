@@ -30,6 +30,9 @@ type GestorPerfil struct {
 	ruta     string
 	usuarios []PerfilUsuario
 	activo   string
+	// LimitePuestos es el tope de usuarios registrados que permite la
+	// licencia (0 = sin límite, modo piloto/desarrollo).
+	LimitePuestos int
 }
 
 // NuevoGestorPerfil carga los usuarios y el perfil activo persistidos.
@@ -73,6 +76,18 @@ func (g *GestorPerfil) Activo() string {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 	return g.activo
+}
+
+// Obtener devuelve el rol de un usuario registrado y si existe.
+func (g *GestorPerfil) Obtener(nombre string) (string, bool) {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	for _, u := range g.usuarios {
+		if u.Nombre == nombre {
+			return u.Rol, true
+		}
+	}
+	return "", false
 }
 
 // ActivoRol devuelve el nivel de autoridad del perfil activo (dueno, admin
@@ -134,7 +149,8 @@ func (g *GestorPerfil) Seleccionar(texto string) bool {
 }
 
 // AgregarUsuario registra una persona con su nivel. Devuelve true si se
-// creó, false si ya existía (en ese caso actualiza sus datos).
+// creó, false si ya existía (en ese caso actualiza sus datos) o si la
+// licencia ya no permite más puestos.
 func (g *GestorPerfil) AgregarUsuario(nombre, area, rol string) bool {
 	nombre = strings.TrimSpace(nombre)
 	if nombre == "" {
@@ -151,9 +167,35 @@ func (g *GestorPerfil) AgregarUsuario(nombre, area, rol string) bool {
 			return false
 		}
 	}
+	if g.LimitePuestos > 0 && len(g.usuarios) >= g.LimitePuestos {
+		return false
+	}
 	g.usuarios = append(g.usuarios, PerfilUsuario{Nombre: nombre, Area: area, Rol: rol})
 	g.guardar()
 	return true
+}
+
+// LimiteAlcanzado indica si el tope de puestos de la licencia impide registrar
+// un usuario nuevo (con LimitePuestos <= 0 nunca se alcanza).
+func (g *GestorPerfil) LimiteAlcanzado() bool {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	return g.LimitePuestos > 0 && len(g.usuarios) >= g.LimitePuestos
+}
+
+// PuestosLibres devuelve cuántos puestos quedan disponibles (0 si ya no hay,
+// -1 si no hay límite).
+func (g *GestorPerfil) PuestosLibres() int {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+	if g.LimitePuestos <= 0 {
+		return -1
+	}
+	libres := g.LimitePuestos - len(g.usuarios)
+	if libres < 0 {
+		return 0
+	}
+	return libres
 }
 
 // Eliminar quita un usuario; si era el activo, vuelve al dueño.

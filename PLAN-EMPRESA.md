@@ -29,7 +29,7 @@
    - Versionado semántico + CHANGELOG. **Hecho**: `CHANGELOG.md` (formato Keep a Changelog) con el historial v0.7 → v0.14.
    - Recuperación ante crash: órdenes pendientes se retoman (nunca se abandonan).
 4. **Escalabilidad comercial:**
-   - Clave de licencia por instalación con límite de puestos.
+   - Clave de licencia por instalación con límite de puestos. **Hecho**: `core/licencia.go` (claves `JARVIS-PLAN-PUESTOS-NONCE-FIRMA` firmadas con HMAC, planes lite/pro/empresa, validación al arranque, comando por voz "activá la licencia ..." / "qué licencia tengo", límite de puestos al registrar usuarios desde voz y panel).
    - Distribución por **canales** (consultoras IT que instalan/mantienen) + pilotos directos.
    - Material de venta (propuesta + demo guionizada) en F5.
 5. **Legal y soporte:** EULA + política de privacidad (datos locales) + facturación definida con el dueño; canal de soporte en plan Empresa.

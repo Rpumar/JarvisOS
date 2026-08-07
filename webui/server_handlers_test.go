@@ -544,6 +544,8 @@ func (f *fakePerfil) ActivoRol() string                 { return core.PerfilDuen
 func (f *fakePerfil) Seleccionar(texto string) bool     { f.activo = texto; return true }
 func (f *fakePerfil) AgregarUsuario(n, a, r string) bool { f.us = append(f.us, core.PerfilUsuario{Nombre: n, Area: a, Rol: r}); return true }
 func (f *fakePerfil) Eliminar(nombre string) bool       { return true }
+func (f *fakePerfil) LimiteAlcanzado() bool             { return false }
+func (f *fakePerfil) Obtener(nombre string) (string, bool) { return "", false }
 
 func TestManejarPerfil_Get(t *testing.T) {
 	s := NuevoServidor(&fakeBrain{}, 0, ServidorOpciones{
