@@ -190,7 +190,9 @@ cliente. Preparación: 1 día; duración: 15 minutos en vivo.
 - **Demo guiada:** `.\demo.ps1` compila, arma una **sandbox de datos** en
   `%TEMP%\jarvisos-demo-datos` (sin tocar los datos reales del usuario, vía
   la variable `JARVISOS_DATOS`) y deja el guion de los 3 escenarios en
-  pantalla. Con `-Run` lanza JarvisOS en esa sandbox.
+  pantalla. Con `-Run` lanza JarvisOS en esa sandbox. Para mostrar el
+  escenario de email completo, pasar las credenciales SMTP de la demo:
+  `.\demo.ps1 -Run -EmailHost smtp.gmail.com -EmailUser cuenta@gmail.com -EmailPass clave`. Los tres escenarios se validaron en vivo contra la sandbox.
 - **Informe de piloto:** durante el piloto (o al cierre de los 30 días),
   pedir por voz **"informe del piloto"**: Jarvis agrega órdenes y tareas
   cumplidas, calcula las **horas manuales ahorradas** (estimación

@@ -1,14 +1,27 @@
 ﻿param(
     [string]$DemoDir = (Join-Path $env:TEMP "jarvisos-demo-datos"),
+    [string]$EmailHost = "",
+    [string]$EmailUser = "",
+    [string]$EmailPass = "",
     [switch]$SkipBuild,
     [switch]$Run
 )
 
 $ErrorActionPreference = "Stop"
 
+$emailEnabled = $false
+if ($EmailHost -and $EmailUser -and $EmailPass) {
+    $emailEnabled = $true
+}
+
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host " JarvisOS - Demo guiada (3 escenarios)"
 Write-Host " Sandbox de datos: $DemoDir"
+if ($emailEnabled) {
+    Write-Host " Email SMTP: activo para $EmailUser"
+} else {
+    Write-Host " Email SMTP: desactivado (use -EmailHost/-EmailUser/-EmailPass)"
+}
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -68,7 +81,15 @@ $config = @{
     news_api_key = ""
     comando_timeout_segundos = 30
     login_password_hash = $claveHash
-    email_enabled = $false
+    email_enabled = $emailEnabled
+    email_smtp_host = $EmailHost
+    email_smtp_port = 587
+    email_usuario = $EmailUser
+    email_password = $EmailPass
+    email_desde = "Jarvis"
+    email_imap_host = ""
+    email_imap_port = 993
+    email_imap_max = 10
 }
 EscribirJSON (Join-Path $DemoDir "config.json") $config
 
@@ -196,17 +217,22 @@ Write-Host ""
 Write-Host "[3/4] Guion de la demo (3 escenarios):" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  ESCENARIO 1 - Informe semanal (documentacion y trazabilidad)" -ForegroundColor Yellow
-Write-Host "    > agendÃ¡ una orden preparar la presentacion mensual"
-Write-Host "    > ejecutÃ¡ la orden #3"
-Write-Host "    > reportÃ¡ la orden #3"
+Write-Host "    > agenda una orden preparar la presentacion mensual"
+Write-Host "    > ejecuta la orden #4"
+Write-Host "    > reporta la orden #4"
 Write-Host ""
 Write-Host "  ESCENARIO 2 - Email con aprobacion (control total)" -ForegroundColor Yellow
-Write-Host "    > enviÃ¡ un email a info@consultoraabc.com con asunto Presupuesto y el texto Adjunto el presupuesto"
-Write-Host "    > aprobar la orden #N (ingrese el PIN 1234)"
+if ($emailEnabled) {
+    Write-Host "    > envia un email a info@consultoraabc.com con asunto Presupuesto y el texto Adjunto el presupuesto"
+    Write-Host "    > aprobar la orden #N (ingrese el PIN 1234)"
+} else {
+    Write-Host "    [Email desactivado: pase -EmailHost, -EmailUser y -EmailPass para mostrarlo.]" -ForegroundColor Red
+    Write-Host "    Mientras tanto: 'borrar la carpeta de respaldos' muestra la confirmacion del dueno."
+}
 Write-Host ""
-Write-Host "  ESCENARIO 3 - Panel del dueÃ±o + informe de piloto (ROI)" -ForegroundColor Yellow
+Write-Host "  ESCENARIO 3 - Panel del dueno + informe de piloto (ROI)" -ForegroundColor Yellow
 Write-Host "    > informe del piloto"
-Write-Host "    Panel web: http://127.0.0.1:8080  (usuario dueÃ±o, contrasena demo2026)"
+Write-Host "    Panel web: http://127.0.0.1:8080  (usuario dueno, contrasena demo2026)"
 Write-Host ""
 
 # --- 4. Lanzar ---
