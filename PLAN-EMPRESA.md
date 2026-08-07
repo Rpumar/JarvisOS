@@ -25,7 +25,7 @@
 3. **Arquitectura estable:**
    - Paquetes desacoplados: `core` (empleado), `auditoria`, `integraciones`, `web`, `control`.
    - Escritura de datos atómica (temp + rename) para que un crash no corrompa memoria/tareas/órdenes.
-   - Backups automáticos de `JarvisOS-datos` con rotación (al arrancar).
+   - Backups automáticos de `JarvisOS-datos` con rotación (al arrancar). **Hecho**: `core/backups.go`, se respalda al arrancar (consola y servicio) y por voz (`hacé un respaldo`, `qué respaldos tengo`); rota a 7 backups.
    - Versionado semántico + CHANGELOG.
    - Recuperación ante crash: órdenes pendientes se retoman (nunca se abandonan).
 4. **Escalabilidad comercial:**

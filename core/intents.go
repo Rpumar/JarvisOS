@@ -303,6 +303,20 @@ func NuevoClasificador() *Clasificador {
 			Handler:  func(cmd string, h *Hands) string { return h.limpiarTemporales() },
 		},
 		{
+			Nombre:   "backup",
+			Frases:   []string{"hacé un respaldo", "hace un respaldo", "hacer un respaldo", "creá un respaldo", "crea un respaldo", "crear un respaldo", "respalda mis datos", "respaldo de datos", "qué respaldos tengo", "que respaldos tengo", "mis respaldos", "ver respaldos", "listar respaldos", "cuántos respaldos tengo", "cuantos respaldos tengo"},
+			Palabras: []string{"respaldo", "backup"},
+			Handler: func(cmd string, h *Hands) string {
+				if strings.Contains(cmd, "hacé") || strings.Contains(cmd, "hace") ||
+					strings.Contains(cmd, "hacer") || strings.Contains(cmd, "creá") ||
+					strings.Contains(cmd, "crea") || strings.Contains(cmd, "crear") ||
+					strings.Contains(cmd, "respalda") || strings.Contains(cmd, "backup") {
+					return h.hacerBackupManual()
+				}
+				return h.listarBackupsVoz()
+			},
+		},
+		{
 			Nombre:   "organizar_descargas",
 			Frases:   []string{"organizar descargas", "organiza descargas", "ordenar descargas", "ordena descargas", "organizar mis descargas", "organiza mis descargas", "ordenar mis descargas", "limpiar descargas"},
 			Palabras: []string{"organizar", "organiza", "ordenar", "ordena"},

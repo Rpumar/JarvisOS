@@ -66,6 +66,12 @@ func main() {
 	fmt.Println(" El que maneja el total de la PC")
 	fmt.Println("=================================")
 
+	if ruta, err := core.RealizarBackup(config.DatosDir(), core.BackupsMax); err != nil {
+		fmt.Printf("[BACKUP] No pude respaldar los datos: %v\n", err)
+	} else {
+		fmt.Printf("[BACKUP] Respaldo creado: %s\n", ruta)
+	}
+
 	prefs := memoria.NuevoGestorPreferencias(filepath.Join(config.DatosDir(), "preferencias.json"))
 	rutinas := core.NuevoRutinaManager(filepath.Join(config.DatosDir(), "rutinas.json"))
 	tareas := core.NuevoGestorTareas(filepath.Join(config.DatosDir(), "tareas.json"))
@@ -261,6 +267,11 @@ func ejecutarModoServicio() {
 	}
 
 	cfg := config.Load()
+	if ruta, err := core.RealizarBackup(config.DatosDir(), core.BackupsMax); err != nil {
+		fmt.Fprintf(os.Stderr, "[BACKUP] No pude respaldar los datos: %v\n", err)
+	} else {
+		fmt.Printf("[BACKUP] Respaldo creado: %s\n", ruta)
+	}
 	conectorIA := ia.NuevoConector(cfg.ModeloIA, cfg.Timeout, cfg.IAURL, cfg.IAAPIKey)
 	gestorSkills := core.NuevoSkillsManager()
 	gestorRoles := core.NuevoRolesManager()
