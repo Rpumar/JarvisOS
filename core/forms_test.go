@@ -1,9 +1,12 @@
 package core
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"JarvisOS/core/audit"
 )
 
 func TestGestorFormularios_CRUD(t *testing.T) {
@@ -161,6 +164,69 @@ func TestManejarFormulario_AutoNoEncontrado(t *testing.T) {
 		t.Errorf("respuesta inesperada: %q", got)
 	}
 }
+
+func TestAutocompletarFormulario_Audita(t *testing.T) {
+	dir := t.TempDir()
+	h := &Hands{
+		formularios: NuevoGestorFormularios(filepath.Join(dir, "formularios.json")),
+		Auditoria:   audit.NuevoRegistro(filepath.Join(dir, "auditoria.jsonl")),
+	}
+	h.formularios.Agregar(Formulario{
+		Nombre: "Factura",
+		URL:    "https://facturacion.com",
+		Campos: []CampoFormulario{{Nombre: "email", Valor: "pedidos@x.com"}},
+	})
+
+	original := ejecutarAutocompletadoF
+	ejecutarAutocompletadoF = func(*Formulario) error { return nil }
+	defer func() { ejecutarAutocompletadoF = original }()
+
+	got := h.autocompletarFormulario("factura")
+	if !contains(got, "Listo") {
+		t.Fatalf("respuesta inesperada: %q", got)
+	}
+	entradas := h.Auditoria.Listar()
+	if len(entradas) != 1 {
+		t.Fatalf("la auditoría debía tener 1 entrada, tiene %d", len(entradas))
+	}
+	if !strings.Contains(strings.ToLower(entradas[0].Comando), "rellenar formulario factura") {
+		t.Errorf("comando auditado inesperado: %q", entradas[0].Comando)
+	}
+	if !contains(entradas[0].Resultado, "autocompletado") {
+		t.Errorf("resultado auditado inesperado: %q", entradas[0].Resultado)
+	}
+}
+
+func TestAutocompletarFormulario_AuditaFallo(t *testing.T) {
+	dir := t.TempDir()
+	h := &Hands{
+		formularios: NuevoGestorFormularios(filepath.Join(dir, "formularios.json")),
+		Auditoria:   audit.NuevoRegistro(filepath.Join(dir, "auditoria.jsonl")),
+	}
+	h.formularios.Agregar(Formulario{
+		Nombre: "Factura",
+		URL:    "https://facturacion.com",
+		Campos: []CampoFormulario{{Nombre: "email", Valor: "pedidos@x.com"}},
+	})
+
+	original := ejecutarAutocompletadoF
+	ejecutarAutocompletadoF = func(*Formulario) error { return errFakeAutocompletado }
+	defer func() { ejecutarAutocompletadoF = original }()
+
+	got := h.autocompletarFormulario("factura")
+	if !contains(got, "No pude") {
+		t.Fatalf("respuesta inesperada: %q", got)
+	}
+	entradas := h.Auditoria.Listar()
+	if len(entradas) != 1 {
+		t.Fatalf("la auditoría debía tener 1 entrada, tiene %d", len(entradas))
+	}
+	if !contains(entradas[0].Resultado, "fallo") {
+		t.Errorf("resultado auditado inesperado: %q", entradas[0].Resultado)
+	}
+}
+
+var errFakeAutocompletado = fmt.Errorf("navegador no disponible")
 
 func TestEscaparSendKeys(t *testing.T) {
 	got := escaparSendKeys("a+b")

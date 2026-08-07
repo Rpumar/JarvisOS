@@ -140,21 +140,18 @@ func (h *Hands) autocompletarFormulario(nombre string) string {
 		return fmt.Sprintf("El formulario '%s' no tiene URL configurada. Diga 'creá un formulario %s para https://...', señor.", f.Nombre, f.Nombre)
 	}
 
-	if !h.aprobarFormulario(f) {
-		return fmt.Sprintf("Tengo que rellenar el formulario '%s' en %s con %d campos. ¿Confirmo, señor? Diga 'sí' o 'confirmar'.", f.Nombre, f.URL, len(f.Campos))
-	}
-
-	if err := ejecutarAutocompletado(f); err != nil {
+	comando := fmt.Sprintf("rellenar formulario %s", f.Nombre)
+	if err := ejecutarAutocompletadoF(f); err != nil {
+		h.auditar(0, comando, "fallo: "+err.Error())
 		return fmt.Sprintf("No pude autocompletar el formulario '%s': %v", f.Nombre, err)
 	}
+	h.auditar(0, comando, fmt.Sprintf("autocompletado en %s (%d campos)", f.URL, len(f.Campos)))
 	return fmt.Sprintf("Listo, señor. Abrí %s y completé %d campos del formulario '%s'. Verifique y apruebe el envío.", f.URL, len(f.Campos), f.Nombre)
 }
 
-// aprobarFormulario pide confirmación antes de tocar el navegador si la
-// instalación lo exige.
-func (h *Hands) aprobarFormulario(f *Formulario) bool {
-	return true
-}
+// ejecutarAutocompletadoF es inyectable para que los tests no abran el
+// navegador; en producción siempre es ejecutarAutocompletado.
+var ejecutarAutocompletadoF = ejecutarAutocompletado
 
 // ejecutarAutocompletado abre la URL y rellena los campos con SendKeys en el
 // navegador que quede al frente. Es best-effort: depende del orden de campos

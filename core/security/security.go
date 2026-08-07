@@ -70,6 +70,14 @@ var frasesPeligrosas = []frasePeligrosa{
 	{"mandar un email", "enviar un correo electrónico"},
 	{"mandar un correo", "enviar un correo electrónico"},
 	{"mandar un mail", "enviar un correo electrónico"},
+	// Rellenar un formulario web envía datos a un sitio externo: aprobación.
+	{"rellenar formulario", "rellenar un formulario web"},
+	{"rellenar el formulario", "rellenar un formulario web"},
+	{"rellená el formulario", "rellenar un formulario web"},
+	{"rellena el formulario", "rellenar un formulario web"},
+	{"completar el formulario", "rellenar un formulario web"},
+	{"completá el formulario", "rellenar un formulario web"},
+	{"completa el formulario", "rellenar un formulario web"},
 	// Publicar en redes sociales es una acción externa visible: aprobación.
 	{"publicar en x", "publicar en X (Twitter)"},
 	{"publicar en twitter", "publicar en X (Twitter)"},
