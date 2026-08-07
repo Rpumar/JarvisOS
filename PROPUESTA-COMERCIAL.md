@@ -69,6 +69,9 @@ Este es el argumento de venta principal, y no es marketing:
 
 Para empresas con requisitos de confidencialidad (abogados, contadores,
 salud, industria), este punto por sí solo diferencia el producto.
+La política completa, con qué datos se guardan y en qué casos sale algo de
+la PC, está en `PRIVACIDAD.md`; las condiciones de uso y garantía en
+`EULA.md`.
 
 ## 4. Demo guionizada (3 escenarios reales)
 
@@ -180,6 +183,7 @@ testeadas** en el producto (v0.14.0), no a promesas de hoja de ruta:
 - ✅ Demo guiada (`demo.ps1`) con sandbox de datos y guion de 3 escenarios.
 - ✅ Informe de cierre de piloto por voz ("informe del piloto") con horas
   ahorradas y aprobadas/denegadas/expiradas.
+- ✅ Licencia por instalación con plan y límite de puestos (lite/pro/empresa).
 - ✅ Suite de tests verde: build/vet/test limpios.
 
 **Próximo paso:** coordinar la demo guionizada con datos del rubro del

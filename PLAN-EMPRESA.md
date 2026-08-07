@@ -32,7 +32,7 @@
    - Clave de licencia por instalación con límite de puestos. **Hecho**: `core/licencia.go` (claves `JARVIS-PLAN-PUESTOS-NONCE-FIRMA` firmadas con HMAC, planes lite/pro/empresa, validación al arranque, comando por voz "activá la licencia ..." / "qué licencia tengo", límite de puestos al registrar usuarios desde voz y panel).
    - Distribución por **canales** (consultoras IT que instalan/mantienen) + pilotos directos.
    - Material de venta (propuesta + demo guionizada) en F5.
-5. **Legal y soporte:** EULA + política de privacidad (datos locales) + facturación definida con el dueño; canal de soporte en plan Empresa.
+5. **Legal y soporte:** EULA + política de privacidad (datos locales) + facturación definida con el dueño; canal de soporte en plan Empresa. **Hecho**: `EULA.md` (planes, puestos, restricciones, garantía, responsabilidad) y `PRIVACIDAD.md` (datos 100% locales, qué puede salir y con qué condiciones, seguridad, retención). Facturación y canal de soporte definidos en `PROPUESTA-COMERCIAL.md` (sección 6 y 7).
 
 ---
 

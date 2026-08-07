@@ -8,8 +8,9 @@ más allá de la estándar y PowerShell.
 
 **Versión:** 0.14.0+ (F1–F4 completas, F5 en curso).
 **Ver `PROGRESO_JARVISOS.md`** para el historial técnico detallado,
-**`INSTALACION.md`** para la guía de instalación y **`CHANGELOG.md`**
-para el registro de cambios por versión.
+**`INSTALACION.md`** para la guía de instalación, **`CHANGELOG.md`** para el
+registro de cambios por versión, **`EULA.md`** para la licencia de uso y
+**`PRIVACIDAD.md`** para la política de privacidad (datos locales).
 
 ## 1. Funcionalidades
 

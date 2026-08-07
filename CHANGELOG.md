@@ -11,6 +11,10 @@ cambios se agrupan por versión mayor, con la versión actual reflejada en
 ## [0.14.1] — En curso
 
 ### Agregado
+- Documentación legal y de privacidad (decisión 5): `EULA.md` (licencia por
+  plan/puesto, restricciones, garantía, limitación de responsabilidad) y
+  `PRIVACIDAD.md` (datos 100% locales, qué puede salir de la PC y bajo qué
+  condiciones, seguridad, retención y derechos del responsable).
 - Clave de licencia por instalación con límite de puestos (decisión 4.1):
   `core/licencia.go` genera y valida claves `JARVIS-PLAN-PUESTOS-NONCE-FIRMA`
   firmadas con HMAC-SHA256 (plan lite 1 puesto / pro 5 / empresa 50). Se valida
