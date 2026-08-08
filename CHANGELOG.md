@@ -29,9 +29,16 @@ cambios se agrupan por versión mayor, con la versión actual reflejada en
     (`POST /api/v1/version` con token admin, `GET /api/v1/version` público)
     y el heartbeat la entrega al agente; por voz se avisa cuando hay una
     actualización disponible ("Hay una actualización disponible: versión X").
+  - Panel del dueño en la nube: `http://<servidor>:8443/panel` es un
+    dashboard web embebido en el binario (sin dependencias externas) que
+    muestra licencias, instalaciones, puestos y última versión; permite
+    emitir licencias, suspender/reactivar y publicar versiones. La página
+    es pública (HTML) pero todas sus acciones van por la API con token
+    maestra, que nunca vive en el navegador.
   - Tests: emisión, activación, límite de puestos, suspensión/reactivación,
-    persistencia, flujo HTTP completo, cliente real contra el servidor y
-    publicación/consulta de versión.
+    persistencia, flujo HTTP completo, cliente real contra el servidor,
+    publicación/consulta de versión y panel (HTML servido, redirección de
+    raíz y autenticación exigida en la API).
 - Documentación legal y de privacidad (decisión 5): `EULA.md` (licencia por
   plan/puesto, restricciones, garantía, limitación de responsabilidad) y
   `PRIVACIDAD.md` (datos 100% locales, qué puede salir de la PC y bajo qué

@@ -1,6 +1,7 @@
 package control
 
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -9,6 +10,9 @@ import (
 	"strings"
 	"time"
 )
+
+//go:embed panel.html
+var panelFS embed.FS
 
 // Opciones del servidor HTTP del plano de control.
 type Opciones struct {
@@ -46,6 +50,8 @@ func (s *Servidor) Iniciar() error {
 	mux.HandleFunc("/api/v1/heartbeat", s.manejarHeartbeat)
 	mux.HandleFunc("/api/v1/estado", s.manejarEstado)
 	mux.HandleFunc("/api/v1/version", s.manejarVersion)
+	mux.HandleFunc("/panel", s.manejarPanel)
+	mux.HandleFunc("/", s.manejarRaiz)
 	mux.HandleFunc("/salud", s.manejarSalud)
 
 	var listener net.Listener
@@ -242,6 +248,27 @@ func (s *Servidor) manejarEstado(w http.ResponseWriter, r *http.Request) {
 
 func (s *Servidor) manejarSalud(w http.ResponseWriter, r *http.Request) {
 	responder(w, http.StatusOK, map[string]interface{}{"ok": true, "servicio": "plano de control JarvisOS"})
+}
+
+// manejarPanel sirve el dashboard del dueño (web embebida en el binario). La
+// página es pública; todas sus llamadas a /api/v1/* exigen el token maestra.
+func (s *Servidor) manejarPanel(w http.ResponseWriter, r *http.Request) {
+	datos, err := panelFS.ReadFile("panel.html")
+	if err != nil {
+		escribirError(w, http.StatusInternalServerError, "no se pudo leer el panel")
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write(datos)
+}
+
+// manejarRaiz redirige la raíz al panel del dueño.
+func (s *Servidor) manejarRaiz(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		escribirError(w, http.StatusNotFound, "ruta desconocida")
+		return
+	}
+	http.Redirect(w, r, "/panel", http.StatusFound)
 }
 
 func (s *Servidor) planPuestos(clave string) (string, int) {

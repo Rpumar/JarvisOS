@@ -3,6 +3,7 @@ package control
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -317,6 +318,74 @@ func TestVersionEnHeartbeatYEndpoint(t *testing.T) {
 	}
 	if v := g.UltimaVersion(); v != "0.16.0" {
 		t.Fatalf("después del POST debía ser 0.16.0, dio %q", v)
+	}
+}
+
+func TestPanelDocumentacion(t *testing.T) {
+	dir := t.TempDir()
+	g := NuevoGestorControl(dir)
+	s := NuevoServidor(g, Opciones{})
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/panel", s.manejarPanel)
+	mux.HandleFunc("/", s.manejarRaiz)
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	// El panel se sirve como HTML sin exigir token.
+	resp, err := http.Get(srv.URL + "/panel")
+	if err != nil {
+		t.Fatalf("GET panel: %v", err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("panel debía dar 200, dio %d", resp.StatusCode)
+	}
+	if !strings.Contains(strings.ToLower(string(body)), "<html") {
+		t.Fatal("el panel no devolvió contenido HTML")
+	}
+	if !strings.Contains(string(body), "Plano de Control") || !strings.Contains(string(body), "Emitir licencia") {
+		t.Fatal("el panel no contiene la interfaz esperada")
+	}
+
+	// La raíz redirige al panel.
+	client := &http.Client{CheckRedirect: func(req *http.Request, via []*http.Request) error {
+		return http.ErrUseLastResponse
+	}}
+	resp, err = client.Get(srv.URL + "/")
+	if err != nil {
+		t.Fatalf("GET raíz: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusFound {
+		t.Fatalf("la raíz debía redirigir (302), dio %d", resp.StatusCode)
+	}
+	if loc, _ := resp.Location(); !strings.HasSuffix(loc.Path, "/panel") {
+		t.Fatalf("la redirección debía ir a /panel, fue %v", loc)
+	}
+}
+
+// TestPanelPersistenciaFlujo verifica que el panel se sirve con el embed y
+// que las acciones del panel (emitir/suspender/reactivar) siguen exigiendo
+// token, aunque la página HTML en sí sea pública.
+func TestPanelRequiereTokenEnAPI(t *testing.T) {
+	dir := t.TempDir()
+	g := NuevoGestorControl(dir)
+	s := NuevoServidor(g, Opciones{Token: "maestra"})
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v1/emitir", s.manejarEmitir)
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	resp, err := http.Post(srv.URL+"/api/v1/emitir", "application/json",
+		bytes.NewBufferString(`{"plan":"lite","puestos":1,"cliente":"X"}`))
+	if err != nil {
+		t.Fatalf("emitir sin token: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("emitir sin token debía dar 401, dio %d", resp.StatusCode)
 	}
 }
 

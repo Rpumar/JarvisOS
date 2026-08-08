@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JarvisOS — Plano de Control</title>
+<style>
+  :root{
+    --carbon:#1A1613; --carbon-2:#221C18; --brasa:#E8672E; --laton:#B7935F;
+    --hueso:#F3EAD9; --ceniza:#948A7E; --rojo:#E25C5C; --verde:#5CC88B;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family:"Segoe UI", system-ui, sans-serif; background:var(--carbon);
+    color:var(--hueso); min-height:100vh;
+  }
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 28px; border-bottom:1px solid #2B241F; background:var(--carbon-2);
+  }
+  header h1{ font-size:17px; font-weight:600; }
+  header h1 span{ color:var(--brasa); }
+  header .sub{ font-size:12px; color:var(--ceniza,#948A7E); margin-top:2px; }
+  header .session{ font-size:12px; color:var(--ceniza); }
+  button{
+    font:inherit; cursor:pointer; border-radius:6px; border:none;
+    transition:filter .15s, transform .05s;
+  }
+  button:active{ transform:scale(.98); }
+  .btn{ padding:8px 14px; font-size:13px; font-weight:600; }
+  .btn-brasa{ background:var(--brasa); color:#1A1613; }
+  .btn-laton{ background:transparent; border:1px solid rgba(183,147,95,.4); color:var(--laton); }
+  .btn-ceniza{ background:transparent; border:1px solid #2B241F; color:var(--ceniza); }
+  .btn:hover{ filter:brightness(1.15); }
+  main{ max-width:1100px; margin:0 auto; padding:28px; }
+  .estadisticas{ display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:24px; }
+  .card{
+    background:var(--carbon-2); border:1px solid #2B241F; border-radius:10px; padding:16px 18px;
+  }
+  .card .valor{ font-size:26px; font-weight:700; margin-top:6px; }
+  .card .etiqueta{ font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--ceniza); }
+  .valor.verde{ color:var(--verde); } .valor.rojo{ color:var(--rojo); } .valor.brasa{ color:var(--brasa); }
+  section{ margin-bottom:26px; }
+  section h2{ font-size:14px; text-transform:uppercase; letter-spacing:.1em; color:var(--laton); margin-bottom:10px; font-weight:600; }
+  .tabla-wrap{ overflow-x:auto; border:1px solid #2B241F; border-radius:10px; background:var(--carbon-2); }
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  th{ text-align:left; padding:10px 14px; font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--ceniza); border-bottom:1px solid #2B241F; }
+  td{ padding:10px 14px; border-bottom:1px solid #1a1512; vertical-align:middle; }
+  tr:last-child td{ border-bottom:none; }
+  .code{ font-family:'Consolas', monospace; font-size:12px; color:var(--laton); word-break:break-all; }
+  .chip{ display:inline-block; padding:2px 9px; border-radius:999px; font-size:11px; font-weight:600; }
+  .chip.activa{ background:rgba(92,200,139,.15); color:var(--verde); }
+  .chip.suspendida{ background:rgba(234,92,92,.15); color:var(--rojo); }
+  .chip.offline{ background:#2B241F; color:var(--ceniza); }
+  table .acciones{ display:flex; gap:6px; }
+  .btn-mini{ padding:4px 10px; font-size:12px; font-weight:600; border-radius:5px; }
+  .modal-bg{
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.6);
+    align-items:center; justify-content:center; z-index:50;
+  }
+  .modal-bg.abierto{ display:flex; }
+  .modal{
+    background:var(--carbon-2); border:1px solid #3a3129; border-radius:12px;
+    width:min(460px, 92vw); padding:24px;
+  }
+  .modal h3{ font-size:16px; margin-bottom:4px; }
+  .modal p{ font-size:13px; color:var(--ceniza); margin-bottom:16px; }
+  .modal .fila{ margin-bottom:14px; }
+  .modal .form-grid{ margin-bottom:14px; }
+  .modal label{ display:block; font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--ceniza); margin-bottom:5px; }
+  .modal input, .modal select, .modal textarea{
+    width:100%; padding:9px 12px; font-size:13px; color:var(--hueso);
+    background:var(--carbon); border:1px solid #3a3329; border-radius:6px;
+  }
+  .modal .modal-acciones{ display:flex; justify-content:flex-end; gap:10px; margin-top:18px; }
+  .modal .modal-acciones .espacio{ flex:1; }
+  .estado-linea{ font-size:12px; color:var(--ceniza); }
+  .estado-linea.ok{ color:var(--verde); } .estado-linea.err{ color:var(--rojo); }
+  .aviso{
+    display:none; padding:12px 16px; border-radius:8px; font-size:13px; margin-bottom:20px;
+  }
+  .aviso.visible{ display:block; }
+  .aviso.ok{ background:rgba(84,200,139,.1); border:1px solid rgba(84,200,139,.35); color:var(--verde); }
+  .aviso.err{ background:rgba(234,92,92,.1); border:1px solid rgba(234,92,92,.35); color:var(--rojo); }
+  .login{ display:flex; align-items:center; justify-content:center; min-height:80vh; }
+  .login .card{ width:min(380px,92vw); padding:28px; }
+  .login h2{ font-size:18px; margin-bottom:4px; }
+  .login p{ font-size:13px; color:var(--ceniza); margin-bottom:18px; }
+  .login input{ width:100%; padding:10px 12px; margin-bottom:14px; font-size:14px; color:var(--hueso); background:var(--carbon); border:1px solid #3a3329; border-radius:6px; }
+  .oculto{ display:none !important; }
+</style>
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="vista-login" class="login">
+  <div class="card">
+    <h1><span style="color:var(--brasa)">JarvisOS</span> Plano de Control</h1>
+    <p>Ingresá el token maestra para administrar licencias, instalaciones y versiones.</p>
+    <input type="password" id="login-token" placeholder="Token maestra" autocomplete="off">
+    <button class="btn btn-brasa" style="width:100%;" onclick="intentarLogin()">Ingresar</button>
+    <div id="login-error" class="aviso err" style="margin-top:14px;"></div>
+  </div>
+</div>
+
+<!-- ===================== PANEL ===================== -->
+<div id="vista-panel" class="oculto">
+  <header>
+    <div>
+      <h1>JarvisOS <span>Plano de Control</span></h1>
+      <div class="sub" id="campo-tiempo">—</div>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <span id="campo-token-resumen" class="session-size">Conectado</span>
+      <button class="btn btn-laton" onclick="recargar()">Actualizar</button>
+      <button class="btn btn-ceniza" onclick="salir()">Salir</button>
+    </div>
+  </header>
+
+  <main>
+    <div id="aviso-general" class="aviso"></div>
+
+    <!-- Estadísticas -->
+    <div class="estadisticas">
+      <div class="card"><div class="etiqueta">Licencias activas</div><div class="valor verde" id="stat-activas">—</div></div>
+      <div class="card"><div class="etiqueta">Licencias suspendidas</div><div class="valor rojo" id="stat-suspendidas">—</div></div>
+      <div class="card"><div class="etiqueta">Instalaciones registradas</div><div class="valor brasa" id="stat-instalaciones">—</div></div>
+      <div class="card"><div class="etiqueta">Última versión publicada</div><div class="valor" id="stat-version">—</div></div>
+    </div>
+
+    <!-- Licencias -->
+    <section>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+        <h2 style="margin-bottom:0;">Licencias</h2>
+        <button class="btn btn-brasa" onclick="abrirEmitir()">＋ Emitir licencia</button>
+      </div>
+      <div class="tabla-wrap">
+        <table>
+          <thead><tr><th>Clave</th><th>Plan</th><th>Puestos</th><th>Cliente</th><th>Estado</th><th>Creada</th><th></th></tr></thead>
+          <tbody id="tabla-licencias"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Instalaciones -->
+    <section>
+      <h2>Instalaciones</h2>
+      <div class="tabla-wrap">
+        <table>
+          <thead><tr><th>Nombre</th><th>Clave</th><th>Versión</th><th>Puestos en uso</th><th>Último heartbeat</th></tr></thead>
+          <tbody id="tabla-instalaciones"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Versión -->
+    <section>
+      <h2>Publicar actualización</h2>
+      <div class="card" style="display:flex; gap:12px; align-items:flex-end;">
+        <div style="flex:1;">
+          <label style="display:block; font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--ceniza); margin-bottom:5px;">Versión nueva (ej: 0.15.0)</label>
+          <input type="text" id="nueva-version" placeholder="0.15.0" style="width:100%; padding:9px 12px; font-size:13px; color:var(--hueso); background:var(--carbon); border:1px solid #3a3329; border-radius:6px;">
+        </div>
+        <button class="btn btn-brasa" onclick="publicarVersion()">Publicar</button>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ===================== MODAL EMITIR ===================== -->
+<div id="modal-emitir" class="modal-bg" onclick="if(event.target===this)cerrarEmitir()">
+  <div class="modal">
+    <h3>Emitir licencia</h3>
+    <p>Genera una clave nueva para un cliente. El plan define los puestos máximos.</p>
+    <div class="form-grid">
+      <label>Cliente / empresa</label>
+      <input type="text" id="emitir-cliente" placeholder='Ej: "Consultora ABC"'>
+    </div>
+    <div class="form-grid">
+      <label>Plan</label>
+      <select id="emitir-plan">
+        <option value="lite">Lite — 1 puesto</option>
+        <option value="pro">Pro — 5 puestos</option>
+        <option value="empresa">Empresa — 20 puestos</option>
+      </select>
+    </div>
+    <div class="form-grid">
+      <label>Puestos (vacío = default del plan)</label>
+      <input type="number" id="emitir-puestos" min="0" placeholder="">
+    </div>
+    <div class="modal-acciones">
+      <button class="btn btn-ceniza" onclick="cerrarEmitir()">Cancelar</button>
+      <button class="btn btn-brasa" onclick="confirmarEmitir()">Emitir</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ================================================================
+// Estado
+// ================================================================
+let token = '';
+const storedKey = 'jarvisos_control_token';
+
+function inicializar(){
+  const guardado = sessionStorage.getItem(storedKey);
+  if (guardado) { token = guardado; cargar(); }
+}
+
+function intentarLogin(){
+  token = document.getElementById('login-token').value.trim();
+  if (!token) return;
+  cargar();
+}
+
+function salir(){
+  sessionStorage.removeItem(storedKey);
+  token = '';
+  document.getElementById('login-token').value = '';
+  document.getElementById('vista-panel').classList.add('oculto');
+  document.getElementById('vista-login').classList.remove('oculto');
+  document.getElementById('login-error').innerHTML = '';
+}
+
+// ================================================================
+// API
+// ================================================================
+async function peticion(ruta, metodo, cuerpo){
+  const opts = { method: metodo || 'GET', headers: { 'Authorization': 'Bearer ' + token } };
+  if (cuerpo){ opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(cuerpo); }
+  const resp = await fetch(ruta, opts);
+  let datos = null;
+  try { datos = await resp.json(); } catch(e){}
+  return { ok: resp.ok, status: resp.status, datos };
+}
+
+// ================================================================
+// Carga de datos
+// ================================================================
+async function cargar(){
+  const r = await peticion('/api/v1/estado', 'GET');
+  if (r.status === 401){
+    sessionStorage.removeItem(storedKey);
+    document.getElementById('login-error').textContent = 'Token inválido. Revisalo e intentá de nuevo.';
+    return;
+  }
+  if (!r.ok){
+    document.getElementById('login-error').textContent = 'No se pudo conectar con el servidor.';
+    return;
+  }
+  sessionStorage.setItem(storedKey, token);
+  document.getElementById('vista-login').classList.add('oculto');
+  document.getElementById('vista-panel').classList.remove('oculto');
+
+  const v = await peticion('/api/v1/version', 'GET');
+  render(r.datos || {}, (v.datos) || {});
+}
+
+function recargar(){ cargar(); }
+
+function render(estado, version){
+  // Estadísticas
+  const licencias = estado.licencias || [];
+  const clientes = estado.clientes || [];
+  let activas = 0, suspendidas = 0;
+  licencias.forEach(l => { if (l.estado === 'activa') activas++; else suspendidas++; });
+  document.getElementById('stat-activas').textContent = activas;
+  document.getElementById('stat-suspendidas').textContent = suspendidas;
+  document.getElementById('stat-instalaciones').textContent = clientes.length;
+  document.getElementById('stat-version').textContent = version.latest_version || '—';
+  document.getElementById('campo-tiempo').textContent = 'Actualizado: ' + (estado.tiempo || '—');
+  document.getElementById('campo-token-resumen').textContent = 'Conectado a ' + location.host;
+
+  // Tabla licencias
+  const tblL = document.getElementById('tabla-licencias');
+  if (!licencias.length){ tblL.innerHTML = '<tr><td colspan="7" class="estado-linea">Aún no hay licencias emitidas.</td></tr>'; }
+  else {
+    tblL.innerHTML = licencias.map(l => `
+      <tr>
+        <td class="code">${escapeHtml(l.clave)}</td>
+        <td>${escapeHtml(l.plan)}</td>
+        <td>${l.puestos}</td>
+        <td>${escapeHtml(l.cliente||'')}</td>
+        <td><span class="chip ${l.estado==='activa'?'activa':'suspendida'}">${l.estado}</span></td>
+        <td>${escapeHtml(l.creada||'')}</td>
+        <td class="acciones">
+          ${l.estado==='activa'
+            ? `<button class="btn-mini btn-laton" onclick="cambiarEstado('${l.clave}','suspender')">Suspender</button>`
+            : `<button class="btn-mini btn-brasa" onclick="cambiarEstado('${l.clave}','reactivar')">Reactivar</button>`}
+        </td>
+      </tr>`).join('');
+  }
+
+  // Tabla instalaciones
+  const tblI = document.getElementById('tabla-instalaciones');
+  if (!clientes.length){ tblI.innerHTML = '<tr><td colspan="5" class="estado-linea">Ninguna instalación registrada todavía.</td></tr>'; }
+  else {
+    tblI.innerHTML = clientes.map(c => `
+      <tr>
+        <td>${escapeHtml(c.nombre||'')}</td>
+        <td class="code">${escapeHtml(c.clave||'')}</td>
+        <td>${escapeHtml(c.version||'—')}</td>
+        <td>${c.puestos_usados||0}</td>
+        <td>${escapeHtml(ultimoVisto(c.ultimo_seen))}</td>
+      </tr>`).join('');
+  }
+}
+
+function escapeHtml(t){ return String(t).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+function ultimoVisto(iso){
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (d.getTime() && !isNaN(d.getTime())) return d.toLocaleString('es-AR');
+  return iso;
+}
+
+// ================================================================
+// Acciones
+// ================================================================
+async function cambiarEstado(clave, accion){
+  const r = await peticion('/api/v1/' + accion, 'POST', { clave });
+  estableceAviso(r.ok ? 'ok' : 'err', r.ok ? 'Licencia actualizada.' : getError(r));
+  cargar();
+}
+function abrirEmitir(){ document.getElementById('modal-emitir').classList.add('abierto'); }
+function cerrarEmitir(){ document.getElementById('modal-emitir').classList.remove('abierto'); }
+async function confirmarEmitir(){
+  const cliente = document.getElementById('emitir-cliente').value.trim();
+  const plan = document.getElementById('emitir-plan').value;
+  const puestos = document.getElementById('emitir-puestos').value.trim();
+  const cuerpo = { plan, cliente };
+  if (puestos && puestos !== '0') cuerpo.puestos = Number(puestos);
+  const r = await peticion('/api/v1/emitir', 'POST', cuerpo);
+  if (r.ok && r.datos && r.datos.clave){
+    document.getElementById('emitir-cliente').value = '';
+    cerrarEmitir();
+    estableceAviso('ok', 'Licencia emitida correctamente. Copiala o se la enviás al cliente.');
+  } else {
+    estableceAviso('err', getError(r));
+  }
+  cargar();
+}
+async function publicarVersion(){
+  const v = document.getElementById('nueva-version').value.trim();
+  if (!v){ estableceAviso('err', 'Escribí una versión (ej: 0.15.0).'); return; }
+  const r = await peticion('/api/v1/version', 'POST', { version: v });
+  if (r.ok) { document.getElementById('nueva-version').value = ''; estableceAviso('ok', 'Versión ' + v + ' publicada. Los agentes la verán en el próximo heartbeat.'); }
+  else estableceAviso('err', getError(r));
+  cargar();
+}
+
+function estableceAviso(tipo, msg){
+  const aviso = document.getElementById('aviso-general');
+  aviso.className = 'aviso visible ' + tipo;
+  aviso.textContent = msg;
+  clearTimeout(estableceAviso._t);
+  estableceAviso._t = setTimeout(() => aviso.className = 'aviso', 6000);
+}
+function getError(r){ return (r && r.datos && r.datos.error) || ('Error HTTP ' + r.status); }
+
+document.addEventListener('DOMContentLoaded', inicializar);
+</script>
+</body>
+</html>
