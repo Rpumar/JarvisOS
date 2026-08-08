@@ -163,6 +163,17 @@
         </div>
         <button class="btn btn-brasa" onclick="publicarVersion()">Publicar</button>
       </div>
+      <div class="card" style="display:flex; gap:12px; align-items:flex-end; margin-top:10px;">
+        <div style="flex:1;">
+          <label style="display:block; font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--ceniza); margin-bottom:5px;">Binario nuevo (JarvisOS.exe) para la versión</label>
+          <input type="file" id="archivo-binario" accept=".exe,.bin" placeholder="Seleccioná el ejecutable" style="width:100%; padding:8px 12px; font-size:13px; color:var(--hueso); background:var(--carbon); border:1px solid #3a3329; border-radius:6px;">
+        </div>
+        <button class="btn btn-laton" onclick="publicarBinario()">Subir binario</button>
+      </div>
+      <div class="card" style="margin-top:10px;">
+        <div class="etiqueta">Release publicado</div>
+        <div class="valor" id="stat-release" style="font-size:13px; margin-top:6px;">—</div>
+      </div>
     </section>
   </main>
 </div>
@@ -268,6 +279,9 @@ function render(estado, version){
   document.getElementById('stat-suspendidas').textContent = suspendidas;
   document.getElementById('stat-instalaciones').textContent = clientes.length;
   document.getElementById('stat-version').textContent = version.latest_version || '—';
+  const rel = version.release || {};
+  document.getElementById('stat-release').textContent =
+    (rel.version ? ('v' + rel.version + ' · sha256 ' + String(rel.sha256||'').slice(0,12) + '…') : 'No hay binario publicado');
   document.getElementById('campo-tiempo').textContent = 'Actualizado: ' + (estado.tiempo || '—');
   document.getElementById('campo-token-resumen').textContent = 'Conectado a ' + location.host;
 
@@ -346,6 +360,26 @@ async function publicarVersion(){
   const r = await peticion('/api/v1/version', 'POST', { version: v });
   if (r.ok) { document.getElementById('nueva-version').value = ''; estableceAviso('ok', 'Versión ' + v + ' publicada. Los agentes la verán en el próximo heartbeat.'); }
   else estableceAviso('err', getError(r));
+  cargar();
+}
+
+async function publicarBinario(){
+  const archivo = document.getElementById('archivo-binario').files[0];
+  if (!archivo){ estableceAviso('err', 'Seleccioná primero el archivo JarvisOS.exe.'); return; }
+  if (archivo.size > 64*1024*1024){ estableceAviso('err', 'El binario supera los 64 MB permitidos.'); return; }
+  const v = document.getElementById('nueva-version').value.trim();
+  if (!v){ estableceAviso('err', 'Escribí la versión del binario (ej: 0.15.0).'); return; }
+
+  const opts = { method: 'POST', headers: { 'Authorization': 'Bearer ' + token } };
+  opts.body = archivo;
+  const resp = await fetch('/api/v1/publicar?version=' + encodeURIComponent(v), opts);
+  let datos = null;
+  try { datos = await resp.json(); } catch(e){}
+  if (resp.ok && datos && datos.sha256){
+    estableceAviso('ok', 'Binario v' + v + ' publicado (' + (datos.bytes||0) + ' bytes). SHA-256: ' + datos.sha256.slice(0,16) + '…');
+  } else {
+    estableceAviso('err', (datos && datos.error) || ('Error HTTP ' + resp.status));
+  }
   cargar();
 }
 

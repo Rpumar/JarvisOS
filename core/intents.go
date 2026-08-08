@@ -323,6 +323,18 @@ func NuevoClasificador() *Clasificador {
 			Handler:  func(cmd string, h *Hands) string { return h.estadoPlanoControl() },
 		},
 		{
+			Nombre:   "actualizar_agente",
+			Frases:   []string{"actualizar agente", "actualizá el agente", "actualiza el agente", "actualizar jarvis", "actualizá jarvis", "actualiza jarvis", "actualizar el sistema", "quiero la nueva versión", "quiero la nueva version", "descargá la actualización", "descarga la actualización"},
+			Palabras: []string{"actualizar", "actualiza", "actualización", "actualizacion", "nueva versión", "nueva version"},
+			Handler: func(cmd string, h *Hands) string {
+				if strings.Contains(cmd, "estado") || strings.Contains(cmd, "hay actualiza") ||
+					strings.Contains(cmd, "tengo actualiza") {
+					return h.estadoActualizacion()
+				}
+				return h.actualizarAgente()
+			},
+		},
+		{
 			Nombre:   "backup",
 			Frases:   []string{"hacé un respaldo", "hace un respaldo", "hacer un respaldo", "creá un respaldo", "crea un respaldo", "crear un respaldo", "respalda mis datos", "respaldo de datos", "qué respaldos tengo", "que respaldos tengo", "mis respaldos", "ver respaldos", "listar respaldos", "cuántos respaldos tengo", "cuantos respaldos tengo"},
 			Palabras: []string{"respaldo", "backup"},

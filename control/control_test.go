@@ -269,7 +269,7 @@ func TestVersionEnHeartbeatYEndpoint(t *testing.T) {
 		t.Fatalf("heartbeat: %v", err)
 	}
 	var hbResp struct {
-		Ok           bool   `json:"ok"`
+		Ok            bool   `json:"ok"`
 		LatestVersion string `json:"latest_version"`
 	}
 	_ = json.NewDecoder(resp.Body).Decode(&hbResp)
@@ -318,6 +318,114 @@ func TestVersionEnHeartbeatYEndpoint(t *testing.T) {
 	}
 	if v := g.UltimaVersion(); v != "0.16.0" {
 		t.Fatalf("después del POST debía ser 0.16.0, dio %q", v)
+	}
+}
+
+func TestPublicarDescargarRelease(t *testing.T) {
+	dir := t.TempDir()
+	g := NuevoGestorControl(dir)
+	clave, _ := g.Emitir("pro", 5, "Cliente")
+	if err := g.Activar(clave, "inst-rel-1", "PC", "0.14.1"); err != nil {
+		t.Fatalf("activar: %v", err)
+	}
+
+	s := NuevoServidor(g, Opciones{Token: "maestra", Dir: dir})
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v1/publicar", s.manejarPublicar)
+	mux.HandleFunc("/api/v1/release", s.manejarRelease)
+	mux.HandleFunc("/api/v1/descargar", s.manejarDescargar)
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	// Publicar sin token = 401.
+	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/api/v1/publicar?version=0.19.0", bytes.NewBuffer(bytes.Repeat([]byte{0x11}, 32)))
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("publicar sin token: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("publicar sin token debía dar 401, dio %d", resp.StatusCode)
+	}
+
+	// Publicar con token: devuelve SHA-256 del binario.
+	binary := bytes.Repeat([]byte{0xDE, 0xAD, 0xBE, 0xEF}, 4096)
+	req, _ = http.NewRequest(http.MethodPost, srv.URL+"/api/v1/publicar?version=0.19.0", bytes.NewReader(binary))
+	req.Header.Set("Authorization", "Bearer maestra")
+	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("publicar: %v", err)
+	}
+	var pub struct {
+		Ok      bool   `json:"ok"`
+		SHA256  string `json:"sha256"`
+		Version string `json:"version"`
+	}
+	_ = json.NewDecoder(resp.Body).Decode(&pub)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated || !pub.Ok {
+		t.Fatalf("publicar con token debía dar 201 ok, dio %d %+v", resp.StatusCode, pub)
+	}
+	esperado := sha256Hex(binary)
+	if pub.SHA256 != esperado {
+		t.Fatalf("sha devuelto %q distinto del esperado %q", pub.SHA256, esperado)
+	}
+
+	// GET /api/v1/release sin cliente = 401; con cliente activo, devuelve.
+	resp, err = http.Get(srv.URL + "/api/v1/release")
+	if err != nil {
+		t.Fatalf("release sin cliente: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("release sin licencia debía dar 401, dio %d", resp.StatusCode)
+	}
+
+	req, _ = http.NewRequest(http.MethodGet, srv.URL+"/api/v1/release", nil)
+	req.Header.Set("X-Jarvis-Clave", clave)
+	req.Header.Set("X-Jarvis-Instalacion", "inst-rel")
+	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("release con cliente: %v", err)
+	}
+	var rel struct {
+		Version string `json:"version"`
+		SHA256  string `json:"sha256"`
+	}
+	_ = json.NewDecoder(resp.Body).Decode(&rel)
+	resp.Body.Close()
+	if rel.Version != "0.19.0" || rel.SHA256 != esperado {
+		t.Fatalf("release inesperado: %+v", rel)
+	}
+
+	// Descarga con cliente verificada: headers y cuerpo deben coincidir.
+	req, _ = http.NewRequest(http.MethodGet, srv.URL+"/api/v1/descargar", nil)
+	req.Header.Set("X-Jarvis-Clave", clave)
+	req.Header.Set("X-Jarvis-Instalacion", "inst-rel")
+	resp, err = http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("descargar: %v", err)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("descargar debía dar 200, dio %d", resp.StatusCode)
+	}
+	if !bytes.Equal(body, binary) {
+		t.Fatal("el binario descargado no coincide con el publicado")
+	}
+	if got := strings.ToUpper(resp.Header.Get("X-Jarvis-SHA256")); got != esperado {
+		t.Fatalf("cabecera SHA256 %q distinta al esperado %q", got, esperado)
+	}
+
+	// Descarga sin licencia = 401.
+	resp, err = http.Get(srv.URL + "/api/v1/descargar")
+	if err != nil {
+		t.Fatalf("descargar sin licencia: %v", err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("descargar sin licencia debía dar 401, dio %d", resp.StatusCode)
 	}
 }
 

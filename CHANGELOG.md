@@ -37,8 +37,19 @@ cambios se agrupan por versión mayor, con la versión actual reflejada en
     maestra, que nunca vive en el navegador.
   - Tests: emisión, activación, límite de puestos, suspensión/reactivación,
     persistencia, flujo HTTP completo, cliente real contra el servidor,
-    publicación/consulta de versión y panel (HTML servido, redirección de
-    raíz y autenticación exigida en la API).
+    publicación/consulta de versión, publicación/descarga del binario con
+    verificación SHA-256, y panel (HTML servido, redirección de raíz y
+    autenticación exigida en la API).
+  - Auto-actualización del agente (F5+): el dueño sube el binario
+    (`JarvisOS.exe`) desde el panel con su versión (`POST /api/v1/publicar`),
+    el servidor lo guarda y calcula su SHA-256; el agente consulta
+    `GET /api/v1/release` (autenticado por licencia) y descarga el binario
+    por `GET /api/v1/descargar` verificando el hash antes de aceptarlo.
+    Comando por voz: "actualizá el agente" descarga, verifica y reemplaza el
+    ejecutable en uso (script auxiliar que espera el cierre y relanza).
+  - Tests: publicación con token (devuelve SHA-256 correcto), release y
+    descarga solo con licencia activa (401 sin ella), contenido y hash
+    coincidentes con lo publicado.
 - Documentación legal y de privacidad (decisión 5): `EULA.md` (licencia por
   plan/puesto, restricciones, garantía, limitación de responsabilidad) y
   `PRIVACIDAD.md` (datos 100% locales, qué puede salir de la PC y bajo qué

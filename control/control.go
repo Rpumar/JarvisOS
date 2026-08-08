@@ -6,6 +6,8 @@
 package control
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -26,7 +28,7 @@ const (
 
 // Errores de negocio del plano de control.
 var (
-	ErrClaveNoExiste   = errors.New("la clave de licencia no existe")
+	ErrClaveNoExiste    = errors.New("la clave de licencia no existe")
 	ErrLicenciaInactiva = errors.New("la licencia está suspendida")
 	ErrSinPuestosLibres = errors.New("la licencia no tiene puestos libres")
 )
@@ -53,11 +55,14 @@ type Cliente struct {
 
 // Gestor almacena y opera licencias y clientes en archivos JSON.
 type Gestor struct {
-	mu        sync.Mutex
-	dir       string
-	licencias map[string]*Licencia
-	clientes  map[string]*Cliente
-	latestVersion string
+	mu             sync.Mutex
+	dir            string
+	licencias      map[string]*Licencia
+	clientes       map[string]*Cliente
+	latestVersion  string
+	releaseVersion string
+	releaseSHA256  string
+	releaseDatos   []byte
 }
 
 // NuevoGestorControl carga el estado persistido desde dir.
@@ -90,6 +95,18 @@ func (g *Gestor) cargar() {
 	if leerJSON(filepath.Join(g.dir, "version.json"), &v) == nil {
 		g.latestVersion = v.LatestVersion
 	}
+	var r struct {
+		Version string `json:"version"`
+		SHA256  string `json:"sha256"`
+	}
+	if leerJSON(filepath.Join(g.dir, "release.json"), &r) == nil {
+		g.releaseVersion = r.Version
+		g.releaseSHA256 = r.SHA256
+	}
+	datos, err := os.ReadFile(filepath.Join(g.dir, "release.bin"))
+	if err == nil {
+		g.releaseDatos = datos
+	}
 }
 
 // PublicarVersion registra la última versión disponible del agente.
@@ -109,6 +126,51 @@ func (g *Gestor) UltimaVersion() string {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	return g.latestVersion
+}
+
+// PublicarRelease registra el binario ejecutable del agente para una versión,
+// junto con su SHA-256. Los agentes que consultan el hash pueden verificar la
+// integridad antes de confiar en el binario descargado.
+func (g *Gestor) PublicarRelease(version string, datos []byte) (string, error) {
+	version = strings.TrimSpace(version)
+	if version == "" {
+		return "", errors.New("versión vacía")
+	}
+	if len(datos) == 0 {
+		return "", errors.New("binario vacío")
+	}
+	_ = os.MkdirAll(g.dir, 0o700)
+	if err := os.WriteFile(filepath.Join(g.dir, "release.bin"), datos, 0o600); err != nil {
+		return "", err
+	}
+	sha := sha256Hex(datos)
+	g.mu.Lock()
+	g.releaseVersion = version
+	g.releaseSHA256 = sha
+	g.releaseDatos = datos
+	g.mu.Unlock()
+	escribirJSON(filepath.Join(g.dir, "release.json"), map[string]string{"version": version, "sha256": sha})
+	return sha, nil
+}
+
+// ReleaseDevuelve la versión del binario publicado y su SHA-256 (vacíos si
+// no hay release).
+func (g *Gestor) ReleaseInfo() (version, sha256 string) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.releaseVersion, g.releaseSHA256
+}
+
+// ReleaseDatos devuelve el binario publicado (nil si no hay).
+func (g *Gestor) ReleaseDatos() []byte {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.releaseDatos
+}
+
+func sha256Hex(datos []byte) string {
+	s := sha256.Sum256(datos)
+	return strings.ToUpper(hex.EncodeToString(s[:]))
 }
 
 func (g *Gestor) guardarVersion() {

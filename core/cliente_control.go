@@ -2,9 +2,15 @@ package core
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -15,17 +21,17 @@ import (
 // agente sigue funcionando con la licencia local; los errores se guardan
 // para reportarlos por voz sin cortar la operación.
 type ClienteControl struct {
-	mu           sync.Mutex
-	baseURL      string
-	http         *http.Client
-	clave        string
-	idInst       string
-	nombre       string
-	version      string
-	ultimaVers   string
-	ultimoMsg    string
-	ultimoOK     bool
-	ultimoAt     time.Time
+	mu         sync.Mutex
+	baseURL    string
+	http       *http.Client
+	clave      string
+	idInst     string
+	nombre     string
+	version    string
+	ultimaVers string
+	ultimoMsg  string
+	ultimoOK   bool
+	ultimoAt   time.Time
 }
 
 // NuevoClienteControl crea el cliente con un timeout corto de red (no debe
@@ -48,7 +54,8 @@ func (c *ClienteControl) Configurado() bool {
 
 // EstadoReporta devuelve un resumen legible del último contacto, para el
 // comando de voz "estado del plano de control".
-func (c *ClienteControl) EstadoReporta() string {	if c == nil || c.baseURL == "" {
+func (c *ClienteControl) EstadoReporta() string {
+	if c == nil || c.baseURL == "" {
 		return "No hay un plano de control configurado, señor. Los datos siguen siendo 100% locales."
 	}
 	c.mu.Lock()
@@ -76,6 +83,129 @@ func (c *ClienteControl) avisoActualizacion() string {
 		return ""
 	}
 	return fmt.Sprintf("Hay una actualización disponible: versión %s (estás en %s).", c.ultimaVers, c.version)
+}
+
+// UpdateDisponible indica si el servidor publicó un binario para una versión
+// distinta a la local. Best-effort: devuelve false si no se puede consultar.
+func (c *ClienteControl) UpdateDisponible() bool {
+	if c == nil || c.baseURL == "" {
+		return false
+	}
+	version, _ := c.ReleaseInfo()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return version != "" && version != c.version
+}
+
+// actualInfo resume la actualización disponible (versión y hash), o vacíos.
+func (c *ClienteControl) actualInfo() (string, string) {
+	return c.ReleaseInfo()
+}
+
+// ReleaseInfo consulta la versión publicada y su SHA-256.
+func (c *ClienteControl) ReleaseInfo() (version, sha256 string) {
+	if c == nil || c.baseURL == "" {
+		return "", ""
+	}
+	req, err := http.NewRequest(http.MethodGet, c.baseURL+"/api/v1/release", nil)
+	if err != nil {
+		return "", ""
+	}
+	c.setHeadersAutenticacion(req)
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return "", ""
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", ""
+	}
+	var cuerpo struct {
+		Version string `json:"version"`
+		SHA256  string `json:"sha256"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&cuerpo); err != nil {
+		return "", ""
+	}
+	return strings.TrimSpace(cuerpo.Version), strings.TrimSpace(cuerpo.SHA256)
+}
+
+// DescargarActualizacion descarga el binario publicado y verifica su SHA-256
+// antes de devolver el path donde quedó guardado. Tope de tamaño: 64 MB.
+// Devuelve error si el checksum no coincide (nunca un binario sin verificar).
+func (c *ClienteControl) DescargarActualizacion(dirDestino string) (string, error) {
+	if c == nil || c.baseURL == "" {
+		return "", errors.New("no hay plano de control configurado")
+	}
+	req, err := http.NewRequest(http.MethodGet, c.baseURL+"/api/v1/descargar", nil)
+	if err != nil {
+		return "", err
+	}
+	c.setHeadersAutenticacion(req)
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("descarga rechazada (status %d)", resp.StatusCode)
+	}
+	esperado := strings.ToUpper(strings.TrimSpace(resp.Header.Get("X-Jarvis-SHA256")))
+	version := strings.TrimSpace(resp.Header.Get("X-Jarvis-Version"))
+	if version == "" {
+		return "", errors.New("el servidor no indicó la versión del binario")
+	}
+	if err := os.MkdirAll(dirDestino, 0o700); err != nil {
+		return "", err
+	}
+	ruta := filepath.Join(dirDestino, "JarvisOS-"+version+".exe")
+	archivo, err := os.Create(ruta)
+	if err != nil {
+		return "", err
+	}
+	defer archivo.Close()
+
+	h := sha256.New()
+	total := 0
+	buf := make([]byte, 32*1024)
+	for {
+		n, errLectura := resp.Body.Read(buf)
+		if n > 0 {
+			total += n
+			if total > maxUpdateBytes {
+				_ = os.Remove(ruta)
+				return "", fmt.Errorf("binario demasiado grande (>%d MB)", maxUpdateBytes/(1<<20))
+			}
+			_, _ = archivo.Write(buf[:n])
+			h.Write(buf[:n])
+		}
+		if errLectura == io.EOF {
+			break
+		}
+		if errLectura != nil {
+			_ = os.Remove(ruta)
+			return "", errLectura
+		}
+	}
+	if err := archivo.Sync(); err != nil {
+		return "", err
+	}
+
+	obtenido := strings.ToUpper(hex.EncodeToString(h.Sum(nil)))
+	if esperado := strings.ToUpper(esperado); esperado != "" && obtenido != esperado {
+		_ = os.Remove(ruta)
+		return "", fmt.Errorf("el binario no pasó la verificación SHA-256 (esperado %s, obtenido %s)", esperado, obtenido)
+	}
+	return ruta, nil
+}
+
+const maxUpdateBytes = 64 << 20 // 64 MB: nunca aceptar binarios gigantes.
+
+// setHeadersAutenticacion agrega las cabeceras con que el plano de control
+// identifica y autoriza a esta instalación.
+func (c *ClienteControl) setHeadersAutenticacion(req *http.Request) {
+	req.Header.Set("X-Jarvis-Clave", c.clave)
+	req.Header.Set("X-Jarvis-Instalacion", c.idInst)
 }
 
 // Activar registra esta instalación contra la licencia. Best-effort: devuelve
@@ -127,12 +257,12 @@ func (c *ClienteControl) Heartbeat(puestosUsados int) (bool, error) {
 		return true, err
 	}
 	var respuesta struct {
-		Ok           bool   `json:"ok"`
-		Activa       bool   `json:"activa"`
-		Plan         string `json:"plan"`
-		Puestos      int    `json:"puestos"`
+		Ok            bool   `json:"ok"`
+		Activa        bool   `json:"activa"`
+		Plan          string `json:"plan"`
+		Puestos       int    `json:"puestos"`
 		LatestVersion string `json:"latest_version"`
-		Error        string `json:"error"`
+		Error         string `json:"error"`
 	}
 	status, err := c.llamar("POST", "/api/v1/heartbeat", cuerpo, &respuesta)
 	if err != nil {
@@ -191,4 +321,44 @@ func (h *Hands) estadoPlanoControl() string {
 		return "No hay un plano de control configurado, señor. Todo funciona en modo local."
 	}
 	return h.Control.EstadoReporta()
+}
+
+// estadoActualizacion reporta por voz si hay una actualización disponible y
+// su versión (comando "estado de la actualización").
+func (h *Hands) estadoActualizacion() string {
+	if h.Control == nil || !h.Control.Configurado() {
+		return "No hay un plano de control configurado, señor. No puedo consultar actualizaciones."
+	}
+	if aviso := h.Control.avisoActualizacion(); aviso != "" {
+		return aviso + " ¿Querés que la descargue e instale? Decime \"actualizá el agente\"."
+	}
+	version, _ := h.Control.actualInfo()
+	if version == "" {
+		return "El plano de control no tiene ninguna actualización publicada, señor. Estás en la última versión."
+	}
+	return "No hay actualizaciones pendientes, señor. Estás en la versión " + h.Control.version + "."
+}
+
+// actualizarAgente descarga el binario nuevo, verifica su integridad y lo
+// aplica reemplazando el ejecutable en uso (con reinicio automático).
+func (h *Hands) actualizarAgente() string {
+	if h.Control == nil || !h.Control.Configurado() {
+		return "No hay un plano de control configurado, señor. No puedo actualizarme."
+	}
+	if !h.Control.UpdateDisponible() {
+		version, _ := h.Control.actualInfo()
+		if version == "" {
+			return "El plano de control no tiene ninguna actualización publicada, señor. Ya estás al día."
+		}
+		return "Ya estás en la versión " + h.Control.version + ", la última disponible, señor."
+	}
+
+	ruta, err := h.Control.DescargarActualizacion(h.DatosDir)
+	if err != nil {
+		return "No pude descargar la actualización, señor: " + err.Error()
+	}
+	if err := aplicarActualizacion(ruta); err != nil {
+		return "Descargué la actualización pero no pude aplicarla, señor: " + err.Error()
+	}
+	return "Actualicé el agente a la nueva versión, señor. Ya estás al día."
 }
