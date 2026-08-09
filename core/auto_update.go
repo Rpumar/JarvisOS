@@ -43,30 +43,35 @@ func aplicarActualizacion(rutaDescarga string) error {
 }
 
 // scriptActualizacion genera el .cmd que reemplaza el ejecutable. Escapa las
-// rutas contra comillas simples/dobles del comando "copy".
+// rutas contra comillas del comando "copy".
+//
+// La app que inicia la actualización NO se cierra sola: el script espera un
+// momento (por si entra voz), luego cierra forzosamente el proceso JarvisOS,
+// copia el binario nuevo y relanza. El reemplazo se reintenta porque Windows
+// no libera el exe ni bien termina el proceso.
 func scriptActualizacion(exeActual, rutaDescarga string) string {
 	viejo := comillaCmd(exeActual)
 	nuevo := comillaCmd(rutaDescarga)
 	respaldo := comillaCmd(exeActual + ".backup")
 	return `@echo off
-rem Espera a que el proceso JarvisOS termine (máx 15s).
-echo Esperando que JarvisOS se cierre...
-timeout /t 1 /nobreak >nul
-for /L %%i in (1,1,15) do (
-  tasklist /FI "IMAGENAME eq JarvisOS.exe" 2>nul | find /I "JarvisOS.exe" >nul
-  if errorlevel 1 goto copiar
-  timeout /t 1 /nobreak >nul
-)
-echo El proceso sigue activo; se cancela la actualizacion.
-exit /B 1
-
+rem Espera un momento por si la app se cierra sola; si no, la cierra.
+timeout /t 2 /nobreak >nul
+taskkill /IM "JarvisOS.exe" /F >nul 2>nul
+rem Aplicacion: reintenta el reemplazo hasta que el exe quede libre.
+set /a intento = 0
 :copiar
+set /a intento += 1
 if exist ` + respaldo + ` del /q ` + respaldo + `
 copy /y "` + nuevo + `" "` + viejo + `" >nul
-if errorlevel 1 (
-  echo No se pudo reemplazar el ejecutable.
+if not errorlevel 1 goto ok
+if %intento% geq 10 (
+  echo No se pudo reemplazar el ejecutable tras %intento% intentos.
   exit /B 1
 )
+timeout /t 1 /nobreak >nul
+goto copiar
+
+:ok
 echo Actualizacion aplicada; relanzando JarvisOS...
 start "" "` + viejo + `"
 del /q "` + nuevo + `" >nul 2>nul
