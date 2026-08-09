@@ -96,7 +96,7 @@ func DatosDir() string {
 func defaultConfig() *Config {
 	return &Config{
 		AppName:                "JARVISOS",
-		Version:                "0.14.0",
+		Version:                "0.14.1",
 		RequireApproval:        true,
 		Timeout:                30 * time.Second,
 		RutaMemoria:            filepath.Join(DatosDir(), "memoria.json"),
