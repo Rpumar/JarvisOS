@@ -1,6 +1,6 @@
 # JarvisOS — Progreso
 
-**Versión actual:** 0.13.0
+**Versión actual:** 0.14.1
 **Estado:** ✅ Confirmado funcionando en Windows real (detalle abajo, ver
 "Validación real" — corresponde a v0.8.0; **todo de v0.9.0 en adelante
 (memoria, recordatorios, trato personalizado, seguridad, y esta ronda de
@@ -11,7 +11,51 @@ tanda cuando llegue a su máquina, no en cada paso intermedio).
 ## Roadmap de mejoras (pedido del usuario, en fases)
 
 Las 4 fases originales están completas (Personalidad, Memoria, Funciones,
-Seguridad). Esta versión es una ronda adicional de comandos, pedida aparte.
+Seguridad). Las fases F1–F5 del plan empresarial (`PLAN-EMPRESA.md`) también
+están completas, y la etapa F5+ (plano de control en la nube) quedó cerrada
+en esta versión.
+
+## v0.13.0 → v0.14.1: plan empresarial completo + plano de control
+
+El proyecto pasó de asistente personal a **empleado digital empresarial**
+(`PLAN-EMPRESA.md`). Las 5 fases del plan y la extensión F5+ están cerradas:
+
+- **F1 — Órdenes que no se abandonan** (`core/ordenes.go`): la orden queda
+  `pendiente` y se retoma sola (al arrancar y cada 5 min); solo pasa a
+  `terminada` con verificación o confirmación del dueño.
+- **F2 — Confiabilidad B2B**: auditoría JSONL con rotación (`core/audit`),
+  roles (dueño/admin/empleado), contraseña de acceso local y aprobaciones
+  obligatorias por PIN con expiración.
+- **F3 — Integraciones de oficina**: email SMTP/IMAP con cliente propio,
+  Office por COM (Word/Excel/PPT), Outlook, PDF, agenda con sync a Outlook,
+  redes (X OAuth 1.0a + LinkedIn), formularios web con autocompletado.
+- **F4 — Producto y presencia B2B**: marca corporativa, WebUI del dueño con
+  aprobaciones y visor de auditoría, perfil de empresa estructurado
+  (`empresa.json`), onboarding guiado en el primer arranque.
+- **F5 — Propuesta comercial**: `PROPUESTA-COMERCIAL.md` completo + `demo.ps1`
+  guionizada con sandbox de datos (`JARVISOS_DATOS`) e informe de cierre de
+  piloto por voz.
+- **F5+ — Plano de control en la nube** (`control/`): servidor HTTP
+  (`JarvisOS.exe --control`) que emite/gestiona licencias online, registra
+  instalaciones por heartbeat y controla puestos en uso; panel del dueño web
+  embebido (`:8443/panel`) para licencias y publicación de versiones. El
+  agente activa la instalación al arranque y hace heartbeat cuando
+  `control_url` está configurado (best-effort: sin servidor, sigue 100%
+  local).
+- **Auto-actualización del agente** (F5+): el dueño publica el binario
+  (`POST /api/v1/publicar`), el servidor guarda su SHA-256 y el agente
+  descarga (`GET /api/v1/descargar`), verifica el hash y reemplaza su
+  ejecutable. El script de reemplazo (`core/auto_update.go`) cierra el
+  proceso y reintenta hasta 10 veces para vencer el bloqueo del exe en
+  Windows.
+- **Licencia por instalación** (`core/licencia.go`): claves
+  `JARVIS-PLAN-PUESTOS-NONCE-FIRMA` con HMAC-SHA256 (lite/pro/empresa),
+  validación al arrancar, por voz y desde el panel; tope de puestos al
+  registrar usuarios. Sin clave = modo piloto sin límite.
+- **Backups automáticos** (`core/backups.go`): copia de `JarvisOS-datos` al
+  arrancar con rotación a 7, y por voz ("hacé un respaldo").
+
+Detalle por versión: ver `CHANGELOG.md`.
 
 ## v0.12.0 → v0.13.0: más comandos y funciones
 

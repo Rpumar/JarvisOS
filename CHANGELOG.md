@@ -8,7 +8,7 @@ El software en sí no sigue estrictamente SemVer (versión 0.x), pero los
 cambios se agrupan por versión mayor, con la versión actual reflejada en
 `config.json` (`version`) y en el banner de arranque.
 
-## [0.14.1] — En curso
+## [0.14.1] — 2026
 
 ### Agregado
 - Plano de control en la nube (decisión 1, F5+): paquete `control/` con
@@ -83,6 +83,12 @@ cambios se agrupan por versión mayor, con la versión actual reflejada en
   de verdad al confirmar (se eliminó la rama que siempre devolvía `true`).
 - CI (`test.yml`) no se disparaba: el repo usa `master` y el workflow solo
   escuchaba `main`.
+- La auto-actualización del agente podía cancelarse en Windows: el script
+  auxiliar (`core/auto_update.go`) esperaba que el proceso se cerrara solo y
+  abortaba si seguía activo. Ahora cierra forzoso el binario (`taskkill /IM
+  "JarvisOS.exe" /F`) y reintenta el reemplazo hasta 10 veces (Windows no
+  libera el exe apenas termina el proceso) antes de relanzar. También se
+  corrigió un byte corrupto en el comentario del `.cmd` generado.
 
 ## [0.14.0] — 2025
 
