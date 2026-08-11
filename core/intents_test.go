@@ -124,3 +124,31 @@ func TestClasificarArmas(t *testing.T) {
 		}
 	}
 }
+
+func TestClasificarHora(t *testing.T) {
+	casos := []struct {
+		entrada  string
+		esperado string
+	}{
+		{"qué hora es", "hora"},
+		{"decime la hora", "hora"},
+		{"hora", "hora"},
+		{"hora actual", "hora"},
+		{"ahora mismo abrí chrome", ""},
+		{"qué hora era cuando terminó", ""},
+		{"cuántas horas ahorré", "informe_piloto"},
+	}
+	c := NuevoClasificador()
+	for _, cso := range casos {
+		nombre, ok := c.Clasificar(cso.entrada)
+		if cso.esperado == "" {
+			if ok {
+				t.Errorf("entrada %q: esperado sin match, obtuve %q", cso.entrada, nombre)
+			}
+			continue
+		}
+		if !ok || nombre != cso.esperado {
+			t.Errorf("entrada %q: esperado %q, obtuve ok=%v nombre=%q", cso.entrada, cso.esperado, ok, nombre)
+		}
+	}
+}

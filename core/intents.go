@@ -89,7 +89,7 @@ func NuevoClasificador() *Clasificador {
 		},
 		{
 			Nombre:   "hora",
-			Frases:   []string{"qué hora es", "que hora es", "decime la hora", "decí la hora", "deci la hora", "hora actual", "hora", "que hora tenés", "qué hora tenes"},
+			Frases:   []string{"qué hora es", "que hora es", "decime la hora", "decí la hora", "deci la hora", "hora actual", "que hora tenés", "qué hora tenes"},
 			Palabras: []string{"hora"},
 			Handler:  func(cmd string, h *Hands) string { return h.decirHora() },
 		},
