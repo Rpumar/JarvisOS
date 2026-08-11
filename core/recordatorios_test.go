@@ -52,6 +52,51 @@ func TestExtraerRecordatorio_CasosInvalidos(t *testing.T) {
 	}
 }
 
+func TestExtraerRecordatorio_Fechas(t *testing.T) {
+	now := time.Date(2026, time.July, 22, 15, 0, 0, 0, time.UTC)
+	ahoraJueves := time.Date(2026, time.July, 23, 10, 0, 0, 0, time.UTC)
+	ahoraAgosto := time.Date(2026, time.August, 11, 15, 0, 0, 0, time.UTC)
+
+	casos := []struct {
+		entrada  string
+		ahora    time.Time
+		esperado time.Time
+		ok       bool
+	}{
+		{"recordame llamar a mamá el jueves a las 5", now, time.Date(2026, time.July, 23, 5, 0, 0, 0, time.UTC), true},
+		{"recordame X el jueves a las 17", now, time.Date(2026, time.July, 23, 17, 0, 0, 0, time.UTC), true},
+		{"recordame llamar a mamá el jueves a las 5", ahoraJueves, time.Date(2026, time.July, 30, 5, 0, 0, 0, time.UTC), true},
+		{"recordame sacar la basura mañana a las 9", now, time.Date(2026, time.July, 23, 9, 0, 0, 0, time.UTC), true},
+		{"recordame X pasado mañana a las 9", now, time.Date(2026, time.July, 24, 9, 0, 0, 0, time.UTC), true},
+		{"recordame X pasado manana a las 9", now, time.Date(2026, time.July, 24, 9, 0, 0, 0, time.UTC), true},
+		{"recordame llamar a mamá el 25 de julio a las 14:30", now, time.Date(2026, time.July, 25, 14, 30, 0, 0, time.UTC), true},
+		{"recordame X el 25 de julio a las 14:30", ahoraAgosto, time.Date(2027, time.July, 25, 14, 30, 0, 0, time.UTC), true},
+		{"recordame tomar agua cada día a las 8", now, time.Date(2026, time.July, 23, 8, 0, 0, 0, time.UTC), true},
+		{"recordame X cada semana a las 9", now, time.Date(2026, time.July, 23, 9, 0, 0, 0, time.UTC), true},
+		{"recordame X cada día", now, time.Time{}, true},
+	}
+
+	for _, c := range casos {
+		_, momento, ok := extraerRecordatorioEn(c.entrada, c.ahora)
+		if ok != c.ok {
+			t.Errorf("extraerRecordatorioEn(%q): ok = %v, esperaba %v", c.entrada, ok, c.ok)
+			continue
+		}
+		if !ok {
+			continue
+		}
+		if c.esperado.IsZero() {
+			if momento.IsZero() {
+				t.Errorf("extraerRecordatorioEn(%q): momento es zero, esperaba una fecha válida", c.entrada)
+			}
+			continue
+		}
+		if !momento.Equal(c.esperado) {
+			t.Errorf("extraerRecordatorioEn(%q): momento = %v, esperaba %v", c.entrada, momento, c.esperado)
+		}
+	}
+}
+
 func TestProximaOcurrencia_HoyOManana(t *testing.T) {
 	ahora := time.Date(2026, time.July, 22, 15, 0, 0, 0, time.UTC)
 

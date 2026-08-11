@@ -97,12 +97,15 @@ func proximaOcurrencia(hora, minuto int, ahora time.Time) time.Time {
 }
 
 func extraerRecordatorio(entrada string) (texto string, momento time.Time, ok bool) {
+	return extraerRecordatorioEn(entrada, time.Now())
+}
+
+func extraerRecordatorioEn(entrada string, ahora time.Time) (texto string, momento time.Time, ok bool) {
 	contenido, tieneContenido := contenidoRecordatorio(entrada)
 	if !tieneContenido {
 		return "", time.Time{}, false
 	}
 
-	ahora := time.Now()
 	periodo := ""
 	fechaBase := ahora
 
@@ -111,24 +114,26 @@ func extraerRecordatorio(entrada string) (texto string, momento time.Time, ok bo
 
 	if fechaMatch != nil {
 		switch {
-		case fechaMatch[3] != "":
-			if fechaMatch[3] == "mañana" {
-				fechaBase = ahora.Add(24 * time.Hour)
-			}
 		case fechaMatch[1] != "" && fechaMatch[2] != "":
 			if dia, ok := diasSemana[fechaMatch[2]]; ok {
 				diasHasta := (int(dia) - int(ahora.Weekday()) + 7) % 7
 				if diasHasta == 0 {
+					// la regla diasHasta==0 → +7 significa "el jueves hoy agenda para la semana que viene"
 					diasHasta = 7
 				}
 				fechaBase = ahora.Add(time.Duration(diasHasta) * 24 * time.Hour)
 			}
-		case fechaMatch[6] != "":
-			if fechaMatch[6] == "pasado mañana" || fechaMatch[6] == "pasado manana" {
+		case fechaMatch[3] != "":
+			switch fechaMatch[3] {
+			case "mañana":
+				fechaBase = ahora.Add(24 * time.Hour)
+			case "pasado mañana", "pasado manana":
 				fechaBase = ahora.Add(48 * time.Hour)
 			}
-		case fechaMatch[7] != "":
-			switch fechaMatch[7] {
+		case fechaMatch[4] != "":
+			// periodo es declarativo; el consumidor procesarMemoria (core/memoria_sesion.go) llama
+			// AgregarRecordatorio sin periodo; el wiring a AgregarRecordatorioConPeriodo está fuera de alcance
+			switch fechaMatch[4] {
 			case "cada día", "todos los días":
 				periodo = "diario"
 			case "cada semana", "todas las semanas":
@@ -136,9 +141,12 @@ func extraerRecordatorio(entrada string) (texto string, momento time.Time, ok bo
 			case "cada mes":
 				periodo = "mensual"
 			}
-		case fechaMatch[8] != "" && fechaMatch[9] != "":
-			dia, _ := strconv.Atoi(fechaMatch[8])
-			if mes, ok := meses[fechaMatch[9]]; ok {
+		case fechaMatch[6] != "" && fechaMatch[7] != "":
+			dia, err := strconv.Atoi(fechaMatch[6])
+			if err != nil || dia < 1 || dia > 31 {
+				break
+			}
+			if mes, ok := meses[fechaMatch[7]]; ok {
 				fechaBase = time.Date(ahora.Year(), mes, dia, 0, 0, 0, 0, ahora.Location())
 				if fechaBase.Before(ahora) {
 					fechaBase = fechaBase.AddDate(1, 0, 0)
