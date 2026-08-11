@@ -72,7 +72,11 @@ var prefijosAgregarLista = []string{"agregá ", "agrega ", "añadí ", "añade "
 var prefijosMostrarListas = []string{"mostrame las listas", "mostrame mis listas", "qué listas tengo", "que listas tengo", "mostrar listas"}
 var prefijosMostrarLista = []string{"mostrame la lista de ", "mostrame la lista ", "abrir lista "}
 var prefijosMarcarHecho = []string{"marcá como hecho ", "marca como hecho ", "marcá como completado ", "marca como completado ", "marcá ", "marca "}
-var prefijosBuscarNotas = []string{"buscá en mis notas ", "busca en mis notas ", "buscá en notas ", "busca en notas "}
+var prefijosBuscarNotas = []string{
+	"buscá en mis notas ", "busca en mis notas ", "buscá en notas ", "busca en notas ",
+	"tengo alguna nota sobre ", "tenés alguna nota sobre ", "tenes alguna nota sobre ",
+	"tengo alguna nota sobre", "tenés alguna nota sobre", "tenes alguna nota sobre",
+}
 var prefijosEliminarLista = []string{"eliminá la lista ", "elimina la lista ", "borrá la lista ", "borra la lista "}
 
 func (b *Brain) procesarMemoria(original string) (string, bool) {
@@ -200,6 +204,9 @@ func (b *Brain) procesarMemoria(original string) (string, bool) {
 	if texto, ok := primerPrefijoQueCoincide(entrada, prefijosBuscarNotas); ok {
 		if b.mem == nil {
 			return "No tengo memoria persistente configurada, señor.", true
+		}
+		if texto == "" {
+			return "¿Sobre qué tema quiere que busque, señor?", true
 		}
 		resultados := b.mem.BuscarNotas(texto)
 		if len(resultados) == 0 {

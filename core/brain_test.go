@@ -107,7 +107,16 @@ func (m *memoriaFalsa) CancelarRecordatorios(textoBusqueda string) (int, error) 
 	return cancelados, nil
 }
 
-func (m *memoriaFalsa) BuscarNotas(texto string) []string { return nil }
+func (m *memoriaFalsa) BuscarNotas(texto string) []string {
+	busqueda := strings.ToLower(texto)
+	var resultados []string
+	for _, n := range m.notas {
+		if strings.Contains(strings.ToLower(n), busqueda) {
+			resultados = append(resultados, n)
+		}
+	}
+	return resultados
+}
 func (m *memoriaFalsa) AgregarRecordatorioConPeriodo(texto string, momento time.Time, periodo string) error { return nil }
 func (m *memoriaFalsa) CrearLista(nombre string) error { return nil }
 func (m *memoriaFalsa) AgregarItemLista(nombreLista, item string) error { return nil }
@@ -432,6 +441,57 @@ func TestProcess_ComandoDeMemoria_NoLlegaAHands(t *testing.T) {
 
 	if manos.comandoRecibido != "" {
 		t.Error("un comando de memoria no debería llegar a Hands.RunCommand")
+	}
+}
+
+func TestProcess_BuscarEnMisNotas_ConCoincidencias(t *testing.T) {
+	manos := &manosFalsas{respuesta: "no debería usarse"}
+	mem := nuevaMemoriaFalsa()
+	mem.notas = []string{"tengo reunión el jueves", "comprar pan"}
+	b := NewBrain(manos, BrainOpciones{Memoria: mem})
+
+	got := b.Process("buscá en mis notas pan")
+
+	if !contains(got, "1") {
+		t.Errorf("respuesta = %q, esperaba que mencionara 1 coincidencia", got)
+	}
+	if manos.comandoRecibido != "" {
+		t.Error("una búsqueda en notas no debería llegar a Hands.RunCommand")
+	}
+}
+
+func TestProcess_TengoAlgunaNotaSobre_ConCoincidencias(t *testing.T) {
+	mem := nuevaMemoriaFalsa()
+	mem.notas = []string{"tengo reunión el jueves", "comprar pan"}
+	b := NewBrain(&manosFalsas{}, BrainOpciones{Memoria: mem})
+
+	got := b.Process("tengo alguna nota sobre pan")
+
+	if !contains(got, "1") {
+		t.Errorf("respuesta = %q, esperaba que mencionara 1 coincidencia", got)
+	}
+}
+
+func TestProcess_TengoAlgunaNotaSobre_SinCoincidencias(t *testing.T) {
+	mem := nuevaMemoriaFalsa()
+	mem.notas = []string{"tengo reunión el jueves", "comprar pan"}
+	b := NewBrain(&manosFalsas{}, BrainOpciones{Memoria: mem})
+
+	got := b.Process("tengo alguna nota sobre zzz")
+
+	if !contains(got, "No encontré") {
+		t.Errorf("respuesta = %q, esperaba el mensaje de sin coincidencias", got)
+	}
+}
+
+func TestProcess_BuscarNotas_SinTema(t *testing.T) {
+	mem := nuevaMemoriaFalsa()
+	b := NewBrain(&manosFalsas{}, BrainOpciones{Memoria: mem})
+
+	got := b.Process("tengo alguna nota sobre")
+
+	if !contains(got, "¿Sobre qué tema") {
+		t.Errorf("respuesta = %q, esperaba que pidiera el tema a buscar", got)
 	}
 }
 

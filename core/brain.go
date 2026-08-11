@@ -444,6 +444,7 @@ MEMORIA:
   recordame [algo] el lunes      -> recordatorio para el próximo día
   recordame [algo] cada día      -> recordatorio diario
   buscá en mis notas [texto]     -> busca en notas guardadas
+  tengo alguna nota sobre [texto] -> busca entre las notas guardadas
   poné un timer de [X] min      -> temporizador
   qué recordatorios tengo        -> lista pendientes
   cancelá el recordatorio de [algo] / cancelá todos

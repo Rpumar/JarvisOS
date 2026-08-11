@@ -83,6 +83,43 @@ func TestAgregarYObtenerNotas(t *testing.T) {
 	}
 }
 
+func TestBuscarNotas(t *testing.T) {
+	a, _ := nuevoAlmacenTest(t)
+	defer a.Cerrar()
+
+	if err := a.AgregarNota("tengo reunión el jueves"); err != nil {
+		t.Fatalf("no se esperaba error: %v", err)
+	}
+	if err := a.AgregarNota("comprar pan"); err != nil {
+		t.Fatalf("no se esperaba error: %v", err)
+	}
+
+	notas := a.BuscarNotas("pan")
+	if len(notas) != 1 {
+		t.Fatalf("len(notas) = %d, esperaba 1", len(notas))
+	}
+	if !strings.Contains(notas[0], "pan") {
+		t.Errorf("notas[0] = %q, esperaba que contuviera 'pan'", notas[0])
+	}
+
+	notas = a.BuscarNotas("reunión")
+	if len(notas) != 1 {
+		t.Fatalf("len(notas) = %d, esperaba 1", len(notas))
+	}
+	if !strings.Contains(notas[0], "reunión") {
+		t.Errorf("notas[0] = %q, esperaba que contuviera 'reunión'", notas[0])
+	}
+
+	if notas = a.BuscarNotas("zzz"); len(notas) != 0 {
+		t.Errorf("len(notas) = %d, esperaba 0", len(notas))
+	}
+
+	notas = a.BuscarNotas("PAN")
+	if len(notas) != 1 {
+		t.Errorf("len(notas) = %d, esperaba 1 (búsqueda case-insensitive)", len(notas))
+	}
+}
+
 func TestPersistenciaRealEntreInstancias(t *testing.T) {
 	ruta := filepath.Join(t.TempDir(), "memoria.db")
 
