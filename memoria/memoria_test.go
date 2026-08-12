@@ -205,6 +205,51 @@ func TestMarcarCumplido_YaNoAparecePendiente(t *testing.T) {
 	}
 }
 
+func TestRecordatorioRecurrente_MarcarCumplidoGeneraSiguiente(t *testing.T) {
+	a, _ := nuevoAlmacenTest(t)
+	defer a.Cerrar()
+
+	ahora := time.Now()
+	hoy08 := time.Date(ahora.Year(), ahora.Month(), ahora.Day(), 8, 0, 0, 0, ahora.Location())
+	hoy0805 := hoy08.Add(5 * time.Minute)
+	manana0805 := hoy08.AddDate(0, 0, 1).Add(5 * time.Minute)
+
+	if err := a.AgregarRecordatorioConPeriodo("pastilla", hoy08, "diario"); err != nil {
+		t.Fatalf("no se esperaba error: %v", err)
+	}
+
+	pendientes := a.RecordatoriosPendientes(hoy0805)
+	if len(pendientes) != 1 {
+		t.Fatalf("a las 08:05 esperaba 1 pendiente, hay %d", len(pendientes))
+	}
+	id := pendientes[0].ID
+
+	if err := a.MarcarCumplido(id); err != nil {
+		t.Fatalf("no se esperaba error al marcar cumplido: %v", err)
+	}
+
+	var total int
+	if err := a.db.QueryRow("SELECT COUNT(*) FROM recordatorios WHERE id = ?", id).Scan(&total); err != nil {
+		t.Fatalf("no se pudo contar las filas: %v", err)
+	}
+	if total != 1 {
+		t.Errorf("COUNT(*) = %d, esperaba 1 (misma fila reprogramada, sin duplicados)", total)
+	}
+
+	pendientes = a.RecordatoriosPendientes(hoy0805)
+	if len(pendientes) != 0 {
+		t.Errorf("tras marcarlo cumplido a las 08:05 no debería quedar pendiente, hay %d", len(pendientes))
+	}
+
+	pendientes = a.RecordatoriosPendientes(manana0805)
+	if len(pendientes) != 1 {
+		t.Fatalf("esperaba 1 pendiente mañana a las 08:05, hay %d", len(pendientes))
+	}
+	if pendientes[0].Cumplido {
+		t.Error("el recordatorio reprogramado no debería aparecer como cumplido")
+	}
+}
+
 func TestRecordatorios_SobrevivenAlRecargar(t *testing.T) {
 	ruta := filepath.Join(t.TempDir(), "memoria.db")
 	momento := time.Now().Add(2 * time.Hour)

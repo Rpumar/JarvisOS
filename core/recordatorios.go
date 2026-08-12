@@ -96,17 +96,34 @@ func proximaOcurrencia(hora, minuto int, ahora time.Time) time.Time {
 	return candidato
 }
 
-func extraerRecordatorio(entrada string) (texto string, momento time.Time, ok bool) {
+func normalizarOrdenInvertido(entrada string) string {
+	lower := strings.ToLower(entrada)
+	for _, p := range prefijosRecordatorio {
+		idx := strings.Index(lower, p)
+		if idx <= 0 {
+			continue
+		}
+		antes := strings.TrimRight(lower[:idx], " ,.;\n\t")
+		if !patronHora.MatchString(antes) && !patronFecha.MatchString(antes) {
+			continue
+		}
+		antesOriginal := strings.TrimRight(entrada[:idx], " ,.;\n\t")
+		return entrada[idx:] + " " + antesOriginal
+	}
+	return entrada
+}
+
+func extraerRecordatorio(entrada string) (texto, periodo string, momento time.Time, ok bool) {
 	return extraerRecordatorioEn(entrada, time.Now())
 }
 
-func extraerRecordatorioEn(entrada string, ahora time.Time) (texto string, momento time.Time, ok bool) {
+func extraerRecordatorioEn(entrada string, ahora time.Time) (texto, periodo string, momento time.Time, ok bool) {
+	entrada = normalizarOrdenInvertido(entrada)
 	contenido, tieneContenido := contenidoRecordatorio(entrada)
 	if !tieneContenido {
-		return "", time.Time{}, false
+		return "", "", time.Time{}, false
 	}
 
-	periodo := ""
 	fechaBase := ahora
 
 	fechaLower := strings.ToLower(contenido)
@@ -131,8 +148,6 @@ func extraerRecordatorioEn(entrada string, ahora time.Time) (texto string, momen
 				fechaBase = ahora.Add(48 * time.Hour)
 			}
 		case fechaMatch[4] != "":
-			// periodo es declarativo; el consumidor procesarMemoria (core/memoria_sesion.go) llama
-			// AgregarRecordatorio sin periodo; el wiring a AgregarRecordatorioConPeriodo está fuera de alcance
 			switch fechaMatch[4] {
 			case "cada día", "todos los días":
 				periodo = "diario"
@@ -159,41 +174,36 @@ func extraerRecordatorioEn(entrada string, ahora time.Time) (texto string, momen
 	if ubicacion == nil {
 		if periodo != "" {
 			texto = strings.TrimSpace(contenido)
-			_ = patronFecha.ReplaceAllString(texto, "")
 			texto = strings.TrimSpace(patronFecha.ReplaceAllString(texto, ""))
 			if texto == "" {
-				return "", time.Time{}, false
+				return "", "", time.Time{}, false
 			}
-			return texto, proximaOcurrencia(9, 0, fechaBase), true
+			return texto, periodo, proximaOcurrencia(9, 0, fechaBase), true
 		}
-		return "", time.Time{}, false
+		return "", "", time.Time{}, false
 	}
 
 	match := patronHora.FindStringSubmatch(contenido)
 	hora, minuto, okHora := parsearHora(match)
 	if !okHora {
-		return "", time.Time{}, false
+		return "", "", time.Time{}, false
 	}
 
 	texto = strings.TrimSpace(contenido[:ubicacion[0]])
 	texto = strings.TrimSpace(patronFecha.ReplaceAllString(texto, ""))
 	if texto == "" {
-		return "", time.Time{}, false
+		return "", "", time.Time{}, false
 	}
 
 	momento = time.Date(fechaBase.Year(), fechaBase.Month(), fechaBase.Day(), hora, minuto, 0, 0, ahora.Location())
 	if !fechaBase.Equal(ahora) && momento.Before(ahora) {
-		return "", time.Time{}, false
+		return "", "", time.Time{}, false
 	}
 	if fechaBase.Equal(ahora) && momento.Before(ahora) {
 		momento = momento.Add(24 * time.Hour)
 	}
 
-	if periodo != "" {
-		return texto, momento, true
-	}
-
-	return texto, momento, true
+	return texto, periodo, momento, true
 }
 
 var patronDuracion = regexp.MustCompile(`(\d+)\s*(minutos?|segundos?|horas?)`)

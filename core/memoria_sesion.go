@@ -93,12 +93,21 @@ func (b *Brain) procesarMemoria(original string) (string, bool) {
 		return fmt.Sprintf("Timer de %s en marcha, señor.", duracion), true
 	}
 
-	if texto, momento, ok := extraerRecordatorio(original); ok {
+	if texto, periodo, momento, ok := extraerRecordatorio(original); ok {
 		if b.mem == nil {
 			return "No tengo memoria persistente configurada, señor.", true
 		}
-		if err := b.mem.AgregarRecordatorio(texto, momento); err != nil {
+		var err error
+		if periodo != "" {
+			err = b.mem.AgregarRecordatorioConPeriodo(texto, momento, periodo)
+		} else {
+			err = b.mem.AgregarRecordatorio(texto, momento)
+		}
+		if err != nil {
 			return fmt.Sprintf("No pude programar el recordatorio, señor: %v", err), true
+		}
+		if periodo != "" {
+			return fmt.Sprintf("Anotado, señor. Le aviso %s a las %s.", periodoLegible(periodo), momento.Format("15:04")), true
 		}
 		return fmt.Sprintf("Anotado, señor. Le aviso el %s a las %s.", momento.Format("2006-01-02"), momento.Format("15:04")), true
 	}
@@ -290,6 +299,18 @@ func (b *Brain) procesarMemoria(original string) (string, bool) {
 	}
 
 	return "", false
+}
+
+func periodoLegible(periodo string) string {
+	switch periodo {
+	case "diario":
+		return "todos los días"
+	case "semanal":
+		return "todas las semanas"
+	case "mensual":
+		return "todos los meses"
+	}
+	return periodo
 }
 
 type itemCompleto struct {

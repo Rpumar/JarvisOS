@@ -197,15 +197,6 @@ func (a *Almacen) RecordatoriosPendientes(ahora time.Time) []Recordatorio {
 			continue
 		}
 		r := Recordatorio{ID: id, Texto: texto, Momento: momento, Cumplido: false, Periodo: periodo}
-		if periodo != "" {
-			pendientes = append(pendientes, r)
-			nuevoMomento := siguienteOcurrencia(momento, periodo, ahora)
-			_, _ = a.db.Exec(
-				"UPDATE recordatorios SET momento = ? WHERE id = ?",
-				nuevoMomento.Format(time.RFC3339), id,
-			)
-			continue
-		}
 		pendientes = append(pendientes, r)
 	}
 	return pendientes
@@ -238,7 +229,21 @@ func siguienteOcurrencia(ultima time.Time, periodo string, ahora time.Time) time
 func (a *Almacen) MarcarCumplido(id int64) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	_, err := a.db.Exec("UPDATE recordatorios SET cumplido = 1 WHERE id = ?", id)
+	var momentoStr, periodo string
+	err := a.db.QueryRow("SELECT momento, periodo FROM recordatorios WHERE id = ?", id).Scan(&momentoStr, &periodo)
+	if err != nil {
+		return err
+	}
+	if periodo == "" {
+		_, err = a.db.Exec("UPDATE recordatorios SET cumplido = 1 WHERE id = ?", id)
+		return err
+	}
+	momento, err := time.Parse(time.RFC3339, momentoStr)
+	if err != nil {
+		return err
+	}
+	proximo := siguienteOcurrencia(momento, periodo, time.Now())
+	_, err = a.db.Exec("UPDATE recordatorios SET momento = ? WHERE id = ?", proximo.Format(time.RFC3339), id)
 	return err
 }
 

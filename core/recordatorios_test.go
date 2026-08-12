@@ -21,7 +21,7 @@ func TestExtraerRecordatorio_CasosValidos(t *testing.T) {
 	}
 
 	for _, c := range casos {
-		texto, momento, ok := extraerRecordatorio(c.entrada)
+		texto, _, momento, ok := extraerRecordatorio(c.entrada)
 		if !ok {
 			t.Errorf("extraerRecordatorio(%q): esperaba ok=true, fue false", c.entrada)
 			continue
@@ -46,7 +46,7 @@ func TestExtraerRecordatorio_CasosInvalidos(t *testing.T) {
 	}
 
 	for _, entrada := range casos {
-		if _, _, ok := extraerRecordatorio(entrada); ok {
+		if _, _, _, ok := extraerRecordatorio(entrada); ok {
 			t.Errorf("extraerRecordatorio(%q): esperaba ok=false, fue true", entrada)
 		}
 	}
@@ -58,32 +58,36 @@ func TestExtraerRecordatorio_Fechas(t *testing.T) {
 	ahoraAgosto := time.Date(2026, time.August, 11, 15, 0, 0, 0, time.UTC)
 
 	casos := []struct {
-		entrada  string
-		ahora    time.Time
-		esperado time.Time
-		ok       bool
+		entrada         string
+		ahora           time.Time
+		esperado        time.Time
+		periodoEsperado string
+		ok              bool
 	}{
-		{"recordame llamar a mamá el jueves a las 5", now, time.Date(2026, time.July, 23, 5, 0, 0, 0, time.UTC), true},
-		{"recordame X el jueves a las 17", now, time.Date(2026, time.July, 23, 17, 0, 0, 0, time.UTC), true},
-		{"recordame llamar a mamá el jueves a las 5", ahoraJueves, time.Date(2026, time.July, 30, 5, 0, 0, 0, time.UTC), true},
-		{"recordame sacar la basura mañana a las 9", now, time.Date(2026, time.July, 23, 9, 0, 0, 0, time.UTC), true},
-		{"recordame X pasado mañana a las 9", now, time.Date(2026, time.July, 24, 9, 0, 0, 0, time.UTC), true},
-		{"recordame X pasado manana a las 9", now, time.Date(2026, time.July, 24, 9, 0, 0, 0, time.UTC), true},
-		{"recordame llamar a mamá el 25 de julio a las 14:30", now, time.Date(2026, time.July, 25, 14, 30, 0, 0, time.UTC), true},
-		{"recordame X el 25 de julio a las 14:30", ahoraAgosto, time.Date(2027, time.July, 25, 14, 30, 0, 0, time.UTC), true},
-		{"recordame tomar agua cada día a las 8", now, time.Date(2026, time.July, 23, 8, 0, 0, 0, time.UTC), true},
-		{"recordame X cada semana a las 9", now, time.Date(2026, time.July, 23, 9, 0, 0, 0, time.UTC), true},
-		{"recordame X cada día", now, time.Time{}, true},
+		{"recordame llamar a mamá el jueves a las 5", now, time.Date(2026, time.July, 23, 5, 0, 0, 0, time.UTC), "", true},
+		{"recordame X el jueves a las 17", now, time.Date(2026, time.July, 23, 17, 0, 0, 0, time.UTC), "", true},
+		{"recordame llamar a mamá el jueves a las 5", ahoraJueves, time.Date(2026, time.July, 30, 5, 0, 0, 0, time.UTC), "", true},
+		{"recordame sacar la basura mañana a las 9", now, time.Date(2026, time.July, 23, 9, 0, 0, 0, time.UTC), "", true},
+		{"recordame X pasado mañana a las 9", now, time.Date(2026, time.July, 24, 9, 0, 0, 0, time.UTC), "", true},
+		{"recordame X pasado manana a las 9", now, time.Date(2026, time.July, 24, 9, 0, 0, 0, time.UTC), "", true},
+		{"recordame llamar a mamá el 25 de julio a las 14:30", now, time.Date(2026, time.July, 25, 14, 30, 0, 0, time.UTC), "", true},
+		{"recordame X el 25 de julio a las 14:30", ahoraAgosto, time.Date(2027, time.July, 25, 14, 30, 0, 0, time.UTC), "", true},
+		{"recordame tomar agua cada día a las 8", now, time.Date(2026, time.July, 23, 8, 0, 0, 0, time.UTC), "diario", true},
+		{"recordame X cada semana a las 9", now, time.Date(2026, time.July, 23, 9, 0, 0, 0, time.UTC), "semanal", true},
+		{"recordame X cada día", now, time.Time{}, "diario", true},
 	}
 
 	for _, c := range casos {
-		_, momento, ok := extraerRecordatorioEn(c.entrada, c.ahora)
+		_, periodo, momento, ok := extraerRecordatorioEn(c.entrada, c.ahora)
 		if ok != c.ok {
 			t.Errorf("extraerRecordatorioEn(%q): ok = %v, esperaba %v", c.entrada, ok, c.ok)
 			continue
 		}
 		if !ok {
 			continue
+		}
+		if periodo != c.periodoEsperado {
+			t.Errorf("extraerRecordatorioEn(%q): periodo = %q, esperaba %q", c.entrada, periodo, c.periodoEsperado)
 		}
 		if c.esperado.IsZero() {
 			if momento.IsZero() {
@@ -94,6 +98,35 @@ func TestExtraerRecordatorio_Fechas(t *testing.T) {
 		if !momento.Equal(c.esperado) {
 			t.Errorf("extraerRecordatorioEn(%q): momento = %v, esperaba %v", c.entrada, momento, c.esperado)
 		}
+	}
+}
+
+func TestExtraerRecordatorio_OrdenInvertido(t *testing.T) {
+	texto, periodo, _, ok := extraerRecordatorio("todos los días a las 8, recordame la pastilla")
+	if !ok {
+		t.Fatal("esperaba ok=true para el orden invertido")
+	}
+	if periodo != "diario" {
+		t.Errorf("periodo = %q, esperaba %q", periodo, "diario")
+	}
+	if texto != "la pastilla" {
+		t.Errorf("texto = %q, esperaba %q", texto, "la pastilla")
+	}
+
+	now := time.Date(2026, time.July, 22, 15, 0, 0, 0, time.UTC)
+	texto, periodo, momento, ok := extraerRecordatorioEn("recordame tomar la pastilla todos los días a las 8", now)
+	if !ok {
+		t.Fatal("esperaba ok=true para el orden normal")
+	}
+	if periodo != "diario" {
+		t.Errorf("periodo = %q, esperaba %q", periodo, "diario")
+	}
+	esperado := time.Date(2026, time.July, 23, 8, 0, 0, 0, time.UTC)
+	if !momento.Equal(esperado) {
+		t.Errorf("momento = %v, esperaba %v", momento, esperado)
+	}
+	if texto != "tomar la pastilla" {
+		t.Errorf("texto = %q, esperaba %q", texto, "tomar la pastilla")
 	}
 }
 

@@ -49,6 +49,7 @@ type memoriaFalsa struct {
 type recordatorioFalso struct {
 	texto   string
 	momento time.Time
+	periodo string
 }
 
 func nuevaMemoriaFalsa() *memoriaFalsa {
@@ -81,7 +82,11 @@ func (m *memoriaFalsa) AgregarNota(texto string) error {
 func (m *memoriaFalsa) ObtenerNotas() []string { return m.notas }
 
 func (m *memoriaFalsa) AgregarRecordatorio(texto string, momento time.Time) error {
-	m.recordatorios = append(m.recordatorios, recordatorioFalso{texto: texto, momento: momento})
+	return m.AgregarRecordatorioConPeriodo(texto, momento, "")
+}
+
+func (m *memoriaFalsa) AgregarRecordatorioConPeriodo(texto string, momento time.Time, periodo string) error {
+	m.recordatorios = append(m.recordatorios, recordatorioFalso{texto: texto, momento: momento, periodo: periodo})
 	return nil
 }
 
@@ -117,7 +122,6 @@ func (m *memoriaFalsa) BuscarNotas(texto string) []string {
 	}
 	return resultados
 }
-func (m *memoriaFalsa) AgregarRecordatorioConPeriodo(texto string, momento time.Time, periodo string) error { return nil }
 func (m *memoriaFalsa) CrearLista(nombre string) error { return nil }
 func (m *memoriaFalsa) AgregarItemLista(nombreLista, item string) error { return nil }
 func (m *memoriaFalsa) MarcarItemLista(nombreLista, item string) (string, error) { return "", nil }
@@ -651,6 +655,46 @@ func TestProcess_RecordameConHora_ProgramaRecordatorio(t *testing.T) {
 	}
 	if !contains(got, "17") {
 		t.Errorf("respuesta = %q, esperaba que confirmara la hora programada", got)
+	}
+}
+
+func TestProcess_RecordameRecurrente_ProgramaConPeriodo(t *testing.T) {
+	mem := nuevaMemoriaFalsa()
+	b := NewBrain(&manosFalsas{}, BrainOpciones{Memoria: mem})
+
+	got := b.Process("recordame la pastilla todos los días a las 8")
+
+	if len(mem.recordatorios) != 1 {
+		t.Fatalf("se esperaba 1 recordatorio programado, hay %d", len(mem.recordatorios))
+	}
+	if mem.recordatorios[0].periodo != "diario" {
+		t.Errorf("periodo = %q, esperaba %q", mem.recordatorios[0].periodo, "diario")
+	}
+	if mem.recordatorios[0].texto != "la pastilla" {
+		t.Errorf("texto = %q, esperaba %q", mem.recordatorios[0].texto, "la pastilla")
+	}
+	if !contains(got, "todos los días") {
+		t.Errorf("respuesta = %q, esperaba que confirmara el periodo", got)
+	}
+}
+
+func TestProcess_RecordameOrdenInvertido_ProgramaConPeriodo(t *testing.T) {
+	mem := nuevaMemoriaFalsa()
+	b := NewBrain(&manosFalsas{}, BrainOpciones{Memoria: mem})
+
+	got := b.Process("todos los días a las 8, recordame la pastilla")
+
+	if len(mem.recordatorios) != 1 {
+		t.Fatalf("se esperaba 1 recordatorio programado, hay %d", len(mem.recordatorios))
+	}
+	if mem.recordatorios[0].periodo != "diario" {
+		t.Errorf("periodo = %q, esperaba %q", mem.recordatorios[0].periodo, "diario")
+	}
+	if mem.recordatorios[0].texto != "la pastilla" {
+		t.Errorf("texto = %q, esperaba %q", mem.recordatorios[0].texto, "la pastilla")
+	}
+	if !contains(got, "todos los días") {
+		t.Errorf("respuesta = %q, esperaba que confirmara el periodo", got)
 	}
 }
 
