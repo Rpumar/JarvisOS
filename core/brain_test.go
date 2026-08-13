@@ -242,6 +242,21 @@ func TestProcess_SinConectorIA_MensajeGenerico(t *testing.T) {
 	}
 }
 
+func TestProcess_FraseRara_FallbackIA(t *testing.T) {
+	manos := &manosFalsas{respuesta: ComandoNoReconocido}
+	ia := &iaFalsa{disponible: true, respuesta: "La gravedad curva el espacio-tiempo, señor."}
+	b := NewBrain(manos, BrainOpciones{IA: ia})
+
+	got := b.Process("qué es un agujero negro")
+
+	if got != "La gravedad curva el espacio-tiempo, señor." {
+		t.Errorf("respuesta = %q, esperaba el respaldo de IA", got)
+	}
+	if ia.consultaRecibida == "" {
+		t.Error("se esperaba que se consultara la IA, pero no se llamó")
+	}
+}
+
 func TestProcess_IANoDisponible_NoSeConsulta(t *testing.T) {
 	manos := &manosFalsas{respuesta: ComandoNoReconocido}
 	ia := &iaFalsa{disponible: false, respuesta: "esto no debería devolverse"}

@@ -101,7 +101,7 @@ func defaultConfig() *Config {
 		Timeout:                30 * time.Second,
 		RutaMemoria:            filepath.Join(DatosDir(), "memoria.json"),
 		MaxHistorialIA:         20,
-		ModeloIA:               "qwen2.5-coder:7b",
+		ModeloIA:               "mistral:latest",
 		IAURL:                  "",
 		IAAPIKey:               "",
 		WorkspaceRoot:          filepath.Join(os.Getenv("USERPROFILE"), "Desktop"),

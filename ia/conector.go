@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"JarvisOS/core"
@@ -14,12 +15,18 @@ import (
 
 const urlOllamaV1 = "http://localhost:11434/v1"
 
+// ttlProbe es cuánto tiempo se cachea el resultado de la última prueba de
+// disponibilidad antes de re-probear (permite que Ollama arranque después).
+const ttlProbe = 30 * time.Second
+
 type Conector struct {
 	httpClient *http.Client
 	baseURL    string
 	apiKey     string
 	modelo     string
 	disponible bool
+	mu         sync.Mutex
+	probeTime  time.Time
 }
 
 func NuevoConector(modelo string, timeout time.Duration, baseURL, apiKey string) *Conector {
@@ -43,20 +50,53 @@ func NuevoConector(modelo string, timeout time.Duration, baseURL, apiKey string)
 }
 
 func (c *Conector) probe() {
+	c.mu.Lock()
+	c.probeTime = time.Now()
+	c.mu.Unlock()
+
+	resultado := c.probarServicio()
+
+	c.mu.Lock()
+	c.disponible = resultado
+	c.mu.Unlock()
+}
+
+// probarServicio consulta /models y devuelve true si el backend responde 2xx
+// con un body legible.
+func (c *Conector) probarServicio() bool {
+	if strings.TrimSpace(c.baseURL) == "" {
+		return false
+	}
 	cliente := &http.Client{Timeout: 5 * time.Second}
 	resp, err := cliente.Get(c.baseURL + "/models")
 	if err != nil {
-		return
+		return false
 	}
 	defer resp.Body.Close()
 	if _, err := io.Copy(io.Discard, resp.Body); err != nil {
-		return
+		return false
 	}
-	c.disponible = true
+	return resp.StatusCode >= 200 && resp.StatusCode < 300
 }
 
 func (c *Conector) Disponible() bool {
-	return c.disponible
+	c.mu.Lock()
+	if time.Since(c.probeTime) < ttlProbe {
+		disponible := c.disponible
+		c.mu.Unlock()
+		return disponible
+	}
+	// Se marca el probe ANTES del HTTP para que, si el TTL venció, varias
+	// goroutines no golpeen el backend a la vez: solo una re-probea.
+	c.probeTime = time.Now()
+	c.mu.Unlock()
+
+	resultado := c.probarServicio()
+
+	c.mu.Lock()
+	c.disponible = resultado
+	c.mu.Unlock()
+	return resultado
 }
 
 func (c *Conector) Modelo() string {
@@ -81,14 +121,14 @@ type respuestaChat struct {
 }
 
 func (c *Conector) Consultar(prompt string, historial []core.TurnoConversacion) (string, error) {
-	if !c.disponible {
+	if !c.Disponible() {
 		return "", fmt.Errorf("no hay IA disponible (%s no responde)", c.baseURL)
 	}
 	return c.consultarIA(prompt, historial)
 }
 
 func (c *Conector) Chat(system, user string) (string, error) {
-	if !c.disponible {
+	if !c.Disponible() {
 		return "", fmt.Errorf("la IA no está disponible")
 	}
 	cuerpo := peticionChat{

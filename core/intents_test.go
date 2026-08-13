@@ -125,6 +125,54 @@ func TestClasificarArmas(t *testing.T) {
 	}
 }
 
+func TestClasificarVariacionesNaturales(t *testing.T) {
+	casos := []struct {
+		entrada  string
+		esperado string
+	}{
+		{"súbele al volumen", "volumen_subir"},
+		{"subi el volumen", "volumen_subir"},
+		{"bajale el volumen", "volumen_bajar"},
+		{"bajame el volumen", "volumen_bajar"},
+		{"dame menos volumen", "volumen_bajar"},
+		{"súbele", "volumen_subir"},
+		{"mas alto", "volumen_subir"},
+		{"subilo", "volumen_subir"},
+		{"bájale", "volumen_bajar"},
+		{"mas bajo", "volumen_bajar"},
+		{"continuá la musica", "play_pause"},
+		{"reproducí la playlist", "play_pause"},
+		{"pasa a la siguiente", "siguiente_cancion"},
+		{"volve para atras", "cancion_anterior"},
+		{"me decis la hora", "hora"},
+		{"tenes hora", "hora"},
+		{"que tiempo hace", "clima"},
+		{"cuantos grados hace", "clima"},
+		{"sube el brillo", ""},
+		{"baja el brillo", ""},
+		{"subi el brillo", ""},
+		{"bajame el brillo", ""},
+		{"subele el brillo", ""},
+		{"bajele el brillo", ""},
+		{"la hora del partido", ""},
+		{"cuanto falta para las 8", ""},
+		{"el pdf del contrato", ""},
+	}
+	c := NuevoClasificador()
+	for _, cso := range casos {
+		nombre, ok := c.Clasificar(cso.entrada)
+		if cso.esperado == "" {
+			if ok {
+				t.Errorf("entrada %q: esperado sin match, obtuve %q", cso.entrada, nombre)
+			}
+			continue
+		}
+		if !ok || nombre != cso.esperado {
+			t.Errorf("entrada %q: esperado %q, obtuve ok=%v nombre=%q", cso.entrada, cso.esperado, ok, nombre)
+		}
+	}
+}
+
 func TestClasificarHora(t *testing.T) {
 	casos := []struct {
 		entrada  string

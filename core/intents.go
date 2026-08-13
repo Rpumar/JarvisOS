@@ -13,7 +13,11 @@ type Intento struct {
 	Nombre   string
 	Frases   []string
 	Palabras []string
-	Handler  IntentoHandler
+	// ContextoRequerido: si no está vacío, la entrada debe contener al menos
+	// una de estas palabras para que el intento matchee. Evita que el voseo
+	// ambiguo de volumen ("subi el brillo") dispare acciones de audio.
+	ContextoRequerido []string
+	Handler           IntentoHandler
 }
 
 type Clasificador struct {
@@ -53,14 +57,16 @@ func NuevoClasificador() *Clasificador {
 		},
 		{
 			Nombre:   "volumen_subir",
-			Frases:   []string{"subir volumen", "súbele", "subile", "mas alto", "más alto", "aumenta volumen", "volumen arriba", "ponelo mas fuerte"},
-			Palabras: []string{"subir", "súbele", "subile", "aumenta"},
+			Frases:   []string{"subir volumen", "súbele", "subile", "mas alto", "más alto", "aumenta volumen", "volumen arriba", "ponelo mas fuerte", "subele el volumen", "subi el volumen", "subilo", "subime el volumen", "dame mas volumen", "dale mas volumen", "mas volumen", "sube el volumen"},
+			Palabras: []string{"subir", "súbele", "subile", "aumenta", "subele", "subilo", "subime"},
+			ContextoRequerido: []string{"volumen", "sonido", "audio", "musica", "cancion"},
 			Handler:  func(cmd string, h *Hands) string { return h.volumen("up") },
 		},
 		{
 			Nombre:   "volumen_bajar",
-			Frases:   []string{"bajar volumen", "bájale", "bajale", "mas bajo", "más bajo", "reduce volumen", "volumen abajo"},
-			Palabras: []string{"bajar", "bájale", "bajale", "reduce"},
+			Frases:   []string{"bajar volumen", "bájale", "bajale", "mas bajo", "más bajo", "reduce volumen", "volumen abajo", "bajele el volumen", "baja el volumen", "bajalo", "bajame el volumen", "dame menos volumen", "menos volumen"},
+			Palabras: []string{"bajar", "bájale", "bajale", "reduce", "bajele", "bajalo", "bajame"},
+			ContextoRequerido: []string{"volumen", "sonido", "audio", "musica", "cancion"},
 			Handler:  func(cmd string, h *Hands) string { return h.volumen("down") },
 		},
 		{
@@ -71,31 +77,31 @@ func NuevoClasificador() *Clasificador {
 		},
 		{
 			Nombre:   "play_pause",
-			Frases:   []string{"pausar", "reproducir", "play", "pausa", "seguí", "seguir"},
-			Palabras: []string{"pausar", "reproducir", "pausa", "play"},
+			Frases:   []string{"pausar", "reproducir", "play", "pausa", "seguí", "seguir", "segui con la musica", "continua la musica", "reproduci", "reanuda la musica", "pone play", "dame play"},
+			Palabras: []string{"pausar", "reproducir", "pausa", "play", "continuar", "reanudar"},
 			Handler:  func(cmd string, h *Hands) string { return h.controlMedia("play_pause") },
 		},
 		{
 			Nombre:   "siguiente_cancion",
-			Frases:   []string{"siguiente canción", "siguiente cancion", "próximo tema", "proximo tema", "pasá", "pasa", "siguiente tema", "adelante"},
-			Palabras: []string{"siguiente", "próximo", "proximo", "adelante"},
+			Frases:   []string{"siguiente canción", "siguiente cancion", "próximo tema", "proximo tema", "pasá", "pasa", "siguiente tema", "adelante", "pasa de tema", "cambia de cancion", "la siguiente", "a la siguiente", "otra cancion", "siguiente pista", "proxima pista", "adelanta la cancion", "salta a la siguiente"},
+			Palabras: []string{"siguiente", "próximo", "proximo", "adelante", "adelanta"},
 			Handler:  func(cmd string, h *Hands) string { return h.controlMedia("next") },
 		},
 		{
 			Nombre:   "cancion_anterior",
-			Frases:   []string{"canción anterior", "cancion anterior", "tema anterior", "volvé", "volve", "atrás", "anterior"},
+			Frases:   []string{"canción anterior", "cancion anterior", "tema anterior", "volvé", "volve", "atrás", "anterior", "la anterior", "volve para atras", "retrocede", "la de antes", "volve a la anterior", "tema de antes", "la cancion de antes"},
 			Palabras: []string{"anterior", "volvé", "volve", "atrás"},
 			Handler:  func(cmd string, h *Hands) string { return h.controlMedia("prev") },
 		},
 		{
 			Nombre:   "hora",
-			Frases:   []string{"qué hora es", "que hora es", "decime la hora", "decí la hora", "deci la hora", "hora actual", "que hora tenés", "qué hora tenes"},
+			Frases:   []string{"qué hora es", "que hora es", "decime la hora", "decí la hora", "deci la hora", "hora actual", "que hora tenés", "qué hora tenes", "decime que hora es", "me decis la hora", "tenes hora", "que hora es ahora"},
 			Palabras: []string{"hora"},
 			Handler:  func(cmd string, h *Hands) string { return h.decirHora() },
 		},
 		{
 			Nombre:   "fecha",
-			Frases:   []string{"qué fecha es", "que fecha es", "decime la fecha", "decí la fecha", "deci la fecha", "fecha actual", "fecha de hoy", "a qué día estamos", "que dia es hoy", "qué día es hoy"},
+			Frases:   []string{"qué fecha es", "que fecha es", "decime la fecha", "decí la fecha", "deci la fecha", "fecha actual", "fecha de hoy", "a qué día estamos", "que dia es hoy", "qué día es hoy", "hoy que dia es", "cual es la fecha de hoy", "me decis la fecha", "a que dia es hoy"},
 			Palabras: []string{"fecha", "día", "dia", "estamos"},
 			Handler:  func(cmd string, h *Hands) string { return h.decirFecha() },
 		},
@@ -202,8 +208,8 @@ func NuevoClasificador() *Clasificador {
 		},
 		{
 			Nombre:   "clima",
-			Frases:   []string{"qué clima hace", "que clima hace", "cómo está el clima", "como esta el clima", "clima", "temperatura", "qué temperatura hace", "que temperatura hace", "qué calor", "que calor", "qué frío", "que frio", "está lloviendo", "va a llover"},
-			Palabras: []string{"clima", "temperatura", "calor", "frío", "frio", "lloviendo", "llover", "pronóstico"},
+			Frases:   []string{"qué clima hace", "que clima hace", "cómo está el clima", "como esta el clima", "clima", "temperatura", "qué temperatura hace", "que temperatura hace", "qué calor", "que calor", "qué frío", "que frio", "está lloviendo", "va a llover", "como esta el tiempo", "que tiempo hace", "esta nublado", "cuantos grados hace", "como viene el clima", "clima para hoy", "pronostico para hoy"},
+			Palabras: []string{"clima", "temperatura", "calor", "frío", "frio", "lloviendo", "llover", "pronóstico", "tiempo", "nublado", "grados"},
 			Handler:  func(cmd string, h *Hands) string { return h.consultarClima() },
 		},
 		{
@@ -721,12 +727,24 @@ func (c *Clasificador) Clasificar(entrada string) (string, bool) {
 	entrada = simplificar(entrada)
 
 	for _, intento := range c.intentos {
-		if matchPorFrase(entrada, intento.Frases) {
+		if contextoPresente(entrada, intento.ContextoRequerido) {
+			if matchPorFrase(entrada, intento.Frases) {
+				return intento.Nombre, true
+			}
+			continue
+		}
+		// Sin contexto de dominio se aceptan solo comandos cortos literales
+		// ("súbele", "mas alto"): recuperan el recall de voz sin reintroducir
+		// el substring ambiguo ("súbele al brillo" sigue bloqueado).
+		if fraseExacta(entrada, intento.Frases) {
 			return intento.Nombre, true
 		}
 	}
 
 	for _, intento := range c.intentos {
+		if !contextoPresente(entrada, intento.ContextoRequerido) {
+			continue
+		}
 		if matchPorPalabras(entrada, intento.Palabras) {
 			return intento.Nombre, true
 		}
@@ -769,24 +787,70 @@ func matchPorFrase(entrada string, frases []string) bool {
 	return false
 }
 
+// contextoPresente devuelve true si el intento no exige contexto o si la
+// entrada contiene alguna de sus palabras de contexto. Permite que dominios
+// ambiguos (volumen) no matcheen frases sueltas en otros dominios (brillo).
+func contextoPresente(entrada string, contexto []string) bool {
+	if len(contexto) == 0 {
+		return true
+	}
+	for _, c := range contexto {
+		if strings.Contains(entrada, simplificar(c)) {
+			return true
+		}
+	}
+	return false
+}
+
+// fraseExacta devuelve true si la entrada coincide literalmente con alguna
+// frase del intento (ambas simplificadas). Distingue comandos cortos
+// ("súbele") de substrings ambiguos ("súbele al brillo").
+func fraseExacta(entrada string, frases []string) bool {
+	for _, f := range frases {
+		if entrada == simplificar(f) {
+			return true
+		}
+	}
+	return false
+}
+
 func matchPorPalabras(entrada string, palabras []string) bool {
-	parts := strings.Fields(entrada)
-	if len(parts) == 0 {
+	// El denominador son TODOS los tokens de la entrada (no solo los
+	// significativos): preserva la rigurosidad actual en frases cortas.
+	tokens := strings.Fields(entrada)
+	if len(tokens) == 0 {
 		return false
 	}
+	var frases, simples []string
+	for _, p := range palabras {
+		p = simplificar(p)
+		if p == "" {
+			continue
+		}
+		if strings.ContainsRune(p, ' ') {
+			frases = append(frases, p)
+		} else {
+			simples = append(simples, p)
+		}
+	}
 	aciertos := 0
-	for _, p := range parts {
-		for _, pal := range palabras {
-			if p == pal {
+	for _, f := range frases {
+		if strings.Contains(entrada, f) {
+			aciertos++
+		}
+	}
+	for _, t := range tokensSignificativos(entrada) {
+		for _, s := range simples {
+			if coincideToken(t, s) {
 				aciertos++
 				break
 			}
 		}
 	}
-	if len(parts) <= 2 {
-		return aciertos >= len(parts)
+	if len(tokens) <= 2 {
+		return aciertos >= len(tokens)
 	}
-	return aciertos >= 1 && aciertos >= len(parts)/2
+	return aciertos >= 1 && aciertos >= len(tokens)/2
 }
 
 func extraerObjeto(entrada string, prefijos []string) string {
