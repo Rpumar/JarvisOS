@@ -33,13 +33,13 @@ try {
     exit 1
 }
 
-Write-Host "[3/3] Descargando modelo qwen2.5-coder:7b (esto puede tomar varios minutos)..."
+Write-Host "[3/3] Descargando modelo mistral:latest (esto puede tomar varios minutos)..."
 try {
-    & "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" pull qwen2.5-coder:7b
+    & "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" pull mistral:latest
     Write-Host " Modelo descargado correctamente."
 } catch {
     Write-Host "[ADVERTENCIA] No se pudo descargar el modelo automaticamente."
-    Write-Host "Ejecute manualmente: ollama pull qwen2.5-coder:7b"
+    Write-Host "Ejecute manualmente: ollama pull mistral:latest"
 }
 
 Write-Host ""
